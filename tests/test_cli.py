@@ -7,7 +7,7 @@ import pytest
 from click.testing import CliRunner
 from syrupy.assertion import SnapshotAssertion
 
-from pkm_tool.cli import main
+from pkm_tool.cli import cli
 
 
 @pytest.fixture
@@ -98,7 +98,7 @@ def test_cli_markdown_output_with_mocks(
 ) -> None:
     """Test CLI markdown output with mocked data sources."""
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -124,7 +124,7 @@ def test_cli_json_output_with_mocks(
 ) -> None:
     """Test CLI JSON output with mocked data sources."""
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -143,7 +143,7 @@ def test_cli_json_output_with_mocks(
 def test_cli_invalid_date(cli_runner: CliRunner, temp_config: Path) -> None:
     """Test CLI with invalid date format."""
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "not-a-date",
@@ -168,7 +168,7 @@ def test_cli_default_date(
 ) -> None:
     """Test CLI with default date (today)."""
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--format",
             "markdown",
@@ -192,7 +192,7 @@ def test_cli_human_readable_date(
 ) -> None:
     """Test CLI with human-readable date format (dateutil supports various formats)."""
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "Nov 21, 2025",
@@ -209,7 +209,9 @@ def test_cli_human_readable_date(
 
 
 @pytest.mark.unit
-def test_cli_missing_config_file(cli_runner: CliRunner, mock_platform_linux: Mock, mocker: Mock) -> None:
+def test_cli_missing_config_file(
+    cli_runner: CliRunner, mock_platform_linux: Mock, mocker: Mock
+) -> None:
     """Test CLI without config file (should use defaults)."""
     # Mock things library to avoid database access
     mocker.patch("things.todos", return_value=[])
@@ -217,7 +219,7 @@ def test_cli_missing_config_file(cli_runner: CliRunner, mock_platform_linux: Moc
     # Mock environment to prevent actual API calls
     # Set all potential API keys to empty to avoid timeouts
     result = cli_runner.invoke(
-        main,
+        cli,
         ["--date", "2025-11-21", "--format", "markdown"],
         env={
             "GITHUB_TOKEN": "",
@@ -247,7 +249,7 @@ def test_cli_with_api_errors(
     mock_github_client.get_user.side_effect = Exception("API connection failed")
 
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -274,7 +276,7 @@ def test_cli_format_option(
     """Test CLI with different format options."""
     # Test markdown format
     result_md = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -289,7 +291,7 @@ def test_cli_format_option(
 
     # Test JSON format
     result_json = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -319,7 +321,7 @@ def test_cli_markdown_output_all_sources(
     complexity in CI environments. Things has dedicated integration tests.
     """
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -350,7 +352,7 @@ def test_cli_json_output_all_sources(
     complexity in CI environments. Things has dedicated integration tests.
     """
     result = cli_runner.invoke(
-        main,
+        cli,
         [
             "--date",
             "2025-11-21",
@@ -368,10 +370,262 @@ def test_cli_json_output_all_sources(
 @pytest.mark.unit
 def test_cli_help(cli_runner: CliRunner) -> None:
     """Test CLI help output."""
-    result = cli_runner.invoke(main, ["--help"])
+    result = cli_runner.invoke(cli, ["--help"])
 
     assert result.exit_code == 0
     assert "Personal Knowledge Management Tool" in result.output
     assert "--date" in result.output
     assert "--format" in result.output
     assert "--config" in result.output
+    # Verify subcommands are listed
+    assert "calendar" in result.output
+    assert "github" in result.output
+    assert "atlassian" in result.output
+    assert "things" in result.output
+    assert "wakatime" in result.output
+    assert "google-docs" in result.output
+    assert "aggregate" in result.output
+
+
+# ===== Subcommand Tests =====
+
+
+@pytest.mark.unit
+def test_cli_aggregate_subcommand(
+    cli_runner: CliRunner,
+    temp_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+    mock_wakatime_api_success: Mock,
+) -> None:
+    """Test explicit aggregate subcommand works identically to default behavior."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "aggregate",
+            "--date",
+            "2025-11-21",
+            "--format",
+            "markdown",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Daily Report" in result.output
+
+
+@pytest.mark.unit
+def test_cli_backward_compatibility(
+    cli_runner: CliRunner,
+    temp_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+    mock_wakatime_api_success: Mock,
+) -> None:
+    """Test that pkm without subcommand still works (backward compatibility)."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "--date",
+            "2025-11-21",
+            "--format",
+            "markdown",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Daily Report" in result.output
+
+
+@pytest.mark.snapshot
+def test_cli_github_subcommand(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    temp_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+) -> None:
+    """Test github subcommand fetches only GitHub data."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "github",
+            "--date",
+            "2025-11-21",
+            "--format",
+            "markdown",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot
+
+
+@pytest.mark.snapshot
+def test_cli_wakatime_subcommand(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    temp_config: Path,
+    mock_wakatime_api_success: Mock,
+) -> None:
+    """Test wakatime subcommand fetches only Wakatime data."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "wakatime",
+            "--date",
+            "2025-11-21",
+            "--format",
+            "markdown",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot
+
+
+@pytest.mark.snapshot
+def test_cli_atlassian_subcommand(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    full_sources_config: Path,
+    mock_atlassian_clients: tuple[Mock, Mock],
+) -> None:
+    """Test atlassian subcommand fetches only Atlassian data."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "atlassian",
+            "--date",
+            "2025-11-21",
+            "--format",
+            "markdown",
+            "--config",
+            str(full_sources_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot
+
+
+@pytest.mark.unit
+def test_cli_calendar_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test calendar subcommand help."""
+    result = cli_runner.invoke(cli, ["calendar", "--help"])
+
+    assert result.exit_code == 0
+    assert "Fetch Apple Calendar events only" in result.output
+
+
+@pytest.mark.unit
+def test_cli_github_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test github subcommand help."""
+    result = cli_runner.invoke(cli, ["github", "--help"])
+
+    assert result.exit_code == 0
+    assert "Fetch GitHub activities only" in result.output
+
+
+@pytest.mark.unit
+def test_cli_atlassian_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test atlassian subcommand help."""
+    result = cli_runner.invoke(cli, ["atlassian", "--help"])
+
+    assert result.exit_code == 0
+    assert "Fetch Atlassian (Jira/Confluence) items only" in result.output
+
+
+@pytest.mark.unit
+def test_cli_things_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test things subcommand help."""
+    result = cli_runner.invoke(cli, ["things", "--help"])
+
+    assert result.exit_code == 0
+    assert "Fetch Things tasks only" in result.output
+
+
+@pytest.mark.unit
+def test_cli_wakatime_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test wakatime subcommand help."""
+    result = cli_runner.invoke(cli, ["wakatime", "--help"])
+
+    assert result.exit_code == 0
+    assert "Fetch Wakatime coding activities only" in result.output
+
+
+@pytest.mark.unit
+def test_cli_google_docs_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test google-docs subcommand help."""
+    result = cli_runner.invoke(cli, ["google-docs", "--help"])
+
+    assert result.exit_code == 0
+    assert "Fetch Google Docs only" in result.output
+
+
+@pytest.mark.unit
+def test_cli_aggregate_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test aggregate subcommand help."""
+    result = cli_runner.invoke(cli, ["aggregate", "--help"])
+
+    assert result.exit_code == 0
+    assert "Aggregate data from all configured sources" in result.output
+
+
+@pytest.mark.snapshot
+def test_cli_github_subcommand_json(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    temp_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+) -> None:
+    """Test github subcommand with JSON output."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "github",
+            "--date",
+            "2025-11-21",
+            "--format",
+            "json",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot
+
+
+@pytest.mark.snapshot
+def test_cli_wakatime_subcommand_json(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    temp_config: Path,
+    mock_wakatime_api_success: Mock,
+) -> None:
+    """Test wakatime subcommand with JSON output."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "wakatime",
+            "--date",
+            "2025-11-21",
+            "--format",
+            "json",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot

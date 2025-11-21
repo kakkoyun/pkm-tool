@@ -51,13 +51,25 @@ pkm --help
 ```
 
 ```
-Usage: pkm [OPTIONS]
+Usage: cli [OPTIONS] COMMAND [ARGS]...
 
   Personal Knowledge Management Tool.
 
   Fetches and formats data from various sources including: - Apple Calendar
   Agenda - GitHub - Atlassian (Jira/Confluence) - Things Logbook - Wakatime -
   Google Docs
+
+  Run without subcommand to aggregate all sources, or use subcommands to fetch
+  from individual sources:
+
+  pkm --date yesterday                Aggregate all sources (backward compat)
+  pkm aggregate --date yesterday      Explicitly aggregate all sources
+  pkm calendar --date yesterday       Fetch Apple Calendar events only
+  pkm github --date yesterday         Fetch GitHub activities only
+  pkm atlassian --date yesterday      Fetch Atlassian (Jira/Confluence) items only
+  pkm things --date yesterday         Fetch Things tasks only
+  pkm wakatime --date yesterday       Fetch Wakatime coding activities only
+  pkm google-docs --date yesterday    Fetch Google Docs only
 
 Options:
   -d, --date TEXT               Date to fetch data for (default: today). Format:
@@ -67,6 +79,15 @@ Options:
   -v, --verbose                 Enable verbose (DEBUG) logging
   --log-format [human|json]     Log output format (default: human)
   --help                        Show this message and exit.
+
+Commands:
+  aggregate    Aggregate data from all configured sources (default behavior).
+  atlassian    Fetch Atlassian (Jira/Confluence) items only.
+  calendar     Fetch Apple Calendar events only.
+  github       Fetch GitHub activities only.
+  google-docs  Fetch Google Docs only.
+  things       Fetch Things tasks only.
+  wakatime     Fetch Wakatime coding activities only.
 ```
 
 ### Available Options

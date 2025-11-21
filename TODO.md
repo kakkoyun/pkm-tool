@@ -8,11 +8,7 @@
 
 ### Phase 1
 
-- [ ] Authentication: Add a way to authenticate with the datasources, prompting and opening webpages to
-  authenticate and storing the tokens in a secure way (OAuth2, API Key, etc.)
-- [ ] Authentication: Implement a way to encrypt the secrects (git crypt? or 1password? or pgp, ideally in repo
-  is good, this is a personal repo)
-- [ ] Authentication: Add a tiny sqlite db to keep track of the tokens so that we know when to refresh them
+- [ ] Feature: Add Whoop integration
 
 ### Phase 2
 
@@ -21,7 +17,11 @@
 
 ### Phase 3
 
-- [ ] Feature: Add Whoop integration
+- [ ] Authentication: Add a way to authenticate with the datasources, prompting and opening webpages to
+  authenticate and storing the tokens in a secure way (OAuth2, API Key, etc.)
+- [ ] Authentication: Implement a way to encrypt the secrects (git crypt? or 1password? or pgp, ideally in repo
+  is good, this is a personal repo)
+- [ ] Authentication: Add a tiny sqlite db to keep track of the tokens so that we know when to refresh them
 
 ### Phase 4
 

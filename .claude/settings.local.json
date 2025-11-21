@@ -20,7 +20,9 @@
       "Bash(gt create:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(gh pr create:*)"
+      "Bash(gh pr create:*)",
+      "Bash(uv run pkm --help:*)",
+      "Bash(uv run pkm github --help:*)"
     ],
     "deny": [],
     "ask": []

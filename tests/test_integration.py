@@ -90,20 +90,23 @@ def test_full_aggregation_all_sources(
 
     # Mock things.todos() to prevent the library from opening unclosed database connections
     # The things-py library doesn't properly close its SQLite connections
-    mocker.patch("things.todos", return_value=[
-        {
-            "uuid": "test-task-1",
-            "type": "to-do",
-            "title": "Test completed task",
-            "status": "completed",
-            "project": None,
-            "project_title": None,
-            "tags": [],
-            "stop_date": "2025-11-21 10:00:00",
-            "created": "2025-11-21 09:00:00",
-            "modified": "2025-11-21 10:00:00",
-        }
-    ])
+    mocker.patch(
+        "things.todos",
+        return_value=[
+            {
+                "uuid": "test-task-1",
+                "type": "to-do",
+                "title": "Test completed task",
+                "status": "completed",
+                "project": None,
+                "project_title": None,
+                "tags": [],
+                "stop_date": "2025-11-21 10:00:00",
+                "created": "2025-11-21 09:00:00",
+                "modified": "2025-11-21 10:00:00",
+            }
+        ],
+    )
 
     data = aggregate_data(target_date, str(full_config))
 

@@ -7,13 +7,13 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from pkm_tool.cli import main
+from pkm_tool.cli import cli
 
 
 def extract_help_text() -> str:
     """Extract help text from CLI using Click's CliRunner."""
     runner = CliRunner()
-    result = runner.invoke(main, ["--help"])
+    result = runner.invoke(cli, ["--help"])
 
     if result.exit_code != 0:
         print(f"Error: CLI invocation failed with exit code {result.exit_code}", file=sys.stderr)

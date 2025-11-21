@@ -542,12 +542,39 @@ make fix/python
 
 ### Running the tool
 
+The tool provides a main command with subcommands for each datasource (Phase 0 implemented).
+
+#### Aggregate all sources (default behavior)
+
 ```bash
-uv run pkm                     # Today's report (Markdown)
-uv run pkm --date yesterday    # Specific date
-uv run pkm --format json       # JSON output
-pkm --config /path/config.yaml # Custom config
+uv run pkm                           # Today's report, all sources (Markdown)
+uv run pkm --date yesterday          # Specific date, all sources (backward compat)
+uv run pkm --format json             # JSON output, all sources (backward compat)
+uv run pkm --config /path/config.yaml --date 2025-11-21  # Custom config (backward compat)
+uv run pkm aggregate --date yesterday # Explicit aggregate subcommand (preferred)
 ```
+
+#### Individual datasource subcommands
+
+Fetch data from specific sources only:
+
+```bash
+# Fetch only from specific datasource (preferred syntax: FLAGS after subcommand)
+uv run pkm github --date yesterday       # GitHub activities only
+uv run pkm things --date yesterday       # Things tasks only
+uv run pkm wakatime --date yesterday     # Wakatime coding time only
+uv run pkm atlassian --date yesterday    # Atlassian (Jira + Confluence) only
+uv run pkm calendar --date yesterday     # Apple Calendar events only
+uv run pkm google-docs --date yesterday  # Google Docs only
+
+# With format and config options
+uv run pkm github --format json --date yesterday
+uv run pkm wakatime --config ~/.config/pkm-tool/config.yaml --date 2025-11-21
+```
+
+**Note**: The CLI supports dual syntax for backward compatibility:
+- **Preferred**: `pkm <subcommand> --date yesterday` (FLAGS after subcommand)
+- **Backward compat**: `pkm --date yesterday` (FLAGS before implicit aggregate subcommand)
 
 ### Direct uv commands (reference)
 

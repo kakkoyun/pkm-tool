@@ -7,9 +7,11 @@ from typing import Any
 import structlog
 from github import Auth, Github, GithubException
 
+from pkm_tool.auth import AuthManager
 from pkm_tool.models import GitHubActivity
 
 logger = structlog.get_logger(__name__)
+_AUTH_MANAGER = AuthManager()
 
 
 def fetch_github_activities(target_date: date, config: dict[str, Any]) -> list[GitHubActivity]:
@@ -51,8 +53,8 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
     """
     g = None
     try:
-        # Get token from config or environment
-        token = config.get("token") or os.getenv("GITHUB_TOKEN")
+        # Get token from token store first, then config/env fallback
+        token = _get_github_token(config)
         if not token:
             logger.warning("github_no_token", message="No GitHub token configured")
             return []
@@ -173,3 +175,11 @@ def _map_event_to_activity(event: Any) -> GitHubActivity | None:
     except (KeyError, AttributeError):
         # Malformed event data - skip
         return None
+
+
+def _get_github_token(config: dict[str, Any]) -> str | None:
+    """Retrieve GitHub token from token store or fall back to config/env."""
+    stored = _AUTH_MANAGER.get_token("github")
+    if stored:
+        return stored.token
+    return config.get("token") or os.getenv("GITHUB_TOKEN")

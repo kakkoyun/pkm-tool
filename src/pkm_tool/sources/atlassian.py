@@ -1,5 +1,6 @@
 """Atlassian (Jira/Confluence) integration."""
 
+import json
 import os
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -7,9 +8,11 @@ from typing import Any
 import structlog
 from atlassian import Confluence, Jira  # type: ignore
 
+from pkm_tool.auth import AuthManager
 from pkm_tool.models import AtlassianItem
 
 logger = structlog.get_logger(__name__)
+_AUTH_MANAGER = AuthManager()
 
 
 def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[AtlassianItem]:
@@ -23,14 +26,21 @@ def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[Atl
     Returns:
         List of AtlassianItem objects
     """
-    base_url = config.get("base_url", os.environ.get("ATLASSIAN_BASE_URL"))
-    username = config.get("username", os.environ.get("ATLASSIAN_USERNAME"))
-    api_token = config.get("api_token", os.environ.get("ATLASSIAN_API_TOKEN"))
+    base_url, username, api_token = _get_atlassian_credentials(config)
 
     if not all([base_url, username, api_token]):
         logger.warning(
             "atlassian_config_incomplete",
             has_url=bool(base_url),
+            has_username=bool(username),
+            has_token=bool(api_token),
+        )
+        return []
+
+    if not base_url or not username or not api_token:
+        logger.warning(
+            "atlassian_credentials_missing",
+            has_base_url=bool(base_url),
             has_username=bool(username),
             has_token=bool(api_token),
         )
@@ -141,3 +151,18 @@ def _fetch_confluence_via_library(
         pass
 
     return items
+
+
+def _get_atlassian_credentials(config: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
+    stored = _AUTH_MANAGER.get_token("atlassian")
+    if stored:
+        try:
+            data = json.loads(stored.token)
+            return data.get("base_url"), data.get("username"), data.get("api_token")
+        except json.JSONDecodeError:
+            logger.error("atlassian_token_decode_failed")
+
+    base_url = config.get("base_url", os.environ.get("ATLASSIAN_BASE_URL"))
+    username = config.get("username", os.environ.get("ATLASSIAN_USERNAME"))
+    api_token = config.get("api_token", os.environ.get("ATLASSIAN_API_TOKEN"))
+    return base_url, username, api_token

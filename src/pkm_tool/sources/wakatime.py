@@ -6,7 +6,10 @@ from typing import Any
 
 import httpx
 
+from pkm_tool.auth import AuthManager
 from pkm_tool.models import WakatimeActivity
+
+_AUTH_MANAGER = AuthManager()
 
 
 def fetch_wakatime_activities(target_date: date, config: dict[str, Any]) -> list[WakatimeActivity]:
@@ -20,7 +23,7 @@ def fetch_wakatime_activities(target_date: date, config: dict[str, Any]) -> list
     Returns:
         List of WakatimeActivity objects (per project)
     """
-    api_key = config.get("api_key", os.environ.get("WAKATIME_API_KEY"))
+    api_key = _get_wakatime_api_key(config)
 
     if not api_key:
         return []
@@ -68,3 +71,10 @@ def fetch_wakatime_activities(target_date: date, config: dict[str, Any]) -> list
         pass
 
     return activities
+
+
+def _get_wakatime_api_key(config: dict[str, Any]) -> str | None:
+    stored = _AUTH_MANAGER.get_token("wakatime")
+    if stored:
+        return stored.token
+    return config.get("api_key") or os.environ.get("WAKATIME_API_KEY")

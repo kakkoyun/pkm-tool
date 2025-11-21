@@ -17,11 +17,11 @@
 
 ### Phase 3
 
-- [ ] Authentication: Add a way to authenticate with the datasources, prompting and opening webpages to
+- [x] Authentication: Add a way to authenticate with the datasources, prompting and opening webpages to
   authenticate and storing the tokens in a secure way (OAuth2, API Key, etc.)
-- [ ] Authentication: Implement a way to encrypt the secrects (git crypt? or 1password? or pgp, ideally in repo
+- [x] Authentication: Implement a way to encrypt the secrects (git crypt? or 1password? or pgp, ideally in repo
   is good, this is a personal repo)
-- [ ] Authentication: Add a tiny sqlite db to keep track of the tokens so that we know when to refresh them
+- [x] Authentication: Add a tiny sqlite db to keep track of the tokens so that we know when to refresh them
 
 ### Phase 4
 

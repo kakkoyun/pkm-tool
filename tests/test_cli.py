@@ -209,13 +209,24 @@ def test_cli_human_readable_date(
 
 
 @pytest.mark.unit
-def test_cli_missing_config_file(cli_runner: CliRunner) -> None:
+def test_cli_missing_config_file(cli_runner: CliRunner, mock_platform_linux: Mock, mocker: Mock) -> None:
     """Test CLI without config file (should use defaults)."""
+    # Mock things library to avoid database access
+    mocker.patch("things.todos", return_value=[])
+
     # Mock environment to prevent actual API calls
+    # Set all potential API keys to empty to avoid timeouts
     result = cli_runner.invoke(
         main,
         ["--date", "2025-11-21", "--format", "markdown"],
-        env={"GITHUB_TOKEN": "", "WAKATIME_API_KEY": ""},
+        env={
+            "GITHUB_TOKEN": "",
+            "WAKATIME_API_KEY": "",
+            "ATLASSIAN_BASE_URL": "",
+            "ATLASSIAN_USERNAME": "",
+            "ATLASSIAN_API_TOKEN": "",
+            "GOOGLE_ACCESS_TOKEN": "",
+        },
     )
 
     # Should still succeed with empty data

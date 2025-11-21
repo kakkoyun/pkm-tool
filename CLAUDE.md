@@ -466,7 +466,10 @@ make update                    # Update dev tooling (pre-commit hooks, dependenc
 
 # 2. Testing
 make test                      # Run all tests (verbose)
+make test/parallel             # Run tests in parallel (only useful for slow/large suites >30s)
 make test/coverage             # Run tests with coverage report (HTML + terminal)
+make test/timing               # Show timing for all tests
+make test/slow                 # Show only slow tests (>1s)
 
 # 3. Code Quality
 make format                    # Format all code (Python, YAML, Markdown, Shell)

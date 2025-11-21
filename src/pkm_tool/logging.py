@@ -39,6 +39,7 @@ def configure_logging(
 
     if log_format == "json":
         # JSON format for production/structured logging
+        # format_exc_info converts exceptions to strings for JSON serialization
         processors = [
             *common_processors,
             structlog.processors.format_exc_info,
@@ -46,10 +47,10 @@ def configure_logging(
         ]
     else:
         # Human-readable format for development
+        # ConsoleRenderer handles exception formatting automatically
         processors = [
             *common_processors,
-            structlog.processors.ExceptionRenderer(),
-            structlog.dev.ConsoleRenderer(colors=True),
+            structlog.dev.ConsoleRenderer(colors=True, exception_formatter=structlog.dev.plain_traceback),
         ]
 
     # Configure structlog

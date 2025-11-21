@@ -37,13 +37,23 @@ tools/update: ## Update dev tooling (pre-commit hooks, dependencies)
 # Section 2: Testing
 # ============================================================================
 
-.PHONY: test test/coverage
+.PHONY: test test/coverage test/timing test/slow test/parallel
 
 test: ## Run all tests
-	uv run pytest -v
+	uv run pytest -v --durations=10
+
+test/parallel: ## Run all tests in parallel (use for slow/large test suites >30s)
+	@echo "Note: Parallel execution adds overhead. Only use if test suite is slow."
+	uv run pytest -v -n auto --durations=10
 
 test/coverage: ## Run tests with coverage report
 	uv run pytest --cov --cov-report=term-missing --cov-report=html
+
+test/timing: ## Run tests with detailed timing information
+	uv run pytest -v --durations=0
+
+test/slow: ## Show only slow tests (>1s)
+	uv run pytest -v --durations=10 --durations-min=1.0
 
 # ============================================================================
 # Section 3: Code Quality

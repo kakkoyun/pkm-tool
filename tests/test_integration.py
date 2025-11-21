@@ -83,12 +83,28 @@ def test_full_aggregation_all_sources(
     mock_atlassian_clients: tuple[Mock, Mock],
     mock_platform_macos: Mock,
     mock_things_database: Path,
+    mocker: Mock,
 ) -> None:
     """Test full data aggregation with all sources enabled."""
     target_date = date(2025, 11, 21)
 
-    # Note: Things database is mocked but won't be used in this test
-    # because the mock_platform_macos fixture already handles osascript calls
+    # Mock things.todos() to prevent the library from opening unclosed database connections
+    # The things-py library doesn't properly close its SQLite connections
+    mocker.patch("things.todos", return_value=[
+        {
+            "uuid": "test-task-1",
+            "type": "to-do",
+            "title": "Test completed task",
+            "status": "completed",
+            "project": None,
+            "project_title": None,
+            "tags": [],
+            "stop_date": "2025-11-21 10:00:00",
+            "created": "2025-11-21 09:00:00",
+            "modified": "2025-11-21 10:00:00",
+        }
+    ])
+
     data = aggregate_data(target_date, str(full_config))
 
     # Verify data was collected from all enabled sources
@@ -96,6 +112,7 @@ def test_full_aggregation_all_sources(
     assert len(data.github_activities) > 0
     assert len(data.wakatime_activities) > 0
     assert len(data.atlassian_items) > 0
+    assert len(data.things_tasks) > 0  # Now we have Things data from the mock
     # Calendar and Things may or may not have data depending on mocks
 
     # Verify metadata exists
@@ -125,10 +142,19 @@ def test_aggregation_with_errors(
     mock_github_client: Mock,
     mock_github_auth: Mock,
     mock_wakatime_api_server_error: Mock,
+    mock_atlassian_clients: tuple[Mock, Mock],
+    mock_platform_linux: Mock,
+    mocker: Mock,
 ) -> None:
     """Test aggregation when some sources fail."""
     # Make GitHub fail
     mock_github_client.get_user.side_effect = Exception("GitHub API failed")
+
+    # Mock platform.system to return Linux to prevent Things from running on macOS
+    mocker.patch("pkm_tool.sources.things.platform.system", return_value="Linux")
+
+    # Mock things library to avoid database access (belt and suspenders approach)
+    mocker.patch("things.todos", return_value=[])
 
     target_date = date(2025, 11, 21)
     data = aggregate_data(target_date, str(full_config))
@@ -224,8 +250,21 @@ def test_date_filtering_accuracy(
 def test_config_file_not_found(
     mock_github_client: Mock,
     mock_github_auth: Mock,
+    mock_platform_linux: Mock,
+    mocker: Mock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test aggregation when config file doesn't exist (uses defaults)."""
+    # Clear environment variables to prevent actual API calls from default config
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("WAKATIME_API_KEY", raising=False)
+    monkeypatch.delenv("ATLASSIAN_BASE_URL", raising=False)
+    monkeypatch.delenv("ATLASSIAN_USERNAME", raising=False)
+    monkeypatch.delenv("ATLASSIAN_API_TOKEN", raising=False)
+
+    # Mock things library to avoid database access
+    mocker.patch("things.todos", return_value=[])
+
     target_date = date(2025, 11, 21)
 
     # Pass non-existent config path
@@ -244,7 +283,7 @@ def test_environment_variable_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that environment variables are used when config doesn't specify credentials."""
-    # Create config without tokens
+    # Create config without tokens (only enable sources we're testing)
     config_path = tmp_path / "minimal_config.yaml"
     config_content = """
 github:
@@ -252,6 +291,18 @@ github:
 
 wakatime:
   enabled: true
+
+atlassian:
+  enabled: false
+
+apple_calendar:
+  enabled: false
+
+things:
+  enabled: false
+
+google_docs:
+  enabled: false
 """
     config_path.write_text(config_content)
 

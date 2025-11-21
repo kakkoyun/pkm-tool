@@ -10,7 +10,17 @@
       "Bash(gt log:*)",
       "Bash(gt branch:*)",
       "Bash(gt downstack get:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv pip list:*)",
+      "Bash(python -c:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(gt create:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)"
     ],
     "deny": [],
     "ask": []

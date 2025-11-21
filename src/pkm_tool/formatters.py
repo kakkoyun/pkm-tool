@@ -1,0 +1,120 @@
+"""Output formatters for PKM tool."""
+
+from pkm_tool.models import AggregatedData
+
+
+def format_as_json(data: AggregatedData) -> str:
+    """
+    Format aggregated data as JSON.
+
+    Args:
+        data: AggregatedData to format
+
+    Returns:
+        JSON string
+    """
+    return data.model_dump_json(indent=2)
+
+
+def format_as_markdown(data: AggregatedData) -> str:
+    """
+    Format aggregated data as Markdown.
+
+    Args:
+        data: AggregatedData to format
+
+    Returns:
+        Markdown string
+    """
+    lines = []
+
+    # Header
+    lines.append(f"# Daily Report - {data.date.strftime('%Y-%m-%d')}")
+    lines.append("")
+
+    # Calendar Events
+    if data.calendar_events:
+        lines.append("## 📅 Calendar Events")
+        lines.append("")
+        for event in sorted(data.calendar_events, key=lambda e: e.start):
+            time_str = f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}"
+            lines.append(f"- **{time_str}** {event.title}")
+            if event.location:
+                lines.append(f"  - Location: {event.location}")
+            if event.description:
+                lines.append(f"  - {event.description}")
+        lines.append("")
+
+    # GitHub Activities
+    if data.github_activities:
+        lines.append("## 🐙 GitHub Activities")
+        lines.append("")
+        for activity in sorted(data.github_activities, key=lambda a: a.timestamp):
+            time_str = activity.timestamp.strftime("%H:%M")
+            icon = {"commit": "📝", "pr": "🔀", "issue": "📋", "review": "👁️"}.get(
+                activity.type, "•"
+            )
+            link_text = f"[{activity.repository}]({activity.url})"
+            lines.append(f"- {icon} **{time_str}** {link_text} - {activity.title}")
+            if activity.details:
+                lines.append(f"  - {activity.details}")
+        lines.append("")
+
+    # Atlassian Items
+    if data.atlassian_items:
+        lines.append("## 🏢 Atlassian (Jira/Confluence)")
+        lines.append("")
+        for item in sorted(data.atlassian_items, key=lambda i: i.updated):
+            icon = "📋" if item.type == "jira_issue" else "📄"
+            status_str = f" ({item.status})" if item.status else ""
+            lines.append(f"- {icon} [{item.key}]({item.url}) - {item.title}{status_str}")
+        lines.append("")
+
+    # Things Tasks
+    if data.things_tasks:
+        lines.append("## ✅ Things - Completed Tasks")
+        lines.append("")
+        for task in sorted(data.things_tasks, key=lambda t: t.completed_date):
+            time_str = task.completed_date.strftime("%H:%M")
+            project_str = f" ({task.project})" if task.project else ""
+            tags_str = f" #{', #'.join(task.tags)}" if task.tags else ""
+            lines.append(f"- **{time_str}** {task.title}{project_str}{tags_str}")
+        lines.append("")
+
+    # Wakatime Activities
+    if data.wakatime_activities:
+        lines.append("## ⏱️ Wakatime - Coding Activity")
+        lines.append("")
+        total_seconds = sum(a.duration_seconds for a in data.wakatime_activities)
+        total_hours = total_seconds / 3600
+        lines.append(f"**Total Time:** {total_hours:.2f} hours")
+        lines.append("")
+        sorted_activities = sorted(
+            data.wakatime_activities, key=lambda a: a.duration_seconds, reverse=True
+        )
+        for activity in sorted_activities:
+            hours = activity.duration_seconds / 3600
+            lang_str = f" ({activity.language})" if activity.language else ""
+            lines.append(f"- {activity.project}{lang_str}: {hours:.2f}h")
+        lines.append("")
+
+    # Google Docs
+    if data.google_docs:
+        lines.append("## 📝 Google Docs")
+        lines.append("")
+        for doc in sorted(data.google_docs, key=lambda d: d.opened_at):
+            time_str = doc.opened_at.strftime("%H:%M")
+            lines.append(f"- **{time_str}** [{doc.title}]({doc.url})")
+        lines.append("")
+
+    # Errors
+    errors = {k: v for k, v in data.metadata.items() if k.endswith("_error")}
+    if errors:
+        lines.append("## ⚠️ Errors")
+        lines.append("")
+        for source, error in errors.items():
+            source_name = source.replace("_error", "").replace("_", " ").title()
+            lines.append(f"- **{source_name}:** {error}")
+        lines.append("")
+
+    return "\n".join(lines)

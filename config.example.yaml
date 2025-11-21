@@ -1,0 +1,47 @@
+# Example configuration for PKM Tool
+# Copy this to ~/.config/pkm-tool/config.yaml or ~/.pkm-tool.yaml
+
+# Apple Calendar (macOS only)
+apple_calendar:
+  enabled: true
+  config: {}
+
+# GitHub integration
+github:
+  enabled: true
+  config:
+    # Use gh CLI (recommended)
+    use_gh_cli: true
+    
+    # Or use direct API with token
+    # use_gh_cli: false
+    # token: ghp_your_token_here
+    # username: your_github_username
+
+# Atlassian (Jira/Confluence)
+atlassian:
+  enabled: false
+  config:
+    base_url: https://your-domain.atlassian.net
+    username: your.email@example.com
+    api_token: your_api_token_here
+
+# Things (macOS only)
+things:
+  enabled: true
+  config:
+    # Optional: custom database path
+    # database_path: /path/to/Things Database.thingsdatabase/main.sqlite
+
+# Wakatime
+wakatime:
+  enabled: false
+  config:
+    api_key: waka_your_api_key_here
+
+# Google Docs
+google_docs:
+  enabled: false
+  config:
+    # Requires OAuth2 access token
+    # access_token: your_access_token_here

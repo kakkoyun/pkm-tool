@@ -1,0 +1,70 @@
+"""Wakatime integration."""
+
+import os
+from datetime import date
+from typing import Any
+
+import httpx
+
+from pkm_tool.models import WakatimeActivity
+
+
+def fetch_wakatime_activities(target_date: date, config: dict[str, Any]) -> list[WakatimeActivity]:
+    """
+    Fetch Wakatime coding activities for a given date.
+
+    Args:
+        target_date: Date to fetch activities for
+        config: Configuration dictionary with 'api_key'
+
+    Returns:
+        List of WakatimeActivity objects (per project)
+    """
+    api_key = config.get("api_key", os.environ.get("WAKATIME_API_KEY"))
+
+    if not api_key:
+        return []
+
+    activities = []
+
+    try:
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        with httpx.Client(headers=headers, timeout=30.0) as client:
+            # Fetch summaries for the target date
+            date_str = target_date.strftime("%Y-%m-%d")
+            response = client.get(
+                "https://wakatime.com/api/v1/users/current/summaries",
+                params={"start": date_str, "end": date_str},
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # Parse summaries
+            for day in data.get("data", []):
+                for project in day.get("projects", []):
+                    activity = WakatimeActivity(
+                        project=project["name"],
+                        duration_seconds=int(project["total_seconds"]),
+                        language=None,
+                    )
+                    activities.append(activity)
+
+                # Also get language information
+                language_map = {}
+                for language in day.get("languages", []):
+                    language_map[language["name"]] = int(language["total_seconds"])
+
+                # Try to match languages to projects (approximate)
+                # In reality, Wakatime doesn't provide per-project language breakdown easily
+                # This is a simplified version
+                for activity in activities:
+                    # Get most used language for the day as a proxy
+                    if language_map:
+                        most_used_lang = max(language_map.items(), key=lambda x: x[1])[0]
+                        activity.language = most_used_lang
+
+    except (httpx.HTTPError, KeyError):
+        pass
+
+    return activities

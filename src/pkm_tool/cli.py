@@ -20,6 +20,11 @@ from pkm_tool.sources.github import fetch_github_activities
 from pkm_tool.sources.google_docs import fetch_google_docs
 from pkm_tool.sources.things import fetch_things_tasks
 from pkm_tool.sources.wakatime import fetch_wakatime_activities
+from pkm_tool.sources.whoop import (
+    fetch_whoop_recovery,
+    fetch_whoop_sleep,
+    fetch_whoop_workouts,
+)
 
 
 # Common options decorator for all subcommands
@@ -140,6 +145,9 @@ def _fetch_single_source(
             data.wakatime_activities = result
         elif source_name == "google_docs":
             data.google_docs = result
+        elif source_name == "whoop":
+            # For Whoop, result is a tuple of (recovery, sleep, workouts)
+            data.whoop_recovery, data.whoop_sleep, data.whoop_workouts = result
 
         logger.info(
             "source_fetch_completed",
@@ -232,6 +240,7 @@ def cli(
     - Things Logbook
     - Wakatime
     - Google Docs
+    - Whoop
 
     Run without subcommand to aggregate all sources, or use subcommands
     to fetch from individual sources:
@@ -245,6 +254,7 @@ def cli(
     pkm things --date yesterday         Fetch Things tasks only
     pkm wakatime --date yesterday       Fetch Wakatime coding activities only
     pkm google-docs --date yesterday    Fetch Google Docs only
+    pkm whoop --date yesterday          Fetch Whoop health data only
     """
     # Backward compatibility: if no subcommand specified, run aggregate with group options
     if ctx.invoked_subcommand is None:
@@ -480,6 +490,46 @@ def google_docs(
         fetch_google_docs,
         target_date,
         cfg.google_docs.config,
+        logger,
+    )
+    _format_and_output(data, format, logger)
+
+
+@cli.command()
+@common_options
+def whoop(
+    date: str | None,
+    format: str,
+    config: str | None,
+    verbose: bool,
+    log_format: str,
+) -> None:
+    """Fetch Whoop health data only."""
+    configure_logging(verbose=verbose, log_format=log_format)
+    logger = get_logger(__name__)
+    logger.info(
+        "pkm_tool_started",
+        command="whoop",
+        date_input=date,
+        output_format=format,
+    )
+
+    target_date = _parse_date(date, logger)
+    cfg = load_config(config)
+
+    # Fetch all Whoop data types
+    def fetch_all_whoop_data(target_date: date, config: dict[str, Any]) -> tuple:
+        """Fetch recovery, sleep, and workouts."""
+        recovery = fetch_whoop_recovery(target_date, config)
+        sleep = fetch_whoop_sleep(target_date, config)
+        workouts = fetch_whoop_workouts(target_date, config)
+        return (recovery, sleep, workouts)
+
+    data = _fetch_single_source(
+        "whoop",
+        fetch_all_whoop_data,
+        target_date,
+        cfg.whoop.config,
         logger,
     )
     _format_and_output(data, format, logger)

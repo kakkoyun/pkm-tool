@@ -53,7 +53,7 @@ def fetch_things_tasks(target_date: date, config: dict[str, Any]) -> list[Things
 
         # Query completed tasks
         query = """
-        SELECT 
+        SELECT
             t.title,
             t.stopDate,
             p.title as project,

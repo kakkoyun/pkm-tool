@@ -34,7 +34,7 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
     end_date = datetime.combine(target_date, datetime.max.time())
 
     # AppleScript to fetch events
-    apple_script = f'''
+    apple_script = f"""
     tell application "Calendar"
         set theEvents to {{}}
         repeat with c in calendars
@@ -42,7 +42,7 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
                 and (end date ≥ date "{start_date}"))
             set theEvents to theEvents & dayEvents
         end repeat
-        
+
         set eventList to {{}}
         repeat with e in theEvents
             set eventInfo to {{}}
@@ -65,10 +65,10 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
             end try
             set eventList to eventList & {{eventInfo as string}}
         end repeat
-        
+
         return eventList
     end tell
-    '''
+    """
 
     try:
         result = subprocess.run(

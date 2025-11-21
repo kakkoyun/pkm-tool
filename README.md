@@ -37,24 +37,37 @@ uv pip install -e .
 
 ## Usage
 
-### Basic Usage
+<!-- CLI_USAGE_START -->
 
 ```bash
-# Get today's report in Markdown format
-pkm
-
-# Get report for a specific date
-pkm --date 2025-11-20
-pkm -d "yesterday"
-pkm -d "last monday"
-
-# Get report in JSON format
-pkm --format json
-pkm -f json
-
-# Use custom configuration file
-pkm --config /path/to/config.yaml
+pkm --help
 ```
+
+```
+Usage: main [OPTIONS]
+
+  Personal Knowledge Management Tool.
+
+  Fetches and formats data from various sources including: - Apple Calendar
+  Agenda - GitHub - Atlassian (Jira/Confluence) - Things Logbook - Wakatime -
+  Google Docs
+
+Options:
+  -d, --date TEXT               Date to fetch data for (default: today). Format:
+                                YYYY-MM-DD or natural language.
+  -f, --format [markdown|json]  Output format (default: markdown)
+  -c, --config PATH             Path to configuration file
+  --help                        Show this message and exit.
+```
+
+### Available Options
+
+- **`-d, --date TEXT`**: Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.
+- **`-f, --format [markdown|json]`**: Output format (default: markdown)
+- **`-c, --config PATH`**: Path to configuration file
+- **`--help`**: Show this message and exit.
+
+<!-- CLI_USAGE_END -->
 
 ### Configuration
 
@@ -149,7 +162,7 @@ uv run ruff format src
 
 ### Project Structure
 
-```
+```text
 pkm-tool/
 ├── src/pkm_tool/
 │   ├── cli.py              # CLI entry point
@@ -178,15 +191,17 @@ Requires macOS. Uses AppleScript to query Calendar.app.
 ### GitHub
 
 Two authentication methods:
+
 1. **gh CLI** (recommended): Uses the installed `gh` CLI tool
-2. **Personal Access Token**: Set `GITHUB_TOKEN` and `GITHUB_USERNAME` environment variables
+1. **Personal Access Token**: Set `GITHUB_TOKEN` and `GITHUB_USERNAME` environment variables
 
 ### Atlassian (Jira/Confluence)
 
 Requires:
+
 - Atlassian Cloud instance URL
 - Email address
-- API token (create at https://id.atlassian.com/manage-profile/security/api-tokens)
+- API token (create at <https://id.atlassian.com/manage-profile/security/api-tokens>)
 
 ### Things
 
@@ -195,7 +210,7 @@ Requires macOS. Reads from Things' SQLite database located at:
 
 ### Wakatime
 
-Requires Wakatime API key. Get it from https://wakatime.com/settings/account
+Requires Wakatime API key. Get it from <https://wakatime.com/settings/account>
 
 ### Google Docs
 
@@ -203,7 +218,8 @@ Requires OAuth2 access token. See Google Drive API documentation for setup.
 
 ## LLM Tool Integration
 
-The PKM tool can be used as an LLM tool/function. See the JSON output format for structured data that can be consumed by LLMs.
+The PKM tool can be used as an LLM tool/function. See the JSON output format for structured data that can be
+consumed by LLMs.
 
 Example tool definition:
 
@@ -225,5 +241,4 @@ Example tool definition:
 
 ## License
 
-See LICENSE file.
-
+See [LICENSE](LICENSE) file.

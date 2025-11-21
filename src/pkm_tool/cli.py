@@ -43,7 +43,6 @@ def main(date: str | None, format: str, config: str | None) -> None:
     - Google Docs
     """
     # Parse date
-    target_date: date
     if date is None:
         target_date = datetime.now().date()
     else:

@@ -681,6 +681,25 @@ The tool follows a clean, modular architecture:
 - **Sorted outputs**: Events sorted by time for better readability
 - **Error reporting**: Displays any source errors at the end of reports
 
+### Authentication Architecture
+
+- **Token storage**: Encrypted SQLite database at `~/.pkm-tool/tokens.db` using `cryptography.fernet`.
+  - Encryption key derived from machine identifier + home directory path.
+  - Stores `token`, `refresh_token`, `expires_at`, and `token_type` per source.
+- **Auth Manager** (`auth/manager.py`):
+  - Central orchestration for token loading, auto-refresh, and interactive login flows.
+  - Automatically refreshes OAuth tokens when they are within 5 minutes of expiry.
+  - Provides helper APIs for API keys / PATs and OAuth responses.
+- **OAuth providers** (`auth/oauth/`):
+  - Base protocol plus Google implementation using the OAuth2 device code flow.
+  - Device code avoids running a local callback server; works in headless shells.
+- **CLI integration** (`pkm auth ...`):
+  - `pkm auth list/status/login/logout/refresh` manages credentials with encrypted storage.
+  - Google Docs login requires `client_id`/`client_secret` in config; other sources prompt for tokens.
+- **Backward compatibility**:
+  - When no stored credentials exist the sources fall back to values from config or environment variables.
+  - Legacy `use_gh_cli`/direct token configs still work, but encrypted storage is preferred.
+
 ### Source Architecture Pattern
 
 All sources follow a consistent interface pattern:

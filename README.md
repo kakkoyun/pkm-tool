@@ -82,6 +82,7 @@ Options:
 
 Commands:
   aggregate    Aggregate data from all configured sources (default behavior).
+  auth         Manage authentication credentials.
   atlassian    Fetch Atlassian (Jira/Confluence) items only.
   calendar     Fetch Apple Calendar events only.
   github       Fetch GitHub activities only.
@@ -98,6 +99,33 @@ Commands:
 - **`-v, --verbose`**: Enable verbose (DEBUG) logging
 - **`--log-format [human|json]`**: Log output format (default: human)
 - **`--help`**: Show this message and exit.
+
+### Authentication Management
+
+Credentials are stored in an encrypted SQLite database at `~/.pkm-tool/tokens.db`
+(encrypted with a machine-specific key). Manage them via the `auth` subcommands:
+
+```bash
+# Discover supported sources and auth types
+pkm auth list
+
+# Check which sources are authenticated
+pkm auth status
+
+# Store tokens and API keys securely (interactive prompts)
+pkm auth login github
+pkm auth login wakatime
+pkm auth login atlassian
+pkm auth login google-docs --config ~/.config/pkm-tool/config.yaml
+
+# Remove or refresh credentials
+pkm auth logout github
+pkm auth refresh google-docs --config ~/.config/pkm-tool/config.yaml
+```
+
+Google Docs uses the OAuth2 device code flow. Add your Google client ID/secret to
+the config file (see below) and run `pkm auth login google-docs` to authorize the
+CLI without running a local server.
 
 <!-- CLI_USAGE_END -->
 
@@ -153,6 +181,16 @@ atlassian:
     base_url: https://your-domain.atlassian.net
     username: your.email@example.com
     api_token: your_api_token_here
+
+google_docs:
+  enabled: true
+  config:
+    client_id: your_google_client_id.apps.googleusercontent.com
+    client_secret: your_google_client_secret
+    scopes:
+      - https://www.googleapis.com/auth/drive.readonly
+    # Optional legacy fallback (not recommended)
+    # access_token: your_access_token_here
 ```
 
 ### Output Formats

@@ -1,6 +1,7 @@
 """CLI entry point for PKM tool."""
 
 import functools
+import json
 import time
 from collections.abc import Callable
 from datetime import date, datetime
@@ -10,6 +11,8 @@ import click
 from dateutil import parser as date_parser
 
 from pkm_tool.aggregator import aggregate_data
+from pkm_tool.auth import AuthManager
+from pkm_tool.auth.oauth import GoogleOAuthProvider
 from pkm_tool.config import load_config
 from pkm_tool.formatters import format_as_json, format_as_markdown
 from pkm_tool.logging import configure_logging, get_logger
@@ -20,6 +23,67 @@ from pkm_tool.sources.github import fetch_github_activities
 from pkm_tool.sources.google_docs import fetch_google_docs
 from pkm_tool.sources.things import fetch_things_tasks
 from pkm_tool.sources.wakatime import fetch_wakatime_activities
+
+AUTH_SOURCES: dict[str, dict[str, Any]] = {
+    "github": {
+        "store_key": "github",
+        "display": "GitHub",
+        "type": "api_token",
+        "token_type": "pat",
+        "description": "GitHub personal access token with repo read access.",
+    },
+    "wakatime": {
+        "store_key": "wakatime",
+        "display": "Wakatime",
+        "type": "api_token",
+        "token_type": "api_key",
+        "description": "Wakatime API key from https://wakatime.com/settings/api-key.",
+    },
+    "atlassian": {
+        "store_key": "atlassian",
+        "display": "Atlassian",
+        "type": "compound",
+        "description": "Atlassian Cloud credentials (base URL, email, API token).",
+    },
+    "google-docs": {
+        "store_key": "google_docs",
+        "display": "Google Docs",
+        "type": "oauth2",
+        "description": "Google Drive OAuth (device code flow). Requires client_id in config.",
+    },
+}
+
+_AUTH_MANAGER: AuthManager | None = None
+
+
+def _get_auth_manager() -> AuthManager:
+    global _AUTH_MANAGER
+    if _AUTH_MANAGER is None:
+        _AUTH_MANAGER = AuthManager()
+    return _AUTH_MANAGER
+
+
+def _format_expiry(timestamp: datetime | None) -> str:
+    if timestamp is None:
+        return "n/a"
+    return timestamp.isoformat()
+
+
+def _build_google_provider(config_path: str | None) -> GoogleOAuthProvider:
+    cfg = load_config(config_path)
+    google_cfg = cfg.google_docs.config
+    client_id = google_cfg.get("client_id")
+    if not client_id:
+        raise click.ClickException(
+            "Google Docs client_id missing. Add it under google_docs.config.client_id."
+        )
+    client_secret = google_cfg.get("client_secret")
+    scopes = google_cfg.get("scopes") or [
+        "https://www.googleapis.com/auth/drive.readonly",
+    ]
+    if isinstance(scopes, str):
+        scopes = [scopes]
+    return GoogleOAuthProvider(client_id, client_secret=client_secret, scopes=scopes)
 
 
 # Common options decorator for all subcommands
@@ -451,6 +515,130 @@ def wakatime(
         logger,
     )
     _format_and_output(data, format, logger)
+
+
+@cli.group()
+def auth() -> None:
+    """Manage authentication credentials."""
+
+
+@auth.command("list")
+def auth_list() -> None:
+    """List available authentication sources."""
+    click.echo("Available authentication sources:")
+    for source, meta in AUTH_SOURCES.items():
+        click.echo(f"- {source:12} | {meta['display']:13} | {meta['description']}")
+
+
+@auth.command("status")
+def auth_status() -> None:
+    """Display authentication status for all sources."""
+    manager = _get_auth_manager()
+    tokens = {token.source: token for token in manager.list_tokens()}
+    header = f"{'Source':12} {'Status':12} {'Expires At'}"
+    click.echo(header)
+    click.echo("-" * len(header))
+    for source, meta in AUTH_SOURCES.items():
+        store_key = meta["store_key"]
+        token = tokens.get(store_key)
+        status = "authenticated" if token else "missing"
+        expires = _format_expiry(token.expires_at if token else None)
+        click.echo(f"{meta['display']:12} {status:12} {expires}")
+
+
+@auth.command("logout")
+@click.argument("source", type=click.Choice(list(AUTH_SOURCES.keys())))
+def auth_logout(source: str) -> None:
+    """Remove stored credentials for a source."""
+    meta = AUTH_SOURCES[source]
+    store_key = meta["store_key"]
+    manager = _get_auth_manager()
+    if manager.get_token(store_key) is None:
+        click.echo(f"No stored credentials for {meta['display']}.")
+        return
+    manager.delete_token(store_key)
+    click.echo(f"Removed stored credentials for {meta['display']}.")
+
+
+@auth.command("login")
+@click.argument("source", type=click.Choice(list(AUTH_SOURCES.keys())))
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    default=None,
+    help="Optional configuration file (needed for Google Docs).",
+)
+def auth_login(source: str, config: str | None) -> None:
+    """Interactive authentication workflow for a source."""
+    meta = AUTH_SOURCES[source]
+    store_key = meta["store_key"]
+    manager = _get_auth_manager()
+
+    if source == "atlassian":
+        cfg = load_config(config)
+        atlas_cfg = cfg.atlassian.config
+        base_url = click.prompt(
+            "Atlassian base URL", default=atlas_cfg.get("base_url", "https://example.atlassian.net")
+        )
+        username = click.prompt(
+            "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
+        )
+        api_token = click.prompt("Atlassian API token", hide_input=True)
+        payload = json.dumps({"base_url": base_url, "username": username, "api_token": api_token})
+        manager.store_api_token(store_key, payload, token_type="atlassian_json")
+        click.echo("Stored Atlassian credentials securely.")
+        return
+
+    if meta["type"] == "api_token":
+        prompt_label = f"{meta['display']} token"
+        token = click.prompt(prompt_label, hide_input=True)
+        manager.store_api_token(store_key, token, token_type=meta.get("token_type", "api_token"))
+        click.echo(f"Stored {meta['display']} credentials securely.")
+        return
+
+    if source == "google-docs":
+        provider = _build_google_provider(config)
+        token_response = provider.obtain_token_interactive()
+        if token_response is None:
+            raise click.ClickException("Google authentication failed.")
+        manager.save_oauth_token(store_key, token_response)
+        click.echo("Google Docs credentials stored.")
+        return
+
+    raise click.ClickException(f"Unsupported source: {source}")
+
+
+@auth.command("refresh")
+@click.argument("source", type=click.Choice(list(AUTH_SOURCES.keys())))
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(exists=True),
+    default=None,
+    help="Optional configuration file (needed for Google Docs).",
+)
+def auth_refresh(source: str, config: str | None) -> None:
+    """Refresh OAuth tokens for a source."""
+    meta = AUTH_SOURCES[source]
+    store_key = meta["store_key"]
+    manager = _get_auth_manager()
+    stored = manager.get_token(store_key)
+
+    if meta["type"] != "oauth2":
+        raise click.ClickException("Refresh is only supported for OAuth-based sources.")
+
+    if stored is None or not stored.refresh_token:
+        raise click.ClickException(
+            "No refresh token found. Run `pkm auth login google-docs` first."
+        )
+
+    provider = _build_google_provider(config)
+    refreshed = provider.refresh_access_token(stored.refresh_token)
+    if refreshed is None:
+        raise click.ClickException("Token refresh failed.")
+    manager.save_oauth_token(store_key, refreshed)
+    click.echo("Token refreshed successfully.")
 
 
 @cli.command(name="google-docs")

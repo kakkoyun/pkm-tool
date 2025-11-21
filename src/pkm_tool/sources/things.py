@@ -71,8 +71,11 @@ def _fetch_things_via_library(target_date: date) -> list[ThingsTask]:
             tags = []
 
         # Create ThingsTask model
+        title = task.get("title")
+        if not title:
+            continue
         things_task = ThingsTask(
-            title=task["title"],
+            title=title,
             completed_date=completed_datetime,
             project=project,
             tags=tags,

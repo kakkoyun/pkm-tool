@@ -16,56 +16,500 @@ WHEN USER WORKS WITH A NEW FLOW!
 - Add well-described TODO comments whe you want to cut corners or when you want to come back to a task later
 - NEVER CALL SOMETHING DONE without VALIDATING!
 - Never write code to JUST make the tests pass, write the tests first!
+- Use conventional commits for all commits (see Version Control Workflow below)
+
+## Version Control Workflow
+
+### Conventional Commits
+
+All commits MUST follow the [Conventional Commits v1.0.0](https://www.conventionalcommits.org/) specification.
+
+#### Format
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+#### Types
+
+| Type | Description | Semantic Version |
+|------|-------------|------------------|
+| `feat` | New feature | MINOR |
+| `fix` | Bug fix | PATCH |
+| `docs` | Documentation only | - |
+| `style` | Code style (formatting, whitespace) | - |
+| `refactor` | Code changes (neither fix nor feature) | - |
+| `perf` | Performance improvements | PATCH |
+| `test` | Adding or updating tests | - |
+| `build` | Build system or dependencies | - |
+| `ci` | CI/CD configuration changes | - |
+| `chore` | Maintenance tasks, tooling | - |
+
+#### Scope
+
+Scope provides context about the affected area (component, module, package):
+
+```bash
+feat(api): add user authentication endpoint
+fix(parser): handle edge case in date parsing
+docs(readme): update installation instructions
+test(auth): add integration tests for login flow
+```
+
+#### Breaking Changes
+
+Use `!` after type/scope OR add `BREAKING CHANGE:` footer:
+
+```bash
+# Method 1: Exclamation mark
+feat!: remove deprecated API endpoints
+feat(api)!: change authentication method
+
+# Method 2: Footer
+feat(config): change default port
+
+BREAKING CHANGE: environment variables now take precedence over config files
+```
+
+Breaking changes trigger MAJOR version bump in semantic versioning.
+
+#### Examples
+
+**Simple commit:**
+
+```bash
+docs: correct spelling of CHANGELOG
+```
+
+**With scope:**
+
+```bash
+feat(lang): add Polish language support
+```
+
+**With body and footer:**
+
+```bash
+fix(parser): handle null values in date parsing
+
+Previously null dates would cause parser to crash.
+Now returns default date value instead.
+
+Fixes #456
+```
+
+**Breaking change:**
+
+```bash
+feat(api): redesign authentication flow
+
+Migrate from session-based to JWT authentication.
+All existing sessions will be invalidated.
+
+BREAKING CHANGE: API now requires Authorization header
+Fixes #456
+Reviewed-by: Alice Smith
+```
+
+#### Benefits
+
+- Automated CHANGELOG generation
+- Automatic semantic version determination
+- Clear communication of changes to stakeholders
+- Structured commit history for navigation
+- Triggers for CI/CD processes
+
+### Git Workflow (Simple Features)
+
+Use standard git workflow for simple, isolated features:
+
+```bash
+# Always start from main
+git checkout main
+git pull origin main
+
+# Create feature branch
+git checkout -b feat/add-login-form
+
+# Make changes and commit with conventional commits
+git add .
+git commit -m "feat(auth): add login form component"
+
+# Push and create PR
+git push -u origin feat/add-login-form
+gh pr create --title "feat(auth): Add login form component"
+```
+
+**When to use standard git:**
+
+- Single PR suffices for the entire change
+- Simple, isolated features or bug fixes
+- No dependencies between changes
+- Quick fixes or documentation updates
+
+### Graphite (gt) Workflow for Stacked PRs
+
+Use [Graphite CLI](https://graphite.dev/) for large features requiring multiple dependent PRs.
+
+#### What are Stacked PRs?
+
+Stacked PRs break large features into small, incremental changes built on top of each other. Each PR can be tested, reviewed, and merged independently while maintaining development velocity.
+
+**Benefits:**
+
+- Continue building while waiting for reviews
+- Smaller, more focused PRs (easier to review)
+- Faster feedback cycles
+- Reduced merge conflicts
+- Better code organization
+
+#### Installation
+
+```bash
+# Install Graphite CLI
+npm install -g @withgraphite/graphite-cli@stable
+
+# Or with homebrew
+brew install graphite
+
+# Initialize in repository
+gt repo init
+
+# Enable automatic conflict resolution
+git config rerere.enabled true
+```
+
+#### Basic Commands
+
+| Command | Git Equivalent | Description |
+|---------|----------------|-------------|
+| `gt create -am "message"` | `git branch` + `git checkout` + `git commit` | Create branch with commit |
+| `gt modify -a` | `git commit --fixup` + `git rebase -i --autosquash` | Amend current branch |
+| `gt sync` | `git checkout main` + `git pull` + `git merge main` | Sync all branches with remote |
+| `gt restack` | `git rebase` (manual) | Update stack after changes |
+| `gt log short` / `gt ls` | Multiple `git log` commands | View stack structure |
+| `gt submit` | `gh pr create` | Create PR for current branch |
+| `gt submit --stack` | Multiple `gh pr create` | Create PRs for entire stack |
+
+#### Creating a Stack
+
+```bash
+# Start from main
+gt checkout main
+
+# Create first branch in stack
+gt create -am "feat(db): add user table schema"
+
+# Create second branch stacked on top
+gt create -am "feat(models): add User model"
+
+# Create third branch
+gt create -am "feat(api): add user endpoints"
+
+# View your stack
+gt log short
+```
+
+Output shows dependency structure:
+
+```
+● feat/user-endpoints (current)
+● feat/user-model
+● feat/user-schema
+◯ main
+```
+
+#### Submitting Stack
+
+```bash
+# Submit entire stack as PRs
+gt submit --stack
+
+# Or submit current branch only
+gt submit
+
+# Open PR in browser
+gt pr
+```
+
+#### Making Changes
+
+```bash
+# Amend changes to current branch
+gt modify -a
+
+# Add new commit to current branch
+gt modify -cam "Address review feedback"
+
+# Navigate to different branch in stack
+gt checkout    # Interactive selection
+```
+
+#### Syncing and Restacking
+
+```bash
+# Sync all branches with remote
+gt sync
+
+# Restack after upstream changes
+gt restack
+
+# Fix conflicts incrementally
+gt stack fix --one-at-a-time
+```
+
+#### When to Use Graphite
+
+**Use gt for:**
+
+- Large features spanning multiple PRs (>500 lines)
+- Features with clear logical layers (DB → Models → API → UI)
+- Work requiring async reviews (don't block on upstream PRs)
+- Complex features with multiple reviewers
+- Teams practicing trunk-based development
+
+**Use standard git for:**
+
+- Simple bug fixes (<100 lines)
+- Documentation updates
+- Single-component changes
+- Quick hotfixes
+- Features completed in single PR
+
+#### Stacked PR Best Practices
+
+1. **Structure Logically**
+   - Each PR represents one logical unit
+   - Clear dependencies: `Schema → Models → Repositories → Services → API`
+   - Bottom layer = foundational, top layer = user-facing
+
+2. **Keep PRs Small**
+   - Target 200-400 lines per PR
+   - One concern per PR (easier to review)
+   - Better test coverage per layer
+
+3. **Use Conventional Commits**
+
+   ```bash
+   gt create -am "feat(db): add user authentication schema"
+   gt create -am "feat(models): implement User model with validation"
+   gt create -am "feat(api): add /auth/login endpoint"
+   gt create -am "test(auth): add integration tests for auth flow"
+   ```
+
+4. **Review Strategy**
+   - Review PRs bottom-to-top (foundation first)
+   - Each PR reviewable independently
+   - Provide timely feedback to avoid blocking downstream work
+
+5. **Merge Patterns**
+   - PRs can merge in any order when ready
+   - `gt sync` handles automatic rebasing
+   - Middle PRs merging first is supported
+   - Graphite restacks remaining PRs automatically
+
+6. **Conflict Management**
+
+   ```bash
+   # Enable rerere (reuse recorded resolution)
+   git config rerere.enabled true
+
+   # Fix conflicts one branch at a time
+   gt stack fix --one-at-a-time
+   ```
+
+#### Complete Workflow Example
+
+```bash
+# 1. Initialize
+gt checkout main
+git config rerere.enabled true
+
+# 2. Create stack for authentication feature
+gt create -am "feat(db): add users table and auth schema"
+gt create -am "feat(models): implement User and Token models"
+gt create -am "feat(services): add authentication service"
+gt create -am "feat(api): add /auth/login and /auth/register endpoints"
+gt create -am "feat(frontend): add login form component"
+gt create -am "test(auth): add end-to-end auth tests"
+
+# 3. View stack structure
+gt log short
+
+# 4. Submit all as PRs
+gt submit --stack
+
+# 5. Address review feedback on services layer
+gt checkout feat/auth-service
+# Make changes
+gt modify -a
+gt sync    # Updates dependent PRs automatically
+
+# 6. Continue work while PRs are in review
+# (Already on top of stack, keep building)
+
+# 7. As PRs merge, sync periodically
+gt sync    # Rebases remaining PRs on merged work
+```
+
+#### GitHub Integration
+
+- PRs created with stack context automatically
+- Stack visualization in Graphite web interface
+- Works with GitHub branch protection rules
+- Integrates with GitHub Actions and status checks
+- Supports GitHub merge queue
+
+### Command Reference
+
+#### Quick Comparison
+
+**Create feature branch with first commit:**
+
+```bash
+# Git
+git checkout -b feat/new-feature
+git commit -m "feat: initial implementation"
+
+# Graphite
+gt create -am "feat: initial implementation"
+```
+
+**Add more work on feature:**
+
+```bash
+# Git
+git add .
+git commit -m "feat: additional work"
+
+# Graphite (creates new branch on stack)
+gt create -am "feat: additional work"
+```
+
+**Update after review feedback:**
+
+```bash
+# Git
+git add .
+git commit --amend
+
+# Graphite
+gt modify -a
+```
+
+**Sync with main:**
+
+```bash
+# Git
+git checkout main
+git pull
+git checkout feat/new-feature
+git merge main
+
+# Graphite
+gt sync
+```
+
+#### Common Workflows
+
+**Simple feature (use git):**
+
+```bash
+git checkout main && git pull
+git checkout -b fix/typo-in-readme
+git commit -am "docs: fix typo in README"
+git push -u origin fix/typo-in-readme
+gh pr create
+```
+
+**Large feature (use gt):**
+
+```bash
+gt checkout main
+gt create -am "feat(db): add schema"
+gt create -am "feat(api): add endpoints"
+gt create -am "test: add integration tests"
+gt submit --stack
+```
+
+**Emergency hotfix (use git):**
+
+```bash
+git checkout main && git pull
+git checkout -b hotfix/critical-bug
+git commit -am "fix: critical production bug"
+git push -u origin hotfix/critical-bug
+gh pr create --title "HOTFIX: Critical production bug"
+```
 
 ## Quick Commands
 
 ### Makefile (Preferred)
 
-Professional-grade development automation with 10 organized sections:
+Professional-grade development automation with 9 organized sections:
 
 ```bash
 # 1. Development Setup
 make install                   # Install with dev dependencies
+make install/dev               # Install with dev dependencies (alias)
 make install-hooks             # Install pre-commit hooks
+make update                    # Update dev tooling (pre-commit hooks, dependencies)
 
 # 2. Testing
-make test                      # Run all tests
-make test-verbose              # Run tests with verbose output
-make test-cov                  # Run tests with coverage
+make test                      # Run all tests (verbose)
+make test/coverage             # Run tests with coverage report (HTML + terminal)
 
-# 3. Code Quality - Python
-make format                    # Format Python code (modifies files)
-make format-check              # Check formatting without modifying
-make lint                      # Run Python linting (ruff)
-make lint-fix                  # Auto-fix Python linting issues
-make typecheck                 # Type check with ty
+# 3. Code Quality
+make format                    # Format all code (Python, YAML, Markdown, Shell)
+make format/python             # Format Python code with ruff
+make format/python/check       # Check Python formatting without modifying
+make format/yaml               # Format YAML files with yamlfmt
+make format/markdown           # Format Markdown files with mdformat
+make format/shell              # Format shell scripts with shfmt
 
-# 4. Code Quality - Other Languages
-make lint-shell                # Lint shell scripts (shellcheck)
-make lint-actions              # Lint GitHub Actions (actionlint)
-make lint-yaml                 # Lint YAML files (yamllint)
-make lint-markdown             # Lint markdown files (mdformat)
+make lint                      # Run all linters (Python, shell, actions, YAML, markdown)
+make lint/python               # Run Python linter (ruff)
+make lint/python/fix           # Auto-fix Python linting issues
+make lint/shell                # Lint shell scripts (shellcheck)
+make lint/actions              # Lint GitHub Actions (actionlint)
+make lint/yaml                 # Lint YAML files (yamllint)
+make lint/markdown             # Lint Markdown files (markdownlint)
+make lint/markdown/fix         # Lint and fix Markdown files
+make lint/makefile             # Lint Makefile (checkmake)
 
-# 5. Combined Quality Checks
-make lint-all                  # Run ALL linters (Python + shell + actions + yaml + markdown)
-make check-all                 # Run all checks without modifying (format-check + lint-all + typecheck)
+make typecheck/python          # Type check with ty
+make check                     # Run all checks without modifying (lint + format/python/check + typecheck)
+make fix/python                # Auto-fix all fixable issues (format + lint --fix)
 
-# 6. Pre-commit Integration
-make pre-commit                # Run pre-commit (all quality checks)
-                               # Includes: ruff, ty, shellcheck, actionlint, yamllint, mdformat
+# 4. Pre-commit Integration
+make pre-commit                # Run pre-commit on all files
+                               # Includes: ruff, ty, shellcheck, actionlint, yamllint, mdformat, checkmake
+make pre-commit/install        # Alias for install-hooks
 
-# 7. Documentation
+# 5. GitHub Actions Pinning (Ratchet)
+make ratchet                   # Install ratchet if not present
+make ratchet/pin               # Pin GitHub Actions to commit SHAs
+make ratchet/update            # Update pinned GitHub Actions to latest versions
+make ratchet/check             # Verify all GitHub Actions are pinned
+
+# 6. Documentation
 make docs                      # Generate CLI documentation
 
-# 8. Utilities
+# 7. Utilities
+make shfmt                     # Install shfmt if not present
+make yamlfmt                   # Install yamlfmt if not present
 make clean                     # Clean caches and build artifacts
-make clean-all                 # Deep clean (includes venv)
+make clean/all                 # Deep clean (includes venv)
 
-# 9. Combined Workflows
-make all                       # Full pipeline: format → lint-all → typecheck → test
-make ci                        # CI pipeline: check-all → test (non-modifying)
+# 8. Combined Workflows
+make all                       # Full pipeline: format → lint → typecheck → test
+make ci                        # CI pipeline: check → test (what GitHub Actions runs)
 
-# 10. Help
+# 9. Help
 make help                      # Display comprehensive help with sections
 ```
 
@@ -82,7 +526,10 @@ make all
 make ci
 
 # Quick check without modifications
-make check-all
+make check
+
+# Auto-fix Python issues
+make fix/python
 ```
 
 ### Running the tool
@@ -339,9 +786,9 @@ def fetch_*_activities(target_date: date, config: dict[str, Any]) -> list[Model]
 ```bash
 make all                           # Run all quality checks (format, lint, typecheck, test)
 # Or run individually:
-make lint-fix                      # Auto-fix lint issues
-make format                        # Format code
-make typecheck                     # Type check
+make fix/python                    # Auto-fix Python issues (format + lint --fix)
+make format                        # Format all code
+make typecheck/python              # Type check
 make test                          # Run tests
 ```
 
@@ -425,8 +872,8 @@ Local development and CI use identical commands via the Makefile, ensuring consi
 
 Pre-commit hooks run automatically on `git commit`:
 
-- **Setup**: `make pre-commit-install`
+- **Setup**: `make install-hooks` or `make pre-commit/install`
 - **Manual run**: `make pre-commit`
-- **Hooks**: ruff (lint + format), ty (type check), standard file checks
+- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint, mdformat, checkmake
 
 Pre-commit hooks catch issues before commit, reducing CI failures.

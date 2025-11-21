@@ -6,7 +6,11 @@ from typing import Any
 
 import httpx
 
+from pkm_tool.auth import AuthManager
+from pkm_tool.auth.oauth import GoogleOAuthProvider
 from pkm_tool.models import GoogleDoc
+
+_AUTH_MANAGER = AuthManager()
 
 
 def fetch_google_docs(target_date: date, config: dict[str, Any]) -> list[GoogleDoc]:
@@ -23,7 +27,16 @@ def fetch_google_docs(target_date: date, config: dict[str, Any]) -> list[GoogleD
     Returns:
         List of GoogleDoc objects
     """
-    access_token = config.get("access_token", os.environ.get("GOOGLE_ACCESS_TOKEN"))
+    access_token = None
+    provider = _build_provider(config)
+
+    if provider:
+        token = _AUTH_MANAGER.ensure_oauth_token("google_docs", provider, allow_interactive=False)
+        if token:
+            access_token = token.token
+
+    if access_token is None:
+        access_token = config.get("access_token", os.environ.get("GOOGLE_ACCESS_TOKEN"))
 
     if not access_token:
         return []
@@ -77,3 +90,14 @@ def fetch_google_docs(target_date: date, config: dict[str, Any]) -> list[GoogleD
         pass
 
     return docs
+
+
+def _build_provider(config: dict[str, Any]) -> GoogleOAuthProvider | None:
+    client_id = config.get("client_id") or os.environ.get("GOOGLE_CLIENT_ID")
+    if not client_id:
+        return None
+    client_secret = config.get("client_secret") or os.environ.get("GOOGLE_CLIENT_SECRET")
+    scopes = config.get("scopes") or ["https://www.googleapis.com/auth/drive.readonly"]
+    if isinstance(scopes, str):
+        scopes = [scopes]
+    return GoogleOAuthProvider(client_id, client_secret=client_secret, scopes=scopes)

@@ -6,7 +6,10 @@ from typing import Any
 
 import httpx
 
+from pkm_tool.auth import AuthManager
 from pkm_tool.models import WhoopRecovery, WhoopSleep, WhoopWorkout
+
+_AUTH_MANAGER = AuthManager()
 
 
 def fetch_whoop_recovery(target_date: date, config: dict[str, Any]) -> WhoopRecovery | None:
@@ -20,7 +23,7 @@ def fetch_whoop_recovery(target_date: date, config: dict[str, Any]) -> WhoopReco
     Returns:
         WhoopRecovery object or None if not found/error
     """
-    access_token = config.get("access_token", os.environ.get("WHOOP_ACCESS_TOKEN"))
+    access_token = _get_whoop_token(config)
 
     if not access_token:
         return None
@@ -81,7 +84,7 @@ def fetch_whoop_sleep(target_date: date, config: dict[str, Any]) -> list[WhoopSl
     Returns:
         List of WhoopSleep objects
     """
-    access_token = config.get("access_token", os.environ.get("WHOOP_ACCESS_TOKEN"))
+    access_token = _get_whoop_token(config)
 
     if not access_token:
         return []
@@ -171,7 +174,7 @@ def fetch_whoop_workouts(target_date: date, config: dict[str, Any]) -> list[Whoo
     Returns:
         List of WhoopWorkout objects
     """
-    access_token = config.get("access_token", os.environ.get("WHOOP_ACCESS_TOKEN"))
+    access_token = _get_whoop_token(config)
 
     if not access_token:
         return []
@@ -232,3 +235,11 @@ def fetch_whoop_workouts(target_date: date, config: dict[str, Any]) -> list[Whoo
         pass
 
     return workouts
+
+
+def _get_whoop_token(config: dict[str, Any]) -> str | None:
+    """Retrieve Whoop access token from secure store or config/env fallback."""
+    stored = _AUTH_MANAGER.get_token("whoop")
+    if stored:
+        return stored.token
+    return config.get("access_token") or os.environ.get("WHOOP_ACCESS_TOKEN")

@@ -189,7 +189,9 @@ tests/
 
 #### Test Types
 
-**1. Snapshot Tests** (`tests/test_cli.py`)
+##### 1. Snapshot Tests
+
+Location: `tests/test_cli.py`
 
 Snapshot tests validate CLI output remains consistent across changes:
 
@@ -206,7 +208,9 @@ Snapshots are stored in `tests/__snapshots__/test_cli.ambr` and can be updated w
 pytest --snapshot-update
 ```
 
-**2. Integration Tests** (`tests/test_integration.py`)
+##### 2. Integration Tests
+
+Location: `tests/test_integration.py`
 
 End-to-end tests with mocked external APIs:
 
@@ -216,7 +220,7 @@ End-to-end tests with mocked external APIs:
 - Date parsing and filtering
 - Config file integration
 
-**3. Unit Tests**
+##### 3. Unit Tests
 
 Individual component tests with comprehensive mocking:
 

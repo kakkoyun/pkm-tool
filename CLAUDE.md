@@ -36,18 +36,18 @@ All commits MUST follow the [Conventional Commits v1.0.0](https://www.convention
 
 #### Types
 
-| Type | Description | Semantic Version |
-|------|-------------|------------------|
-| `feat` | New feature | MINOR |
-| `fix` | Bug fix | PATCH |
-| `docs` | Documentation only | - |
-| `style` | Code style (formatting, whitespace) | - |
-| `refactor` | Code changes (neither fix nor feature) | - |
-| `perf` | Performance improvements | PATCH |
-| `test` | Adding or updating tests | - |
-| `build` | Build system or dependencies | - |
-| `ci` | CI/CD configuration changes | - |
-| `chore` | Maintenance tasks, tooling | - |
+| Type       | Description                            | Semantic Version |
+| ---------- | -------------------------------------- | ---------------- |
+| `feat`     | New feature                            | MINOR            |
+| `fix`      | Bug fix                                | PATCH            |
+| `docs`     | Documentation only                     | -                |
+| `style`    | Code style (formatting, whitespace)    | -                |
+| `refactor` | Code changes (neither fix nor feature) | -                |
+| `perf`     | Performance improvements               | PATCH            |
+| `test`     | Adding or updating tests               | -                |
+| `build`    | Build system or dependencies           | -                |
+| `ci`       | CI/CD configuration changes            | -                |
+| `chore`    | Maintenance tasks, tooling             | -                |
 
 #### Scope
 
@@ -185,15 +185,15 @@ git config rerere.enabled true
 
 #### Basic Commands
 
-| Command | Git Equivalent | Description |
-|---------|----------------|-------------|
-| `gt create -am "message"` | `git branch` + `git checkout` + `git commit` | Create branch with commit |
-| `gt modify -a` | `git commit --fixup` + `git rebase -i --autosquash` | Amend current branch |
-| `gt sync` | `git checkout main` + `git pull` + `git merge main` | Sync all branches with remote |
-| `gt restack` | `git rebase` (manual) | Update stack after changes |
-| `gt log short` / `gt ls` | Multiple `git log` commands | View stack structure |
-| `gt submit` | `gh pr create` | Create PR for current branch |
-| `gt submit --stack` | Multiple `gh pr create` | Create PRs for entire stack |
+| Command                   | Git Equivalent                                      | Description                   |
+| ------------------------- | --------------------------------------------------- | ----------------------------- |
+| `gt create -am "message"` | `git branch` + `git checkout` + `git commit`        | Create branch with commit     |
+| `gt modify -a`            | `git commit --fixup` + `git rebase -i --autosquash` | Amend current branch          |
+| `gt sync`                 | `git checkout main` + `git pull` + `git merge main` | Sync all branches with remote |
+| `gt restack`              | `git rebase` (manual)                               | Update stack after changes    |
+| `gt log short` / `gt ls`  | Multiple `git log` commands                         | View stack structure          |
+| `gt submit`               | `gh pr create`                                      | Create PR for current branch  |
+| `gt submit --stack`       | Multiple `gh pr create`                             | Create PRs for entire stack   |
 
 #### Creating a Stack
 
@@ -274,7 +274,7 @@ gt stack fix --one-at-a-time
 
 **Use standard git for:**
 
-- Simple bug fixes (<100 lines)
+- Simple bug fixes (\<100 lines)
 - Documentation updates
 - Single-component changes
 - Quick hotfixes
@@ -283,16 +283,18 @@ gt stack fix --one-at-a-time
 #### Stacked PR Best Practices
 
 1. **Structure Logically**
+
    - Each PR represents one logical unit
    - Clear dependencies: `Schema → Models → Repositories → Services → API`
    - Bottom layer = foundational, top layer = user-facing
 
-2. **Keep PRs Small**
+1. **Keep PRs Small**
+
    - Target 200-400 lines per PR
    - One concern per PR (easier to review)
    - Better test coverage per layer
 
-3. **Use Conventional Commits**
+1. **Use Conventional Commits**
 
    ```bash
    gt create -am "feat(db): add user authentication schema"
@@ -301,18 +303,20 @@ gt stack fix --one-at-a-time
    gt create -am "test(auth): add integration tests for auth flow"
    ```
 
-4. **Review Strategy**
+1. **Review Strategy**
+
    - Review PRs bottom-to-top (foundation first)
    - Each PR reviewable independently
    - Provide timely feedback to avoid blocking downstream work
 
-5. **Merge Patterns**
+1. **Merge Patterns**
+
    - PRs can merge in any order when ready
    - `gt sync` handles automatic rebasing
    - Middle PRs merging first is supported
    - Graphite restacks remaining PRs automatically
 
-6. **Conflict Management**
+1. **Conflict Management**
 
    ```bash
    # Enable rerere (reuse recorded resolution)

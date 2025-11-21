@@ -6,4 +6,3 @@ formatter:
   line_length: 120
   retain_line_breaks: true
   scan_folded_as_literal: true
-

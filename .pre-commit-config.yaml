@@ -35,7 +35,7 @@ repos:
     rev: v1.37.1
     hooks:
       - id: yamllint
-        args: [-f, parsable, -d, '{extends: default, rules: {line-length: {max: 120}, document-start: disable}}']
+        args: [-f, parsable, -c, .config/yamllint.yaml]
   # Markdown - mdformat
   - repo: https://github.com/executablebooks/mdformat
     rev: 1.0.0

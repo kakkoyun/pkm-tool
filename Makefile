@@ -64,11 +64,11 @@ format/python/check: ## Check Python formatting without modifying files
 format/yaml: ## Format YAML files with yamlfmt
 	@echo "Formatting YAML files..."
 	@if command -v yamlfmt >/dev/null 2>&1; then \
-		yamlfmt -conf .yamlfmt .; \
+		yamlfmt -conf .config/yamlfmt.yaml .; \
 	else \
 		echo "yamlfmt not available (install: go install github.com/google/yamlfmt/cmd/yamlfmt@latest)"; \
 		echo "Using yamllint for checking only..."; \
-		uv run yamllint -f colored . ; \
+		uv run yamllint -f colored -c .config/yamllint.yaml . ; \
 	fi
 
 format/markdown: ## Format Markdown files with mdformat
@@ -95,7 +95,7 @@ lint/python/fix: ## Auto-fix Python linting issues
 lint/markdown: ## Lint check Markdown files with markdownlint
 	@echo "Linting Markdown files..."
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --config .markdownlint.json ; \
+		npx --yes markdownlint-cli **/*.md --config .config/markdownlint.json ; \
 	else \
 		echo "npx not available, using pre-commit mdformat instead"; \
 		pre-commit run mdformat --all-files ; \
@@ -104,7 +104,7 @@ lint/markdown: ## Lint check Markdown files with markdownlint
 lint/markdown/fix: ## Lint and fix Markdown files with markdownlint
 	@echo "Linting and fixing Markdown files..."
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --fix --config .markdownlint.json ; \
+		npx --yes markdownlint-cli **/*.md --fix --config .config/markdownlint.json ; \
 	else \
 		echo "npx not available, using pre-commit mdformat instead"; \
 		pre-commit run mdformat --all-files ; \
@@ -131,7 +131,7 @@ lint/actions: ## Check GitHub Actions workflows with actionlint
 
 lint/yaml: ## Check YAML files with yamllint
 	@echo "Running yamllint on YAML files..."
-	@uv run yamllint -f colored .
+	@uv run yamllint -f colored -c .config/yamllint.yaml .
 
 lint/makefile: ## Check Makefile with checkmake
 	@if command -v checkmake >/dev/null 2>&1; then \

@@ -5,6 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 KEEP THIS FILE UP TO DATE! (Add the end of each plan)!
 WHEN USER WORKS WITH A NEW FLOW!
 
+MAKE SURE TO KEEP llm-tool.json UP TO DATE!
+
 ## Coding Standards and Principles
 
 - ACT LIKE A PROFESSIONAL EXPERIENCED SOFTWARE ENGINEER!
@@ -573,6 +575,7 @@ uv run pkm wakatime --config ~/.config/pkm-tool/config.yaml --date 2025-11-21
 ```
 
 **Note**: The CLI supports dual syntax for backward compatibility:
+
 - **Preferred**: `pkm <subcommand> --date yesterday` (FLAGS after subcommand)
 - **Backward compat**: `pkm --date yesterday` (FLAGS before implicit aggregate subcommand)
 

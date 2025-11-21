@@ -19,6 +19,7 @@ PKM Tool aggregates data from multiple sources into a unified daily report:
 - **✅ Things** - Completed tasks from logbook (macOS only)
 - **⏱️ Wakatime** - Coding activity per project
 - **📝 Google Docs** - Recently opened documents
+- **💪 Whoop** - Recovery, sleep, and workout metrics
 
 ## Installation
 
@@ -74,8 +75,15 @@ Usage: cli [OPTIONS] COMMAND [ARGS]...
 Options:
   -d, --date TEXT               Date to fetch data for (default: today). Format:
                                 YYYY-MM-DD or natural language.
+  --start-date TEXT             Start date for range (inclusive). Format:
+                                YYYY-MM-DD or natural language.
+  --end-date TEXT               End date for range (inclusive). Format:
+                                YYYY-MM-DD or natural language.
   -f, --format [markdown|json]  Output format (default: markdown)
   -c, --config PATH             Path to configuration file
+  --exclude-weekends / --include-weekends
+                                Exclude (or include) weekend dates for all sources
+                                (overrides config).
   -v, --verbose                 Enable verbose (DEBUG) logging
   --log-format [human|json]     Log output format (default: human)
   --help                        Show this message and exit.
@@ -93,13 +101,51 @@ Commands:
 ### Available Options
 
 - **`-d, --date TEXT`**: Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.
+- **`--start-date TEXT`**: Start of a multi-day range (inclusive). Supports natural language.
+- **`--end-date TEXT`**: End of a multi-day range (inclusive). Supports natural language.
 - **`-f, --format [markdown|json]`**: Output format (default: markdown)
 - **`-c, --config PATH`**: Path to configuration file
+- **`--exclude-weekends / --include-weekends`**: Toggle weekend processing (CLI override for config)
 - **`-v, --verbose`**: Enable verbose (DEBUG) logging
 - **`--log-format [human|json]`**: Log output format (default: human)
 - **`--help`**: Show this message and exit.
 
 <!-- CLI_USAGE_END -->
+
+### Date Ranges & Weekend Filtering
+
+- Fetch multiple days at once:
+
+  ```bash
+  pkm --start-date 2025-11-18 --end-date 2025-11-21 --config ~/.config/pkm-tool/config.yaml
+  ```
+
+  The CLI emits a range summary followed by one report per day separated with `---` in Markdown.
+  JSON output becomes an array where the first entry contains a `summary` object.
+
+- Skip weekend dates globally:
+
+  ```bash
+  pkm --start-date monday --end-date sunday --exclude-weekends
+  ```
+
+- Override config defaults to include weekends (even if disabled globally):
+
+  ```bash
+  pkm --date sunday --include-weekends
+  ```
+
+- Per-source control:
+
+  ```yaml
+  exclude_weekends: false  # global default
+
+  github:
+    enabled: true
+    exclude_weekends: true   # skip GitHub on Saturdays/Sundays unless CLI overrides
+  ```
+
+  Each source respects its `exclude_weekends` flag, and CLI overrides take precedence.
 
 ### Logging
 
@@ -137,22 +183,39 @@ cp config.example.yaml ~/.config/pkm-tool/config.yaml
 Edit the configuration file to enable/disable sources and add credentials:
 
 ```yaml
+exclude_weekends: false
+
 github:
   enabled: true
+  exclude_weekends: false
   config:
     use_gh_cli: true  # Uses gh CLI for authentication
 
 wakatime:
   enabled: true
+  exclude_weekends: false
   config:
     api_key: waka_your_api_key_here
 
 atlassian:
   enabled: true
+  exclude_weekends: false
   config:
     base_url: https://your-domain.atlassian.net
     username: your.email@example.com
     api_token: your_api_token_here
+
+google_docs:
+  enabled: false
+  exclude_weekends: false
+  config:
+    access_token: your_google_access_token_here
+
+whoop:
+  enabled: false
+  exclude_weekends: false
+  config:
+    access_token: your_whoop_access_token_here
 ```
 
 ### Output Formats
@@ -197,6 +260,10 @@ atlassian:
   "metadata": {}
 }
 ```
+
+> For multi-day ranges the CLI returns a JSON array: the first element contains
+> `{"summary": {"start": "...", "end": "...", "days": N}}`, followed by one entry
+> per day in chronological order.
 
 ## Development
 

@@ -21,27 +21,35 @@ def temp_config(tmp_path: Path) -> Path:
     """Create a temporary config file with only GitHub and Wakatime enabled."""
     config_path = tmp_path / "test_config.yaml"
     config_content = """
+exclude_weekends: false
+
 github:
   enabled: true
+  exclude_weekends: false
   config:
     token: test_github_token
 
 wakatime:
   enabled: true
+  exclude_weekends: false
   config:
     api_key: test_wakatime_key
 
 atlassian:
   enabled: false
+  exclude_weekends: false
 
 apple_calendar:
   enabled: false
+  exclude_weekends: false
 
 things:
   enabled: false
+  exclude_weekends: false
 
 google_docs:
   enabled: false
+  exclude_weekends: false
 """
     config_path.write_text(config_content)
     return config_path
@@ -73,6 +81,38 @@ atlassian:
     base_url: https://test.atlassian.net
     username: test@example.com
     api_token: test_token
+
+apple_calendar:
+  enabled: false
+
+things:
+  enabled: false
+
+google_docs:
+  enabled: false
+"""
+    config_path.write_text(config_content)
+    return config_path
+
+
+@pytest.fixture
+def weekend_filter_config(tmp_path: Path) -> Path:
+    """Config with global weekend exclusion to test CLI overrides."""
+    config_path = tmp_path / "weekend_filter.yaml"
+    config_content = """
+exclude_weekends: true
+
+github:
+  enabled: true
+  exclude_weekends: false
+  config:
+    token: test_github_token
+
+wakatime:
+  enabled: false
+
+atlassian:
+  enabled: false
 
 apple_calendar:
   enabled: false
@@ -205,7 +245,94 @@ def test_cli_human_readable_date(
 
     assert result.exit_code == 0
     assert "Daily Report" in result.output
-    assert "2025-11-21" in result.output
+
+
+@pytest.mark.unit
+def test_cli_date_range_markdown_summary(
+    cli_runner: CliRunner,
+    temp_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+    mock_wakatime_api_success: Mock,
+) -> None:
+    """Ensure date range output includes summary and separators."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "--start-date",
+            "2025-11-20",
+            "--end-date",
+            "2025-11-21",
+            "--config",
+            str(temp_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "# Daily Reports Summary" in result.output
+    assert result.output.count("# Daily Report -") == 2
+    assert "---" in result.output
+
+
+@pytest.mark.unit
+def test_cli_exclude_weekends_filters_all_days(
+    cli_runner: CliRunner,
+    temp_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+    mock_wakatime_api_success: Mock,
+) -> None:
+    """Weekend-only ranges should abort when excluding weekends."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "--start-date",
+            "2025-11-22",
+            "--end-date",
+            "2025-11-23",
+            "--config",
+            str(temp_config),
+            "--exclude-weekends",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "No dates to process" in result.output
+
+
+@pytest.mark.unit
+def test_cli_include_weekends_overrides_config(
+    cli_runner: CliRunner,
+    weekend_filter_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+) -> None:
+    """--include-weekends should override config exclusion."""
+    without_override = cli_runner.invoke(
+        cli,
+        [
+            "--date",
+            "2025-11-23",
+            "--config",
+            str(weekend_filter_config),
+        ],
+    )
+    assert without_override.exit_code != 0
+    assert "No dates to process" in without_override.output
+
+    result = cli_runner.invoke(
+        cli,
+        [
+            "--date",
+            "2025-11-23",
+            "--config",
+            str(weekend_filter_config),
+            "--include-weekends",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "# Daily Report - 2025-11-23" in result.output
 
 
 @pytest.mark.unit
@@ -384,6 +511,7 @@ def test_cli_help(cli_runner: CliRunner) -> None:
     assert "things" in result.output
     assert "wakatime" in result.output
     assert "google-docs" in result.output
+    assert "whoop" in result.output
     assert "aggregate" in result.output
 
 

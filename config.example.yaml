@@ -1,12 +1,17 @@
 # Example configuration for PKM Tool
 # Copy this to ~/.config/pkm-tool/config.yaml or ~/.pkm-tool.yaml
+# Global options
+exclude_weekends: false  # Skip weekend dates entirely when running ranges
+
 # Apple Calendar (macOS only)
 apple_calendar:
   enabled: true
+  exclude_weekends: false
   config: {}
 # GitHub integration
 github:
   enabled: true
+  exclude_weekends: true  # Example: skip GitHub on weekends
   config:
     # Use gh CLI (recommended)
     use_gh_cli: true
@@ -17,6 +22,7 @@ github:
 # Atlassian (Jira/Confluence)
 atlassian:
   enabled: false
+  exclude_weekends: false
   config:
     base_url: https://your-domain.atlassian.net
     username: your.email@example.com
@@ -24,25 +30,29 @@ atlassian:
 # Things (macOS only)
 things:
   enabled: true
+  exclude_weekends: false
   config:
   # Optional: custom database path
   # database_path: /path/to/Things Database.thingsdatabase/main.sqlite
 # Wakatime
 wakatime:
   enabled: false
+  exclude_weekends: false
   config:
     api_key: waka_your_api_key_here
 # Google Docs
 google_docs:
   enabled: false
+  exclude_weekends: false
   config:
 
 # Requires OAuth2 access token
 # access_token: your_access_token_here
+
 # Whoop
 whoop:
   enabled: false
+  exclude_weekends: false
   config:
     # OAuth2 access token from Whoop API
     access_token: your_whoop_access_token_here
-    # Or set WHOOP_ACCESS_TOKEN environment variable

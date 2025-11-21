@@ -12,8 +12,8 @@
 
 ### Phase 2
 
-- [ ] Feature: Support day ranges
-- [ ] Feature: Add an option to exclude weekend (all, and for certain datasources, this could go to config)
+- [x] Feature: Support day ranges
+- [x] Feature: Add an option to exclude weekend (all, and for certain datasources, this could go to config)
 
 ### Phase 3
 

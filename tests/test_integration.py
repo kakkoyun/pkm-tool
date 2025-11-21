@@ -74,6 +74,38 @@ google_docs:
     return config_path
 
 
+@pytest.fixture
+def weekend_only_config(tmp_path: Path) -> Path:
+    """Config used for weekend-specific aggregation tests."""
+    config_path = tmp_path / "weekend_only.yaml"
+    config_content = """
+exclude_weekends: false
+
+github:
+  enabled: true
+  exclude_weekends: true
+  config:
+    token: test_github_token
+
+wakatime:
+  enabled: false
+
+atlassian:
+  enabled: false
+
+apple_calendar:
+  enabled: false
+
+things:
+  enabled: false
+
+google_docs:
+  enabled: false
+"""
+    config_path.write_text(config_content)
+    return config_path
+
+
 @pytest.mark.integration
 def test_full_aggregation_all_sources(
     full_config: Path,
@@ -399,3 +431,34 @@ def test_sorting_and_ordering(
     # If both sections exist, GitHub should come before Wakatime
     if github_pos != -1 and wakatime_pos != -1:
         assert github_pos < wakatime_pos
+
+
+@pytest.mark.unit
+def test_aggregate_data_marks_skipped_sources_on_weekend(
+    weekend_only_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+) -> None:
+    """Sources with weekend exclusion should be noted in metadata."""
+    weekend_date = date(2025, 11, 22)  # Saturday
+    data = aggregate_data(weekend_date, str(weekend_only_config))
+
+    assert data.github_activities == []
+    assert data.metadata.get("github_skipped") == "weekend (source_config)"
+
+
+@pytest.mark.unit
+def test_include_weekends_override_disables_skip(
+    weekend_only_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+) -> None:
+    """Override flag should allow weekend processing."""
+    weekend_date = date(2025, 11, 23)  # Sunday
+    data = aggregate_data(
+        weekend_date,
+        str(weekend_only_config),
+        exclude_weekends_override=False,
+    )
+
+    assert "github_skipped" not in data.metadata

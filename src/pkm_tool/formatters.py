@@ -1,6 +1,29 @@
 """Output formatters for PKM tool."""
 
+import json
+from datetime import date
+
 from pkm_tool.models import AggregatedData
+
+
+def _humanize_source_key(metadata_key: str) -> str:
+    """Convert metadata keys into human-friendly source names."""
+    normalized = (
+        metadata_key.replace("_error", "")
+        .replace("_skipped", "")
+        .replace("_", " ")
+        .strip()
+        .lower()
+    )
+    overrides = {
+        "github": "GitHub",
+        "google docs": "Google Docs",
+        "apple calendar": "Apple Calendar",
+        "wakatime": "Wakatime",
+        "things": "Things",
+        "atlassian": "Atlassian",
+    }
+    return overrides.get(normalized, normalized.title())
 
 
 def format_as_json(data: AggregatedData) -> str:
@@ -112,16 +135,21 @@ def format_as_markdown(data: AggregatedData) -> str:
         lines.append("## 💪 Whoop Health Data")
         lines.append("")
 
-        # Recovery
         if data.whoop_recovery:
             recovery = data.whoop_recovery
             lines.append(
                 f"**Recovery:** {recovery.recovery_score:.0f}% "
                 f"(HRV: {recovery.hrv:.0f}ms, Resting HR: {recovery.resting_heart_rate} bpm)"
             )
+            if recovery.spo2 is not None or recovery.skin_temp is not None:
+                extras = []
+                if recovery.spo2 is not None:
+                    extras.append(f"SpO₂: {recovery.spo2:.0f}%")
+                if recovery.skin_temp is not None:
+                    extras.append(f"Skin temp: {recovery.skin_temp:.1f}°C")
+                lines.append(f"  - {', '.join(extras)}")
             lines.append("")
 
-        # Sleep
         if data.whoop_sleep:
             lines.append("**Sleep:**")
             for sleep in sorted(data.whoop_sleep, key=lambda s: s.start):
@@ -134,7 +162,6 @@ def format_as_markdown(data: AggregatedData) -> str:
                 )
                 lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
 
-                # Sleep stages
                 stages = []
                 if sleep.deep_sleep_minutes:
                     deep_h = sleep.deep_sleep_minutes // 60
@@ -152,7 +179,6 @@ def format_as_markdown(data: AggregatedData) -> str:
                     lines.append(f"  - {', '.join(stages)}")
             lines.append("")
 
-        # Workouts
         if data.whoop_workouts:
             lines.append("**Workouts:**")
             for workout in sorted(data.whoop_workouts, key=lambda w: w.start):
@@ -160,16 +186,15 @@ def format_as_markdown(data: AggregatedData) -> str:
                 hours = workout.duration_minutes // 60
                 mins = workout.duration_minutes % 60
                 duration_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
-
                 strain_str = f"Strain: {workout.strain:.1f}"
-                hr_str = (
-                    f", Avg HR: {workout.average_heart_rate} bpm"
-                    if workout.average_heart_rate
-                    else ""
-                )
-
+                hr_bits = []
+                if workout.average_heart_rate:
+                    hr_bits.append(f"Avg HR: {workout.average_heart_rate} bpm")
+                if workout.max_heart_rate:
+                    hr_bits.append(f"Max HR: {workout.max_heart_rate} bpm")
                 lines.append(
-                    f"- **{time_str}** {workout.sport_name} ({duration_str}) - {strain_str}{hr_str}"
+                    f"- **{time_str}** {workout.sport_name} ({duration_str}) - "
+                    f"{strain_str}{', ' + ', '.join(hr_bits) if hr_bits else ''}"
                 )
             lines.append("")
 
@@ -179,8 +204,71 @@ def format_as_markdown(data: AggregatedData) -> str:
         lines.append("## ⚠️ Errors")
         lines.append("")
         for source, error in errors.items():
-            source_name = source.replace("_error", "").replace("_", " ").title()
+            source_name = _humanize_source_key(source)
             lines.append(f"- **{source_name}:** {error}")
         lines.append("")
 
+    skipped = {k: v for k, v in data.metadata.items() if k.endswith("_skipped")}
+    if skipped:
+        lines.append("## ⏭️ Skipped Sources")
+        lines.append("")
+        for source, reason in skipped.items():
+            source_name = _humanize_source_key(source)
+            lines.append(f"- **{source_name}:** {reason}")
+        lines.append("")
+
     return "\n".join(lines)
+
+
+def format_reports_as_markdown(
+    reports: list[AggregatedData],
+    date_range: tuple[date, date] | None,
+) -> str:
+    """
+    Format multiple daily reports as Markdown with separators and summary.
+    """
+    if not reports:
+        return "# Daily Report\n\n_No data for the requested dates._"
+    if len(reports) == 1:
+        return format_as_markdown(reports[0])
+
+    start_date, end_date = date_range or (reports[0].date, reports[-1].date)
+    summary_block = "\n".join(
+        [
+            "# Daily Reports Summary",
+            "",
+            f"- Start: {start_date}",
+            f"- End: {end_date}",
+            f"- Days: {len(reports)}",
+            "",
+        ]
+    ).strip()
+    report_blocks = "\n---\n".join(format_as_markdown(report).strip() for report in reports)
+    return f"{summary_block}\n\n{report_blocks}".strip()
+
+
+def format_reports_as_json(
+    reports: list[AggregatedData],
+    date_range: tuple[date, date] | None,
+) -> str:
+    """
+    Format multiple daily reports as JSON. Includes a leading summary object
+    followed by one entry per day.
+    """
+    if not reports:
+        return json.dumps([], indent=2)
+    if len(reports) == 1:
+        return format_as_json(reports[0])
+
+    start_date, end_date = date_range or (reports[0].date, reports[-1].date)
+    payload: list[dict] = [
+        {
+            "summary": {
+                "start": start_date.isoformat(),
+                "end": end_date.isoformat(),
+                "days": len(reports),
+            }
+        }
+    ]
+    payload.extend(report.model_dump(mode="json") for report in reports)
+    return json.dumps(payload, indent=2)

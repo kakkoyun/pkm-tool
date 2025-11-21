@@ -580,6 +580,28 @@ uv run pkm wakatime --config ~/.config/pkm-tool/config.yaml --date 2025-11-21
 - **Preferred**: `pkm <subcommand> --date yesterday` (FLAGS after subcommand)
 - **Backward compat**: `pkm --date yesterday` (FLAGS before implicit aggregate subcommand)
 
+#### Date ranges & weekend filtering
+
+- Aggregate multiple days in a single run (separate daily reports + summary):
+
+  ```bash
+  uv run pkm --start-date 2025-11-18 --end-date 2025-11-21
+  ```
+
+- Skip weekend days entirely:
+
+  ```bash
+  uv run pkm --start-date monday --end-date sunday --exclude-weekends
+  ```
+
+- Override config defaults to include weekends even if disabled globally:
+
+  ```bash
+  uv run pkm --date sunday --include-weekends
+  ```
+
+- Per-source weekend rules live in `config.yaml` via `exclude_weekends` under each source. CLI overrides take precedence.
+
 ### Direct uv commands (reference)
 
 ```bash
@@ -665,6 +687,7 @@ The tool follows a clean, modular architecture:
 
 - **YAML-based configuration** with sensible defaults
 - **Per-source configuration**: Each source can be enabled/disabled independently
+- **Weekend filtering**: Global `exclude_weekends` plus per-source `exclude_weekends` flags
 - **Default config locations**:
   - `~/.config/pkm-tool/config.yaml` (preferred)
   - `~/.pkm-tool.yaml`
@@ -684,6 +707,8 @@ The tool follows a clean, modular architecture:
 - **JSON formatter**: Machine-readable output (uses Pydantic's `model_dump_json`)
 - **Sorted outputs**: Events sorted by time for better readability
 - **Error reporting**: Displays any source errors at the end of reports
+- **Multi-day support**: Adds date-range summaries, Markdown `---` separators, and JSON summary entries
+- **Skip visibility**: Surfaces weekend-skipped sources in the metadata section
 
 ### Source Architecture Pattern
 

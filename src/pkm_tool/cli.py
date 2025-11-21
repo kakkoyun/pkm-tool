@@ -630,7 +630,7 @@ def auth_refresh(source: str, config: str | None) -> None:
 
     if stored is None or not stored.refresh_token:
         raise click.ClickException(
-            "No refresh token found. Run `pkm auth login google-docs` first."
+            f"No refresh token found. Run `pkm auth login {source}` first."
         )
 
     provider = _build_google_provider(config)

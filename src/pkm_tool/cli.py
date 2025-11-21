@@ -25,6 +25,11 @@ from pkm_tool.sources.whoop import (
     fetch_whoop_sleep,
     fetch_whoop_workouts,
 )
+from pkm_tool.sources.whoop import (
+    fetch_whoop_recovery,
+    fetch_whoop_sleep,
+    fetch_whoop_workouts,
+)
 
 
 # Common options decorator for all subcommands
@@ -517,21 +522,39 @@ def whoop(
     target_date = _parse_date(date, logger)
     cfg = load_config(config)
 
-    # Fetch all Whoop data types
-    def fetch_all_whoop_data(target_date: date, config: dict[str, Any]) -> tuple:
-        """Fetch recovery, sleep, and workouts."""
-        recovery = fetch_whoop_recovery(target_date, config)
-        sleep = fetch_whoop_sleep(target_date, config)
-        workouts = fetch_whoop_workouts(target_date, config)
-        return (recovery, sleep, workouts)
+    # Create AggregatedData and populate Whoop fields
+    data = AggregatedData(date=target_date)
 
-    data = _fetch_single_source(
-        "whoop",
-        fetch_all_whoop_data,
-        target_date,
-        cfg.whoop.config,
-        logger,
-    )
+    logger.info("fetching_source", source="whoop")
+    start_time = time.time()
+    try:
+        # Fetch all three types of Whoop data
+        data.whoop_recovery = fetch_whoop_recovery(target_date, cfg.whoop.config)
+        data.whoop_sleep = fetch_whoop_sleep(target_date, cfg.whoop.config)
+        data.whoop_workouts = fetch_whoop_workouts(target_date, cfg.whoop.config)
+
+        recovery_count = 1 if data.whoop_recovery else 0
+        total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
+        duration = time.time() - start_time
+
+        logger.info(
+            "source_fetch_completed",
+            source="whoop",
+            duration_seconds=f"{duration:.2f}",
+            items_count=total_items,
+        )
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(
+            "source_fetch_failed",
+            source="whoop",
+            error=str(e),
+            duration_seconds=f"{duration:.2f}",
+            exc_info=True,
+        )
+        click.echo(f"Error fetching whoop: {e}", err=True)
+        raise click.Abort()
+
     _format_and_output(data, format, logger)
 
 

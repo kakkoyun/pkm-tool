@@ -5,8 +5,8 @@
       "Bash(make:*)",
       "Bash(cat:*)",
       "Bash(uv sync:*)",
-      "Bash(uv pip *)",
-      "Bash(uv run ty *)"
+      "Bash(uv pip :*)",
+      "Bash(uv run ty :*)"
     ],
     "deny": [],
     "ask": []

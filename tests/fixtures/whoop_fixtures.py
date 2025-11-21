@@ -81,4 +81,3 @@ def sample_whoop_workout_minimal() -> WhoopWorkout:
         strain=12.5,
         duration_minutes=30,
     )
-

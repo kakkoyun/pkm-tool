@@ -130,9 +130,7 @@ def format_as_markdown(data: AggregatedData) -> str:
                 hours = sleep.duration_minutes // 60
                 mins = sleep.duration_minutes % 60
                 efficiency_str = (
-                    f" - {sleep.sleep_efficiency:.0f}% efficiency"
-                    if sleep.sleep_efficiency
-                    else ""
+                    f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
                 )
                 lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
 

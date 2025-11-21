@@ -150,9 +150,7 @@ def fetch_whoop_sleep(target_date: date, config: dict[str, Any]) -> list[WhoopSl
                         else None
                     ),
                     disturbances=record.get("score", {}).get("disturbance_count"),
-                    sleep_performance=record.get("score", {}).get(
-                        "sleep_performance_percentage"
-                    ),
+                    sleep_performance=record.get("score", {}).get("sleep_performance_percentage"),
                 )
                 sleep_cycles.append(sleep_cycle)
 
@@ -234,4 +232,3 @@ def fetch_whoop_workouts(target_date: date, config: dict[str, Any]) -> list[Whoo
         pass
 
     return workouts
-

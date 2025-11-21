@@ -4,7 +4,7 @@
 
 ### Phase 0
 
-- [ ] Add subcommands to the CLI for each datasource, so that we can use the CLI to get data from each datasource separately.
+- [x] Add subcommands to the CLI for each datasource, so that we can use the CLI to get data from each datasource separately.
 
 ### Phase 1
 

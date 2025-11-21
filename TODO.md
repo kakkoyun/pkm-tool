@@ -26,13 +26,8 @@
 ### Phase 4
 
 - [ ] Feature: Add a mode to run as an MCP server `pkm mcp ...`
-- [ ] Feature: Add a mode to run as a web server `pkm server ...`
+- [ ] Feature: Add a mode to run as a web server `pkm server ...` that serves a REST API and a web UI using FastAPI and Streamlit.
 
 ## Plumbing
 
-- [ ] Introduce structured logging, add extensive logs for troubleshooting
-- [ ] Create a `.config` directory in the home directory and put the config file there. Update all the tooling
-  to use this new location.
-- [ ] Testing: Add snapshot testing for commands and CLI output
-- [ ] Testing: API response recording and playback, mocking
-- [ ] Testing: Add compherensive integration tests
+- [ ] TBD

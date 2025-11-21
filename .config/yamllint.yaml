@@ -1,4 +1,3 @@
----
 extends: default
 
 ignore: |
@@ -15,5 +14,5 @@ rules:
   truthy:
     allowed-values: ['true', 'false', 'on', 'off']
   comments:
-    min-spaces-from-content: 1  # Allow 1 space before inline comments (ratchet style)
+    min-spaces-from-content: 1 # Allow 1 space before inline comments (ratchet style)
   comments-indentation: disable

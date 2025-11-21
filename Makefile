@@ -21,15 +21,15 @@ MAKEFLAGS += --no-builtin-rules
 
 .PHONY: install install/dev install-hooks update
 
-install: ## Install dependencies with all extras
+tools/install: ## Install dependencies with all extras
 	uv sync --all-extras
 
-install/dev: install install-hooks ## Install with dev dependencies (alias for install)
+tools/install/dev: tools/install tools/install-hooks ## Install with dev dependencies (alias for install)
 
-install-hooks: ## Install pre-commit hooks
+tools/install-hooks: ## Install pre-commit hooks
 	pre-commit install
 
-update: ## Update dev tooling (pre-commit hooks, dependencies)
+tools/update: ## Update dev tooling (pre-commit hooks, dependencies)
 	pre-commit autoupdate
 	uv sync --all-extras --upgrade
 
@@ -257,7 +257,7 @@ help: ## Display this help message
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Section 1: Development Setup"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@grep -E '^(install|update)[a-z/-]*:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(tools/install|tools/update)[a-z/-]*:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Section 2: Testing"

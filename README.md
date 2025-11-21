@@ -74,8 +74,8 @@ Options:
 - **`-d, --date TEXT`**: Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.
 - **`-f, --format [markdown|json]`**: Output format (default: markdown)
 - **`-c, --config PATH`**: Path to configuration file
-- **`-v, --verbose`**: Enable verbose (DEBUG) logging for troubleshooting
-- **`--log-format [human|json]`**: Log output format - "human" for colored console output, "json" for structured logging
+- **`-v, --verbose`**: Enable verbose (DEBUG) logging
+- **`--log-format [human|json]`**: Log output format (default: human)
 - **`--help`**: Show this message and exit.
 
 <!-- CLI_USAGE_END -->
@@ -288,16 +288,16 @@ pytest --snapshot-update
 
 Current coverage: **77%**
 
-| Module                 | Coverage | Notes                      |
-| ---------------------- | -------- | -------------------------- |
-| models.py              | 100%     | Full Pydantic validation   |
-| wakatime.py            | 100%     | Complete HTTP mocking      |
-| github.py              | 94%      | PyGithub mocked            |
-| atlassian.py           | 89%      | Jira/Confluence mocked     |
-| cli.py                 | 87%      | Snapshot tested            |
-| apple_calendar.py      | 85%      | Subprocess mocked          |
-| config.py              | 92%      | YAML loading tested        |
-| aggregator.py          | 77%      | Integration tested         |
+| Module            | Coverage | Notes                    |
+| ----------------- | -------- | ------------------------ |
+| models.py         | 100%     | Full Pydantic validation |
+| wakatime.py       | 100%     | Complete HTTP mocking    |
+| github.py         | 94%      | PyGithub mocked          |
+| atlassian.py      | 89%      | Jira/Confluence mocked   |
+| cli.py            | 87%      | Snapshot tested          |
+| apple_calendar.py | 85%      | Subprocess mocked        |
+| config.py         | 92%      | YAML loading tested      |
+| aggregator.py     | 77%      | Integration tested       |
 
 #### Mocking Strategy
 

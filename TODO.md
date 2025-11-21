@@ -4,9 +4,9 @@
 
 ### Phase 0
 
-- [ ] Testing: Add snapshot testing for commands and CLI output
-- [ ] Testing: API response recording and playback, mocking
-- [ ] Testing: Add compherensive integration tests
+- [x] Testing: Add snapshot testing for commands and CLI output
+- [x] Testing: API response recording and playback, mocking
+- [x] Testing: Add compherensive integration tests
 
 ### Phase 1
 

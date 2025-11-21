@@ -1,0 +1,91 @@
+# serializer version: 1
+# name: test_cli_json_output_with_mocks
+  '''
+  {
+    "date": "2025-11-21",
+    "calendar_events": [],
+    "github_activities": [
+      {
+        "type": "commit",
+        "title": "Pushed 3 commits",
+        "url": "https://github.com/testuser/test-repo",
+        "repository": "testuser/test-repo",
+        "timestamp": "2025-11-21T10:30:00Z",
+        "details": null
+      },
+      {
+        "type": "pr",
+        "title": "Add new feature",
+        "url": "https://github.com/testuser/awesome-project/pull/42",
+        "repository": "testuser/awesome-project",
+        "timestamp": "2025-11-21T14:15:00Z",
+        "details": "Action: opened"
+      },
+      {
+        "type": "issue",
+        "title": "Fix critical bug",
+        "url": "https://github.com/testuser/bug-tracker/issues/123",
+        "repository": "testuser/bug-tracker",
+        "timestamp": "2025-11-21T09:00:00Z",
+        "details": "Action: opened"
+      },
+      {
+        "type": "review",
+        "title": "Update documentation",
+        "url": "https://github.com/testuser/code-review/pull/5",
+        "repository": "testuser/code-review",
+        "timestamp": "2025-11-21T16:45:00Z",
+        "details": "Reviewed PR"
+      }
+    ],
+    "atlassian_items": [],
+    "things_tasks": [],
+    "wakatime_activities": [
+      {
+        "project": "pkm-tool",
+        "duration_seconds": 7200,
+        "language": "Python"
+      },
+      {
+        "project": "awesome-app",
+        "duration_seconds": 3600,
+        "language": "Python"
+      }
+    ],
+    "google_docs": [],
+    "metadata": {}
+  }
+  
+  '''
+# ---
+# name: test_cli_markdown_output_with_mocks
+  '''
+  # Daily Report - 2025-11-21
+  
+  ## 🐙 GitHub Activities
+  
+  - 📋 **09:00** [testuser/bug-tracker](https://github.com/testuser/bug-tracker/issues/123) - Fix critical bug
+    - Action: opened
+  - 📝 **10:30** [testuser/test-repo](https://github.com/testuser/test-repo) - Pushed 3 commits
+  - 🔀 **14:15** [testuser/awesome-project](https://github.com/testuser/awesome-project/pull/42) - Add new feature
+    - Action: opened
+  - 👁️ **16:45** [testuser/code-review](https://github.com/testuser/code-review/pull/5) - Update documentation
+    - Reviewed PR
+  
+  ## ⏱️ Wakatime - Coding Activity
+  
+  **Total Time:** 3.00 hours
+  
+  - pkm-tool (Python): 2.00h
+  - awesome-app (Python): 1.00h
+  
+  
+  '''
+# ---
+# name: test_cli_with_api_errors
+  '''
+  # Daily Report - 2025-11-21
+  
+  
+  '''
+# ---

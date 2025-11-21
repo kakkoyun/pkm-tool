@@ -73,6 +73,9 @@
     "things_tasks": [],
     "wakatime_activities": [],
     "google_docs": [],
+    "whoop_recovery": null,
+    "whoop_sleep": [],
+    "whoop_workouts": [],
     "metadata": {}
   }
   
@@ -165,6 +168,9 @@
       }
     ],
     "google_docs": [],
+    "whoop_recovery": null,
+    "whoop_sleep": [],
+    "whoop_workouts": [],
     "metadata": {}
   }
   
@@ -224,6 +230,9 @@
       }
     ],
     "google_docs": [],
+    "whoop_recovery": null,
+    "whoop_sleep": [],
+    "whoop_workouts": [],
     "metadata": {}
   }
   
@@ -319,6 +328,9 @@
       }
     ],
     "google_docs": [],
+    "whoop_recovery": null,
+    "whoop_sleep": [],
+    "whoop_workouts": [],
     "metadata": {}
   }
   

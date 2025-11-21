@@ -25,11 +25,6 @@ from pkm_tool.sources.whoop import (
     fetch_whoop_sleep,
     fetch_whoop_workouts,
 )
-from pkm_tool.sources.whoop import (
-    fetch_whoop_recovery,
-    fetch_whoop_sleep,
-    fetch_whoop_workouts,
-)
 
 
 # Common options decorator for all subcommands

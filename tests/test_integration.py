@@ -88,12 +88,12 @@ def test_full_aggregation_all_sources(
     """Test full data aggregation with all sources enabled."""
     target_date = date(2025, 11, 21)
 
-    # Mock _fetch_things_via_library to prevent the library from opening unclosed
+    # Mock fetch_things_tasks to prevent the library from opening unclosed
     # database connections. The things-py library doesn't properly close its SQLite connections
     from pkm_tool.models import ThingsTask
 
     mocker.patch(
-        "pkm_tool.sources.things._fetch_things_via_library",
+        "pkm_tool.aggregator.fetch_things_tasks",
         return_value=[
             ThingsTask(
                 title="Test completed task",

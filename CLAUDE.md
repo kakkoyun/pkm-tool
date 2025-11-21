@@ -565,6 +565,28 @@ uv run ruff format src tests   # Auto-formatting
 uv run ruff check --fix src tests # Auto-fix lint issues
 ```
 
+## Project Structure
+
+### Tool Configuration Organization
+
+Project-level tool configurations are organized in the `.config/` directory for cleaner repository structure:
+
+```
+.config/
+├── yamllint.yaml          # YAML linting configuration
+├── yamlfmt.yaml           # YAML formatting configuration
+├── markdownlint.json      # Markdown linting configuration
+└── markdownlintignore     # Markdown linting ignore patterns
+```
+
+**Files at root** (required by tools):
+
+- `.gitignore` - Git requires at root
+- `.python-version` - pyenv/uv expect at root
+- `.pre-commit-config.yaml` - pre-commit requires at root
+
+All Makefile targets and pre-commit hooks reference configs from `.config/` directory.
+
 ## Architecture Overview
 
 ### High-Level Design

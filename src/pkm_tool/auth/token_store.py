@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 import base64
-import hashlib
+import secrets
 import sqlite3
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import keyring
 import structlog
 from cryptography.fernet import Fernet, InvalidToken
 
 logger = structlog.get_logger(__name__)
+
+# Keyring service name for storing the encryption key
+_KEYRING_SERVICE = "pkm-tool"
+_KEYRING_USERNAME = "token-store-encryption-key"
 
 DEFAULT_DB_PATH = Path.home() / ".pkm-tool" / "tokens.db"
 
@@ -165,11 +169,48 @@ class TokenStore:
 
 
 def _derive_key() -> bytes:
-    """Derive a stable encryption key for the current machine."""
-    machine_id = uuid.getnode()
-    home_path = str(Path.home())
-    digest = hashlib.sha256(f"{machine_id}:{home_path}".encode()).digest()
-    return base64.urlsafe_b64encode(digest)
+    """
+    Retrieve or generate a secure encryption key using the system keyring.
+
+    On first use, generates a cryptographically secure random key and stores it
+    in the system keyring. On subsequent calls, retrieves the stored key.
+
+    This approach provides better security than deriving keys from machine identifiers:
+    - Uses cryptographically secure random generation (secrets module)
+    - Leverages OS-level keyring security (Keychain on macOS, Credential Manager on Windows, etc.)
+    - No predictable patterns or insufficient entropy
+
+    Returns:
+        bytes: A 32-byte Fernet-compatible encryption key
+
+    Raises:
+        RuntimeError: If keyring operations fail
+    """
+    try:
+        # Try to retrieve existing key from keyring
+        stored_key = keyring.get_password(_KEYRING_SERVICE, _KEYRING_USERNAME)
+
+        if stored_key is not None:
+            # Key exists, decode and return it
+            logger.debug("encryption_key_retrieved_from_keyring")
+            return base64.urlsafe_b64decode(stored_key.encode("utf-8"))
+
+        # No key exists, generate a new secure random key
+        logger.info("generating_new_encryption_key")
+        random_key = secrets.token_bytes(32)  # 256 bits of entropy
+        encoded_key = base64.urlsafe_b64encode(random_key).decode("utf-8")
+
+        # Store the key in the system keyring
+        keyring.set_password(_KEYRING_SERVICE, _KEYRING_USERNAME, encoded_key)
+        logger.info("encryption_key_stored_in_keyring")
+
+        return random_key
+
+    except Exception as exc:
+        logger.error("keyring_operation_failed", error=str(exc))
+        raise RuntimeError(
+            f"Failed to access system keyring for encryption key management: {exc}"
+        ) from exc
 
 
 def _serialize_datetime(value: datetime | None) -> int | None:

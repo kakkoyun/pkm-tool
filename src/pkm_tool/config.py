@@ -3,8 +3,11 @@
 from pathlib import Path
 from typing import Any
 
+import structlog
 import yaml
 from pydantic import BaseModel, Field
+
+logger = structlog.get_logger(__name__)
 
 
 class SourceConfig(BaseModel):
@@ -42,14 +45,27 @@ def load_config(config_path: str | None = None) -> Config:
             Path.home() / ".pkm-tool.yaml",
             Path.cwd() / "pkm-tool.yaml",
         ]
+        logger.debug("searching_for_config_file", paths=[str(p) for p in default_paths])
         for path in default_paths:
+            logger.debug("checking_config_path", path=str(path), exists=path.exists())
             if path.exists():
                 config_path = str(path)
+                logger.info("config_file_found", path=config_path)
                 break
+        else:
+            logger.info("no_config_file_found", message="Using default configuration")
 
     if config_path and Path(config_path).exists():
-        with open(config_path) as f:
-            config_data = yaml.safe_load(f) or {}
-        return Config(**config_data)
+        logger.info("loading_config_file", path=config_path)
+        try:
+            with open(config_path) as f:
+                config_data = yaml.safe_load(f) or {}
+            logger.debug("config_file_loaded", path=config_path, keys=list(config_data.keys()))
+            return Config(**config_data)
+        except Exception as e:
+            logger.error("config_file_load_failed", path=config_path, error=str(e), exc_info=True)
+            logger.warning("using_default_config", reason="Failed to load config file")
+            return Config()
 
+    logger.info("using_default_config", reason="No config file specified or found")
     return Config()

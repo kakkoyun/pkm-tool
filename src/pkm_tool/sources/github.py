@@ -4,9 +4,12 @@ import os
 from datetime import date
 from typing import Any
 
+import structlog
 from github import Auth, Github, GithubException
 
 from pkm_tool.models import GitHubActivity
+
+logger = structlog.get_logger(__name__)
 
 
 def fetch_github_activities(target_date: date, config: dict[str, Any]) -> list[GitHubActivity]:
@@ -20,11 +23,15 @@ def fetch_github_activities(target_date: date, config: dict[str, Any]) -> list[G
     Returns:
         List of GitHubActivity objects
     """
+    logger.debug("github_fetch_started", date=str(target_date), using_pygithub=True)
     try:
-        return _fetch_github_via_pygithub(target_date, config)
-    except Exception:
+        activities = _fetch_github_via_pygithub(target_date, config)
+        logger.info("github_activities_fetched", activity_count=len(activities))
+        return activities
+    except Exception as e:
         # All exceptions are caught and return empty list
         # This ensures graceful degradation
+        logger.error("github_fetch_failed", error=str(e), exc_info=True)
         return []
 
 
@@ -47,20 +54,26 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
         # Get token from config or environment
         token = config.get("token") or os.getenv("GITHUB_TOKEN")
         if not token:
+            logger.warning("github_no_token", message="No GitHub token configured")
             return []
 
         # Authenticate with GitHub
+        logger.debug("github_authenticating")
         auth = Auth.Token(token)
         g = Github(auth=auth)
         # Get authenticated user
         user = g.get_user()
+        logger.info("github_authenticated", username=user.login)
 
         # Fetch user events (GitHub provides last 90 days)
+        logger.debug("github_fetching_events", username=user.login, date=str(target_date))
         events = user.get_events()
 
         # Filter and map events to GitHubActivity
         activities = []
+        event_count = 0
         for event in events:
+            event_count += 1
             # Filter by target date
             if event.created_at.date() != target_date:
                 continue
@@ -70,10 +83,17 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
             if activity:
                 activities.append(activity)
 
+        logger.debug(
+            "github_events_processed",
+            total_events=event_count,
+            matched_events=len(activities),
+            date=str(target_date),
+        )
         return activities
 
-    except GithubException:
+    except GithubException as e:
         # GitHub API errors (auth, rate limit, etc.)
+        logger.error("github_api_error", error=str(e), status=getattr(e, "status", None))
         return []
     finally:
         # Clean up connection

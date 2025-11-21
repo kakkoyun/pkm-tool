@@ -10,7 +10,7 @@ WHEN USER WORKS WITH A NEW FLOW!
 - ACT LIKE A PROFESSIONAL EXPERIENCED SOFTWARE ENGINEER!
 - Be pedantic about code quality and consistency
 - Be consitent!
-- Use debug logs to understand the code and the data flow
+- Use structured logging (structlog) extensively for troubleshooting
 - Add inline comments on WHY? instead of WHAT? and HOW?
 - Always writes tests!
 - Add well-described TODO comments whe you want to cut corners or when you want to come back to a task later

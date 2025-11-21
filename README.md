@@ -156,15 +156,142 @@ atlassian:
 # Install with dev dependencies
 uv sync --all-extras
 
-# Run tests
-uv run pytest
+# Install pre-commit hooks
+make install-hooks
 
-# Run type checking
-uv run mypy src
+# Run all checks (format, lint, typecheck, test)
+make all
+```
 
-# Run linting
-uv run ruff check src
-uv run ruff format src
+### Testing
+
+The project has comprehensive test coverage (77%) with multiple testing strategies:
+
+#### Test Organization
+
+```text
+tests/
+├── __snapshots__/         # Auto-generated snapshot files
+│   └── test_cli.ambr      # CLI output snapshots
+├── fixtures/              # Reusable test fixtures
+│   ├── github_fixtures.py      # Mock GitHub API responses
+│   ├── wakatime_fixtures.py    # Mock Wakatime API responses
+│   ├── atlassian_fixtures.py   # Mock Atlassian API responses
+│   └── system_fixtures.py      # Mock system calls (subprocess, SQLite)
+├── conftest.py            # Shared pytest configuration
+├── test_cli.py            # CLI snapshot and unit tests (9 tests)
+├── test_integration.py    # End-to-end integration tests (12 tests)
+├── test_models.py         # Data model tests
+├── test_config.py         # Configuration tests
+├── test_formatters.py     # Output formatter tests
+└── test_*_migration.py    # Source-specific integration tests
+```
+
+#### Test Types
+
+**1. Snapshot Tests** (`tests/test_cli.py`)
+
+Snapshot tests validate CLI output remains consistent across changes:
+
+```python
+@pytest.mark.snapshot
+def test_cli_markdown_output_with_mocks(snapshot: SnapshotAssertion):
+    result = cli_runner.invoke(main, ["--date", "2025-11-21", "--format", "markdown"])
+    assert result.output == snapshot  # Compared against saved snapshot
+```
+
+Snapshots are stored in `tests/__snapshots__/test_cli.ambr` and can be updated with:
+
+```bash
+pytest --snapshot-update
+```
+
+**2. Integration Tests** (`tests/test_integration.py`)
+
+End-to-end tests with mocked external APIs:
+
+- Full aggregation with all sources enabled
+- Selective source testing
+- Error handling and graceful degradation
+- Date parsing and filtering
+- Config file integration
+
+**3. Unit Tests**
+
+Individual component tests with comprehensive mocking:
+
+- Models: Pydantic validation
+- Config: YAML loading and defaults
+- Formatters: Markdown/JSON output
+- Sources: Individual data source logic
+
+#### Running Tests
+
+```bash
+# Run all tests
+make test
+# or: uv run pytest
+
+# Run with coverage report
+make test/coverage
+# or: uv run pytest --cov --cov-report=html
+
+# Run specific test types
+pytest -m unit              # Unit tests only
+pytest -m integration       # Integration tests only
+pytest -m snapshot          # Snapshot tests only
+
+# Run specific test file
+pytest tests/test_cli.py
+
+# Run with verbose output
+pytest -v
+
+# Update snapshots after intentional changes
+pytest --snapshot-update
+```
+
+#### Test Coverage
+
+Current coverage: **77%**
+
+| Module                 | Coverage | Notes                      |
+| ---------------------- | -------- | -------------------------- |
+| models.py              | 100%     | Full Pydantic validation   |
+| wakatime.py            | 100%     | Complete HTTP mocking      |
+| github.py              | 94%      | PyGithub mocked            |
+| atlassian.py           | 89%      | Jira/Confluence mocked     |
+| cli.py                 | 87%      | Snapshot tested            |
+| apple_calendar.py      | 85%      | Subprocess mocked          |
+| config.py              | 92%      | YAML loading tested        |
+| aggregator.py          | 77%      | Integration tested         |
+
+#### Mocking Strategy
+
+All external dependencies are mocked to ensure fast, reliable tests:
+
+- **GitHub**: PyGithub client mocked with `pytest-mock`
+- **Wakatime**: HTTP API mocked with `respx`
+- **Atlassian**: Jira/Confluence clients mocked
+- **Apple Calendar**: `subprocess.run()` mocked for osascript calls
+- **Things**: In-memory SQLite database with test data
+
+No actual API calls are made during testing.
+
+### Code Quality
+
+```bash
+# Run all quality checks
+make all
+
+# Individual checks
+make format              # Format all code
+make lint                # Run all linters
+make typecheck/python    # Type check with ty
+make test                # Run tests
+
+# Auto-fix issues
+make fix/python          # Format + lint --fix
 ```
 
 ### Project Structure

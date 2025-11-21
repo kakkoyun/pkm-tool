@@ -1,5 +1,12 @@
 # pkm-tool
 
+[![CI](https://github.com/kakkoyun/pkm-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/kakkoyun/pkm-tool/actions/workflows/ci.yml)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/github/license/kakkoyun/pkm-tool)](LICENSE)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![codecov](https://codecov.io/gh/kakkoyun/pkm-tool/branch/main/graph/badge.svg)](https://codecov.io/gh/kakkoyun/pkm-tool)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+
 Personal Knowledge Management Tool to fetch and format data from several resources.
 
 ## Features

@@ -24,6 +24,10 @@ dependencies = [
 dev = [
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
+    "pytest-mock>=3.12.0",
+    "syrupy>=4.6.0",
+    "respx>=0.21.0",
+    "responses>=0.25.0",
     "ruff>=0.8.0",
     "ty>=0.0.1a27",
     "pre-commit>=4.0.0",
@@ -56,3 +60,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "snapshot: Snapshot tests",
+]
+addopts = "--verbose --cov=src/pkm_tool"

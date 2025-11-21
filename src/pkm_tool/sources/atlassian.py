@@ -4,7 +4,7 @@ import os
 from datetime import date, datetime, timedelta
 from typing import Any
 
-import httpx
+from atlassian import Confluence, Jira  # type: ignore
 
 from pkm_tool.models import AtlassianItem
 
@@ -27,38 +27,37 @@ def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[Atl
     if not all([base_url, username, api_token]):
         return []
 
-    items = []
-
-    # Fetch Jira issues
-    jira_items = _fetch_jira_issues(target_date, base_url, username, api_token)
-    items.extend(jira_items)
-
-    # Fetch Confluence pages
-    confluence_items = _fetch_confluence_pages(target_date, base_url, username, api_token)
-    items.extend(confluence_items)
-
-    return items
+    try:
+        jira_items = _fetch_jira_via_library(target_date, base_url, username, api_token)
+        confluence_items = _fetch_confluence_via_library(target_date, base_url, username, api_token)
+        return jira_items + confluence_items
+    except Exception:
+        # Graceful degradation - return empty list on any error
+        return []
 
 
-def _fetch_jira_issues(
+def _fetch_jira_via_library(
     target_date: date, base_url: str, username: str, api_token: str
 ) -> list[AtlassianItem]:
-    """Fetch Jira issues updated on target date."""
+    """Fetch Jira issues updated on target date using atlassian-python-api."""
     items = []
 
-    # JQL query for issues updated on target date
-    jql = f'updated >= "{target_date}" AND updated < "{target_date + timedelta(days=1)}"'
-
     try:
-        with httpx.Client(auth=(username, api_token), timeout=30.0) as client:
-            response = client.get(
-                f"{base_url}/rest/api/3/search",
-                params={"jql": jql, "maxResults": 100},
-            )
-            response.raise_for_status()
-            data = response.json()
+        # Initialize Jira client
+        jira = Jira(url=base_url, username=username, password=api_token, cloud=True)
 
-            for issue in data.get("issues", []):
+        # JQL query for issues updated on target date
+        # Use date range to capture entire day
+        start_date = target_date.isoformat()
+        end_date = (target_date + timedelta(days=1)).isoformat()
+        jql = f'updated >= "{start_date}" AND updated < "{end_date}"'
+
+        # Execute JQL query
+        results = jira.jql(jql, limit=100)  # type: ignore
+
+        # Map results to AtlassianItem models
+        for issue in results.get("issues", []):
+            try:
                 item = AtlassianItem(
                     type="jira_issue",
                     title=issue["fields"]["summary"],
@@ -70,48 +69,57 @@ def _fetch_jira_issues(
                     ),
                 )
                 items.append(item)
-    except (httpx.HTTPError, KeyError):
+            except (KeyError, ValueError):
+                # Skip malformed issues
+                continue
+
+    except Exception:
+        # Return empty list on any error (connection, auth, etc.)
         pass
 
     return items
 
 
-def _fetch_confluence_pages(
+def _fetch_confluence_via_library(
     target_date: date, base_url: str, username: str, api_token: str
 ) -> list[AtlassianItem]:
-    """Fetch Confluence pages updated on target date."""
+    """Fetch Confluence pages updated on target date using atlassian-python-api."""
     items = []
 
-    start_datetime = datetime.combine(target_date, datetime.min.time())
-    end_datetime = datetime.combine(target_date, datetime.max.time())
-
     try:
-        with httpx.Client(auth=(username, api_token), timeout=30.0) as client:
-            # CQL query for pages updated on target date
-            start_iso = start_datetime.isoformat()
-            end_iso = end_datetime.isoformat()
-            cql = f'lastModified >= "{start_iso}" AND lastModified <= "{end_iso}"'
+        # Initialize Confluence client
+        confluence = Confluence(url=base_url, username=username, password=api_token, cloud=True)
 
-            response = client.get(
-                f"{base_url}/wiki/rest/api/content/search",
-                params={"cql": cql, "limit": 100},
-            )
-            response.raise_for_status()
-            data = response.json()
+        # CQL query for pages updated on target date
+        start_datetime = datetime.combine(target_date, datetime.min.time())
+        end_datetime = datetime.combine(target_date, datetime.max.time())
+        start_iso = start_datetime.isoformat()
+        end_iso = end_datetime.isoformat()
+        cql = f'lastModified >= "{start_iso}" AND lastModified <= "{end_iso}"'
 
-            for page in data.get("results", []):
+        # Execute CQL query
+        results = confluence.cql(cql, limit=100)  # type: ignore
+
+        # Map results to AtlassianItem models
+        for page in results.get("results", []):
+            try:
                 item = AtlassianItem(
                     type="confluence_page",
                     title=page["title"],
                     url=f"{base_url}/wiki{page['_links']['webui']}",
                     key=page["id"],
-                    status=None,
+                    status=None,  # Confluence pages don't have status like Jira
                     updated=datetime.fromisoformat(
                         page["history"]["lastUpdated"]["when"].replace("Z", "+00:00")
                     ),
                 )
                 items.append(item)
-    except (httpx.HTTPError, KeyError):
+            except (KeyError, ValueError):
+                # Skip malformed pages
+                continue
+
+    except Exception:
+        # Return empty list on any error (connection, auth, etc.)
         pass
 
     return items

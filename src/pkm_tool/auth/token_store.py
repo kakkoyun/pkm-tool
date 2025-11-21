@@ -196,10 +196,23 @@ def _derive_key() -> bytes:
 
         if stored_key is not None:
             # Key exists, decode and return it
-            logger.debug("encryption_key_retrieved_from_keyring")
-            return base64.urlsafe_b64decode(stored_key.encode("utf-8"))
+            try:
+                logger.debug("encryption_key_retrieved_from_keyring")
+                decoded_key = base64.urlsafe_b64decode(stored_key.encode("utf-8"))
+                # Validate key length (Fernet requires exactly 32 bytes)
+                if len(decoded_key) != 32:
+                    raise ValueError(f"Invalid key length: {len(decoded_key)} bytes (expected 32)")
+                return decoded_key
+            except Exception as decode_exc:
+                # Key is corrupted, log and regenerate
+                logger.warning(
+                    "stored_key_corrupted",
+                    error=str(decode_exc),
+                    action="regenerating_key",
+                )
+                # Fall through to generate new key
 
-        # No key exists, generate a new secure random key
+        # No key exists (or corrupted key), generate a new secure random key
         logger.info("generating_new_encryption_key")
         random_key = secrets.token_bytes(32)  # 256 bits of entropy
         encoded_key = base64.urlsafe_b64encode(random_key).decode("utf-8")

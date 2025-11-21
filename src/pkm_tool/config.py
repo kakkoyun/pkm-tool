@@ -26,6 +26,7 @@ class Config(BaseModel):
     things: SourceConfig = Field(default_factory=SourceConfig)
     wakatime: SourceConfig = Field(default_factory=SourceConfig)
     google_docs: SourceConfig = Field(default_factory=SourceConfig)
+    whoop: SourceConfig = Field(default_factory=SourceConfig)
 
 
 def load_config(config_path: str | None = None) -> Config:

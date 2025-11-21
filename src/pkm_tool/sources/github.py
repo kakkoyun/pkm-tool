@@ -42,16 +42,16 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
     Raises:
         Exception: Any error during GitHub API interaction
     """
-    # Get token from config or environment
-    token = config.get("token") or os.getenv("GITHUB_TOKEN")
-    if not token:
-        return []
-
-    # Authenticate with GitHub
-    auth = Auth.Token(token)
-    g = Github(auth=auth)
-
+    g = None
     try:
+        # Get token from config or environment
+        token = config.get("token") or os.getenv("GITHUB_TOKEN")
+        if not token:
+            return []
+
+        # Authenticate with GitHub
+        auth = Auth.Token(token)
+        g = Github(auth=auth)
         # Get authenticated user
         user = g.get_user()
 
@@ -77,7 +77,8 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
         return []
     finally:
         # Clean up connection
-        g.close()
+        if g is not None:
+            g.close()
 
 
 def _map_event_to_activity(event: Any) -> GitHubActivity | None:

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import stat
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
@@ -98,3 +101,18 @@ def test_auth_cli_logout_removes_token(auth_manager: AuthManager, cli_runner: Cl
     assert result.exit_code == 0
     assert "Removed stored credentials" in result.output
     assert auth_manager.get_token("wakatime") is None
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="File permissions not applicable on Windows")
+def test_token_store_sets_restrictive_permissions(tmp_path: Path) -> None:
+    """Verify that the database file is created with owner-only permissions (0o600)."""
+    db_path = tmp_path / "tokens.db"
+    TokenStore(db_path)
+
+    # Check that the file exists
+    assert db_path.exists()
+
+    # Check file permissions (should be 0o600 - owner read/write only)
+    file_stat = os.stat(db_path)
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+    assert file_mode == 0o600, f"Expected 0o600, got {oct(file_mode)}"

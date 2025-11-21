@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import sqlite3
 import uuid
 from dataclasses import dataclass
@@ -38,6 +39,8 @@ class TokenStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._fernet = Fernet(_derive_key())
         self._initialize_database()
+        # Restrict database file permissions to owner only (read/write)
+        os.chmod(self.db_path, 0o600)
 
     def save_token(
         self,

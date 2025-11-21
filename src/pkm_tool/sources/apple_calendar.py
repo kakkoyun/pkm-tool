@@ -38,8 +38,8 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
     tell application "Calendar"
         set theEvents to {{}}
         repeat with c in calendars
-            set dayEvents to (every event of c whose start date ≥ date "{start_date}" ¬
-                and end date ≤ date "{end_date}")
+            set dayEvents to (every event of c whose (start date ≤ date "{end_date}") ¬
+                and (end date ≥ date "{start_date}"))
             set theEvents to theEvents & dayEvents
         end repeat
         

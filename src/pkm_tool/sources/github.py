@@ -1,5 +1,6 @@
 """GitHub integration."""
 
+import json
 import os
 import subprocess
 from datetime import date, datetime
@@ -72,8 +73,6 @@ def _fetch_via_gh_cli(target_date: date, username: str | None) -> list[GitHubAct
             check=True,
             timeout=30,
         )
-
-        import json
 
         events = json.loads(result.stdout)
 

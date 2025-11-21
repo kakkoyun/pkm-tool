@@ -68,18 +68,18 @@ format/yaml: ## Format YAML files with yamlfmt
 	else \
 		echo "yamlfmt not available (install: go install github.com/google/yamlfmt/cmd/yamlfmt@latest)"; \
 		echo "Using yamllint for checking only..."; \
-		uv run yamllint -f colored . || true; \
+		uv run yamllint -f colored . ; \
 	fi
 
 format/markdown: ## Format Markdown files with mdformat
 	@echo "Formatting Markdown files..."
-	@pre-commit run mdformat --all-files || true
+	@pre-commit run mdformat --all-files
 
 format/shell: ## Format shell scripts with shfmt
 	@echo "Formatting shell scripts..."
 	@if command -v shfmt >/dev/null 2>&1; then \
 		echo "Running shfmt on shell scripts..."; \
-		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec shfmt -i 2 -ci -w {} + || true; \
+		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec shfmt -i 2 -ci -w {} + ; \
 	else \
 		echo "shfmt not available (install: go install mvdan.cc/sh/v3/cmd/shfmt@latest), skipping"; \
 	fi
@@ -95,19 +95,19 @@ lint/python/fix: ## Auto-fix Python linting issues
 lint/markdown: ## Lint check Markdown files with markdownlint
 	@echo "Linting Markdown files..."
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --config .markdownlint.json || true; \
+		npx --yes markdownlint-cli **/*.md --config .markdownlint.json ; \
 	else \
 		echo "npx not available, using pre-commit mdformat instead"; \
-		pre-commit run mdformat --all-files || true; \
+		pre-commit run mdformat --all-files ; \
 	fi
 
 lint/markdown/fix: ## Lint and fix Markdown files with markdownlint
 	@echo "Linting and fixing Markdown files..."
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --fix --config .markdownlint.json || true; \
+		npx --yes markdownlint-cli **/*.md --fix --config .markdownlint.json ; \
 	else \
 		echo "npx not available, using pre-commit mdformat instead"; \
-		pre-commit run mdformat --all-files || true; \
+		pre-commit run mdformat --all-files ; \
 	fi
 
 typecheck/python: ## Type check with ty
@@ -116,7 +116,7 @@ typecheck/python: ## Type check with ty
 lint/shell: ## Check shell scripts with shellcheck
 	@if command -v shellcheck >/dev/null 2>&1 || uv run shellcheck --version >/dev/null 2>&1; then \
 		echo "Running shellcheck on shell scripts..."; \
-		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec uv run shellcheck {} + || true; \
+		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec uv run shellcheck {} + ; \
 	else \
 		echo "shellcheck not available, skipping"; \
 	fi
@@ -124,19 +124,19 @@ lint/shell: ## Check shell scripts with shellcheck
 lint/actions: ## Check GitHub Actions workflows with actionlint
 	@if command -v actionlint >/dev/null 2>&1 || uv run actionlint --version >/dev/null 2>&1; then \
 		echo "Running actionlint on GitHub Actions workflows..."; \
-		uv run actionlint || true; \
+		uv run actionlint ; \
 	else \
 		echo "actionlint not available, skipping"; \
 	fi
 
 lint/yaml: ## Check YAML files with yamllint
 	@echo "Running yamllint on YAML files..."
-	@uv run yamllint -f colored . || true
+	@uv run yamllint -f colored .
 
 lint/makefile: ## Check Makefile with checkmake
 	@if command -v checkmake >/dev/null 2>&1; then \
 		echo "Running checkmake on Makefile..."; \
-		checkmake Makefile || true; \
+		checkmake Makefile ; \
 	else \
 		echo "checkmake not available (install via pre-commit), skipping"; \
 	fi
@@ -230,8 +230,8 @@ yamlfmt: ## Install yamlfmt if not present
 
 clean: ## Remove caches and build artifacts
 	rm -rf .pytest_cache .ruff_cache .mypy_cache dist build htmlcov .coverage
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null
 
 clean/all: clean ## Deep clean (clean + remove virtual environment)
 	rm -rf .venv venv

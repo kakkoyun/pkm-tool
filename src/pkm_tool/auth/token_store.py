@@ -6,6 +6,7 @@ import base64
 import hashlib
 import os
 import sqlite3
+import sys
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -40,7 +41,9 @@ class TokenStore:
         self._fernet = Fernet(_derive_key())
         self._initialize_database()
         # Restrict database file permissions to owner only (read/write)
-        os.chmod(self.db_path, 0o600)
+        # Only applicable on Unix-like systems
+        if sys.platform != "win32":
+            os.chmod(self.db_path, 0o600)
 
     def save_token(
         self,

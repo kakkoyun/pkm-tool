@@ -6,9 +6,14 @@
       "Bash(cat:*)",
       "Bash(uv sync:*)",
       "Bash(uv pip :*)",
-      "Bash(uv run ty :*)"
+      "Bash(uv run ty :*)",
+      "Bash(gt log:*)",
+      "Bash(gt branch:*)",
+      "Bash(gt downstack get:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "outputStyle": "Explanatory"
 }

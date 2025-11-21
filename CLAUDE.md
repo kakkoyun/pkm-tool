@@ -866,16 +866,16 @@ make test                          # Run tests
 
 ### Authentication Methods
 
-| Source         | Method      | Config Key          | Environment Variable  |
-| -------------- | ----------- | ------------------- | --------------------- |
-| GitHub         | gh CLI      | `use_gh_cli: true`  | N/A                   |
-| GitHub         | Token       | `token: ...`        | `GITHUB_TOKEN`        |
-| Wakatime       | API Key     | `api_key: ...`      | `WAKATIME_API_KEY`    |
-| Atlassian      | API Token   | `api_token: ...`    | N/A                   |
-| Google Docs    | OAuth2      | `access_token: ...` | N/A                   |
-| Whoop          | OAuth2      | `access_token: ...` | `WHOOP_ACCESS_TOKEN`  |
-| Apple Calendar | AppleScript | N/A                 | N/A (macOS only)      |
-| Things         | SQLite      | N/A                 | N/A (macOS only)      |
+| Source         | Method      | Config Key          | Environment Variable |
+| -------------- | ----------- | ------------------- | -------------------- |
+| GitHub         | gh CLI      | `use_gh_cli: true`  | N/A                  |
+| GitHub         | Token       | `token: ...`        | `GITHUB_TOKEN`       |
+| Wakatime       | API Key     | `api_key: ...`      | `WAKATIME_API_KEY`   |
+| Atlassian      | API Token   | `api_token: ...`    | N/A                  |
+| Google Docs    | OAuth2      | `access_token: ...` | N/A                  |
+| Whoop          | OAuth2      | `access_token: ...` | `WHOOP_ACCESS_TOKEN` |
+| Apple Calendar | AppleScript | N/A                 | N/A (macOS only)     |
+| Things         | SQLite      | N/A                 | N/A (macOS only)     |
 
 ## Dependencies
 

@@ -30,4 +30,6 @@
 
 ## Plumbing
 
-- [ ] TBD
+- [ ] Make sure code is properly typed with ty everywhere!
+- [ ] This tool never released, we don't have legacy or need to migrate clean the codebase and docs!
+- [ ] Make sure we have consistent patterns and conventions throughout the codebase!

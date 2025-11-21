@@ -64,6 +64,44 @@ class GoogleDoc(BaseModel):
     doc_type: str = "document"
 
 
+class WhoopRecovery(BaseModel):
+    """Whoop recovery data."""
+
+    recovery_score: float  # 0-100%
+    hrv: float  # Heart rate variability in milliseconds
+    resting_heart_rate: int  # Beats per minute
+    spo2: float | None = None  # Blood oxygen percentage
+    skin_temp: float | None = None  # Skin temperature in Celsius
+
+
+class WhoopSleep(BaseModel):
+    """Whoop sleep cycle data."""
+
+    start: datetime
+    end: datetime
+    duration_minutes: int
+    sleep_efficiency: float | None = None  # Percentage
+    light_sleep_minutes: int | None = None
+    deep_sleep_minutes: int | None = None
+    rem_sleep_minutes: int | None = None
+    awake_minutes: int | None = None
+    disturbances: int | None = None
+    sleep_performance: float | None = None  # Percentage
+
+
+class WhoopWorkout(BaseModel):
+    """Whoop workout/activity data."""
+
+    start: datetime
+    end: datetime
+    sport_name: str
+    strain: float  # Whoop strain score
+    duration_minutes: int
+    average_heart_rate: int | None = None
+    max_heart_rate: int | None = None
+    calories: int | None = None
+
+
 class AggregatedData(BaseModel):
     """Aggregated data from all sources."""
 
@@ -74,4 +112,7 @@ class AggregatedData(BaseModel):
     things_tasks: list[ThingsTask] = Field(default_factory=list)
     wakatime_activities: list[WakatimeActivity] = Field(default_factory=list)
     google_docs: list[GoogleDoc] = Field(default_factory=list)
+    whoop_recovery: WhoopRecovery | None = None
+    whoop_sleep: list[WhoopSleep] = Field(default_factory=list)
+    whoop_workouts: list[WhoopWorkout] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)

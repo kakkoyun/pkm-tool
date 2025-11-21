@@ -39,3 +39,10 @@ google_docs:
 
 # Requires OAuth2 access token
 # access_token: your_access_token_here
+# Whoop
+whoop:
+  enabled: false
+  config:
+    # OAuth2 access token from Whoop API
+    access_token: your_whoop_access_token_here
+    # Or set WHOOP_ACCESS_TOKEN environment variable

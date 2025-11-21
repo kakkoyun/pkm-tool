@@ -1,6 +1,6 @@
 """Integration tests for end-to-end workflows."""
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -88,23 +88,19 @@ def test_full_aggregation_all_sources(
     """Test full data aggregation with all sources enabled."""
     target_date = date(2025, 11, 21)
 
-    # Mock things.todos() to prevent the library from opening unclosed database connections
-    # The things-py library doesn't properly close its SQLite connections
+    # Mock fetch_things_tasks to prevent the library from opening unclosed
+    # database connections. The things-py library doesn't properly close its SQLite connections
+    from pkm_tool.models import ThingsTask
+
     mocker.patch(
-        "things.todos",
+        "pkm_tool.aggregator.fetch_things_tasks",
         return_value=[
-            {
-                "uuid": "test-task-1",
-                "type": "to-do",
-                "title": "Test completed task",
-                "status": "completed",
-                "project": None,
-                "project_title": None,
-                "tags": [],
-                "stop_date": "2025-11-21 10:00:00",
-                "created": "2025-11-21 09:00:00",
-                "modified": "2025-11-21 10:00:00",
-            }
+            ThingsTask(
+                title="Test completed task",
+                completed_date=datetime(2025, 11, 21, 10, 0, 0),
+                project=None,
+                tags=[],
+            )
         ],
     )
 

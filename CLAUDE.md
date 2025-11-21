@@ -568,6 +568,7 @@ uv run pkm wakatime --date yesterday     # Wakatime coding time only
 uv run pkm atlassian --date yesterday    # Atlassian (Jira + Confluence) only
 uv run pkm calendar --date yesterday     # Apple Calendar events only
 uv run pkm google-docs --date yesterday  # Google Docs only
+uv run pkm whoop --date yesterday        # Whoop health data only
 
 # With format and config options
 uv run pkm github --format json --date yesterday
@@ -655,6 +656,9 @@ The tool follows a clean, modular architecture:
 - **ThingsTask**: Completed tasks with projects and tags
 - **WakatimeActivity**: Coding time per project and language
 - **GoogleDoc**: Recently opened documents
+- **WhoopRecovery**: Recovery score, HRV, resting heart rate, SpO2
+- **WhoopSleep**: Sleep cycles with stages, efficiency, duration
+- **WhoopWorkout**: Workout activities with strain, duration, heart rate
 - **AggregatedData**: Container for all source data + metadata (including errors)
 
 #### Configuration (`config.py`)
@@ -747,6 +751,14 @@ def fetch_*_activities(target_date: date, config: dict[str, Any]) -> list[Model]
 - **OAuth2 required**: Needs Google Drive API access token
 - **Recently opened**: Fetches documents opened on target date
 - **Document metadata**: Title, URL, opened time, document type
+
+#### Whoop (`sources/whoop.py`)
+
+- **OAuth2 required**: Needs Whoop API access token
+- **Three data types**: Recovery (single per day), Sleep cycles (multiple), Workouts (multiple)
+- **Recovery metrics**: Recovery score, HRV, resting heart rate, SpO2, skin temperature
+- **Sleep tracking**: Sleep stages (deep/light/REM/awake), efficiency, disturbances
+- **Workout data**: Sport type, strain score, duration, heart rate zones, calories
 
 ## Key Patterns & Conventions
 
@@ -863,6 +875,7 @@ make test                          # Run tests
 | Wakatime       | API Key     | `api_key: ...`      | `WAKATIME_API_KEY`   |
 | Atlassian      | API Token   | `api_token: ...`    | N/A                  |
 | Google Docs    | OAuth2      | `access_token: ...` | N/A                  |
+| Whoop          | OAuth2      | `access_token: ...` | `WHOOP_ACCESS_TOKEN` |
 | Apple Calendar | AppleScript | N/A                 | N/A (macOS only)     |
 | Things         | SQLite      | N/A                 | N/A (macOS only)     |
 

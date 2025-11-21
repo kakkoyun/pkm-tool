@@ -107,6 +107,72 @@ def format_as_markdown(data: AggregatedData) -> str:
             lines.append(f"- **{time_str}** [{doc.title}]({doc.url})")
         lines.append("")
 
+    # Whoop Health Data
+    if data.whoop_recovery or data.whoop_sleep or data.whoop_workouts:
+        lines.append("## 💪 Whoop Health Data")
+        lines.append("")
+
+        # Recovery
+        if data.whoop_recovery:
+            recovery = data.whoop_recovery
+            lines.append(
+                f"**Recovery:** {recovery.recovery_score:.0f}% "
+                f"(HRV: {recovery.hrv:.0f}ms, Resting HR: {recovery.resting_heart_rate} bpm)"
+            )
+            lines.append("")
+
+        # Sleep
+        if data.whoop_sleep:
+            lines.append("**Sleep:**")
+            for sleep in sorted(data.whoop_sleep, key=lambda s: s.start):
+                start_str = sleep.start.strftime("%H:%M")
+                end_str = sleep.end.strftime("%H:%M")
+                hours = sleep.duration_minutes // 60
+                mins = sleep.duration_minutes % 60
+                efficiency_str = (
+                    f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
+                )
+                lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
+
+                # Sleep stages
+                stages = []
+                if sleep.deep_sleep_minutes:
+                    deep_h = sleep.deep_sleep_minutes // 60
+                    deep_m = sleep.deep_sleep_minutes % 60
+                    stages.append(f"Deep: {deep_h}h {deep_m}m")
+                if sleep.light_sleep_minutes:
+                    light_h = sleep.light_sleep_minutes // 60
+                    light_m = sleep.light_sleep_minutes % 60
+                    stages.append(f"Light: {light_h}h {light_m}m")
+                if sleep.rem_sleep_minutes:
+                    rem_h = sleep.rem_sleep_minutes // 60
+                    rem_m = sleep.rem_sleep_minutes % 60
+                    stages.append(f"REM: {rem_h}h {rem_m}m")
+                if stages:
+                    lines.append(f"  - {', '.join(stages)}")
+            lines.append("")
+
+        # Workouts
+        if data.whoop_workouts:
+            lines.append("**Workouts:**")
+            for workout in sorted(data.whoop_workouts, key=lambda w: w.start):
+                time_str = workout.start.strftime("%H:%M")
+                hours = workout.duration_minutes // 60
+                mins = workout.duration_minutes % 60
+                duration_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+
+                strain_str = f"Strain: {workout.strain:.1f}"
+                hr_str = (
+                    f", Avg HR: {workout.average_heart_rate} bpm"
+                    if workout.average_heart_rate
+                    else ""
+                )
+
+                lines.append(
+                    f"- **{time_str}** {workout.sport_name} ({duration_str}) - {strain_str}{hr_str}"
+                )
+            lines.append("")
+
     # Errors
     errors = {k: v for k, v in data.metadata.items() if k.endswith("_error")}
     if errors:

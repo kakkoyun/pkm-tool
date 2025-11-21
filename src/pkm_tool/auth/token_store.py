@@ -36,11 +36,15 @@ class StoredToken:
 class TokenStore:
     """Encrypted token store that keeps credentials in SQLite."""
 
-    def __init__(self, db_path: Path | None = None) -> None:
+    def __init__(
+        self, db_path: Path | None = None, *, encryption_key: bytes | None = None
+    ) -> None:
         self.db_path = db_path or DEFAULT_DB_PATH
         self.db_path = self.db_path.expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._fernet = Fernet(_derive_key())
+        # Allow dependency injection of encryption key for testing
+        key = encryption_key if encryption_key is not None else _derive_key()
+        self._fernet = Fernet(key)
         self._initialize_database()
 
     def save_token(

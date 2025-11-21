@@ -17,7 +17,12 @@ from pkm_tool.cli import cli
 
 @pytest.fixture
 def token_store(tmp_path: Path) -> TokenStore:
-    return TokenStore(tmp_path / "tokens.db")
+    # Use a fixed base64-encoded test key to avoid keyring operations during tests
+    # Fernet expects a 44-byte base64-encoded key (which decodes to 32 bytes)
+    import base64
+
+    test_key = base64.urlsafe_b64encode(b"test-encryption-key-" + b"0" * 12)
+    return TokenStore(tmp_path / "tokens.db", encryption_key=test_key)
 
 
 @pytest.fixture

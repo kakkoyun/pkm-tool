@@ -64,6 +64,8 @@ Options:
                                 YYYY-MM-DD or natural language.
   -f, --format [markdown|json]  Output format (default: markdown)
   -c, --config PATH             Path to configuration file
+  -v, --verbose                 Enable verbose (DEBUG) logging
+  --log-format [human|json]     Log output format (default: human)
   --help                        Show this message and exit.
 ```
 
@@ -72,9 +74,36 @@ Options:
 - **`-d, --date TEXT`**: Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.
 - **`-f, --format [markdown|json]`**: Output format (default: markdown)
 - **`-c, --config PATH`**: Path to configuration file
+- **`-v, --verbose`**: Enable verbose (DEBUG) logging for troubleshooting
+- **`--log-format [human|json]`**: Log output format - "human" for colored console output, "json" for structured logging
 - **`--help`**: Show this message and exit.
 
 <!-- CLI_USAGE_END -->
+
+### Logging
+
+The tool includes comprehensive structured logging for troubleshooting:
+
+```bash
+# Enable verbose logging to see detailed debug information
+pkm --verbose
+
+# Use JSON logging format for production/log aggregation
+pkm --verbose --log-format json
+
+# Standard (INFO) logging is enabled by default
+pkm
+```
+
+**Log levels:**
+
+- **INFO** (default): Start/end of operations, source status, config loading
+- **DEBUG** (with `--verbose`): Detailed API calls, authentication, data parsing, file paths
+
+**Log formats:**
+
+- **human** (default): Colored, human-readable console output for development
+- **json**: Structured JSON logs for production and log aggregation systems
 
 ### Configuration
 

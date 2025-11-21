@@ -17,6 +17,7 @@ dependencies = [
     "PyGithub>=2.0.0",
     "atlassian-python-api>=3.41.0",
     "things-py>=0.0.15",
+    "structlog>=24.1.0",
 ]
 
 [project.optional-dependencies]

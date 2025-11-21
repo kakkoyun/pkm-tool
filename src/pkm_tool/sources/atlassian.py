@@ -4,9 +4,12 @@ import os
 from datetime import date, datetime, timedelta
 from typing import Any
 
+import structlog
 from atlassian import Confluence, Jira  # type: ignore
 
 from pkm_tool.models import AtlassianItem
+
+logger = structlog.get_logger(__name__)
 
 
 def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[AtlassianItem]:
@@ -25,14 +28,26 @@ def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[Atl
     api_token = config.get("api_token", os.environ.get("ATLASSIAN_API_TOKEN"))
 
     if not all([base_url, username, api_token]):
+        logger.warning(
+            "atlassian_config_incomplete",
+            has_url=bool(base_url),
+            has_username=bool(username),
+            has_token=bool(api_token),
+        )
         return []
 
+    logger.debug("atlassian_fetching_items", date=str(target_date), base_url=base_url)
     try:
         jira_items = _fetch_jira_via_library(target_date, base_url, username, api_token)
+        logger.info("atlassian_jira_fetched", item_count=len(jira_items))
         confluence_items = _fetch_confluence_via_library(target_date, base_url, username, api_token)
-        return jira_items + confluence_items
-    except Exception:
+        logger.info("atlassian_confluence_fetched", item_count=len(confluence_items))
+        total_items = jira_items + confluence_items
+        logger.info("atlassian_total_items", item_count=len(total_items))
+        return total_items
+    except Exception as e:
         # Graceful degradation - return empty list on any error
+        logger.error("atlassian_fetch_failed", error=str(e), exc_info=True)
         return []
 
 
@@ -44,6 +59,7 @@ def _fetch_jira_via_library(
 
     try:
         # Initialize Jira client
+        logger.debug("jira_initializing_client", base_url=base_url)
         jira = Jira(url=base_url, username=username, password=api_token, cloud=True)
 
         # JQL query for issues updated on target date
@@ -51,9 +67,11 @@ def _fetch_jira_via_library(
         start_date = target_date.isoformat()
         end_date = (target_date + timedelta(days=1)).isoformat()
         jql = f'updated >= "{start_date}" AND updated < "{end_date}"'
+        logger.debug("jira_query", jql=jql)
 
         # Execute JQL query
         results = jira.jql(jql, limit=100)  # type: ignore
+        logger.debug("jira_response_received", issue_count=len(results.get("issues", [])))
 
         # Map results to AtlassianItem models
         for issue in results.get("issues", []):

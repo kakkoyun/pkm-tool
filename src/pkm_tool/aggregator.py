@@ -13,6 +13,11 @@ from pkm_tool.sources.github import fetch_github_activities
 from pkm_tool.sources.google_docs import fetch_google_docs
 from pkm_tool.sources.things import fetch_things_tasks
 from pkm_tool.sources.wakatime import fetch_wakatime_activities
+from pkm_tool.sources.whoop import (
+    fetch_whoop_recovery,
+    fetch_whoop_sleep,
+    fetch_whoop_workouts,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -185,6 +190,44 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
             data.metadata["google_docs_error"] = str(e)
     else:
         logger.debug("source_disabled", source="google_docs")
+
+    if config.whoop.enabled:
+        logger.info("fetching_source", source="whoop", enabled=True)
+        start_time = time.time()
+        try:
+            # Fetch recovery data (single entry per day)
+            data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config)
+            recovery_count = 1 if data.whoop_recovery else 0
+
+            # Fetch sleep cycles (can be multiple per day)
+            data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config)
+
+            # Fetch workouts (can be multiple per day)
+            data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config)
+
+            total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
+            duration = time.time() - start_time
+            logger.info(
+                "source_fetch_completed",
+                source="whoop",
+                duration_seconds=f"{duration:.2f}",
+                items_count=total_items,
+                recovery_count=recovery_count,
+                sleep_count=len(data.whoop_sleep),
+                workout_count=len(data.whoop_workouts),
+            )
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.warning(
+                "source_fetch_failed",
+                source="whoop",
+                error=str(e),
+                duration_seconds=f"{duration:.2f}",
+                exc_info=True,
+            )
+            data.metadata["whoop_error"] = str(e)
+    else:
+        logger.debug("source_disabled", source="whoop")
 
     logger.info("aggregate_data_completed", target_date=str(target_date))
     return data

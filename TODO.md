@@ -8,7 +8,7 @@
 
 ### Phase 1
 
-- [ ] Feature: Add Whoop integration
+- [x] Feature: Add Whoop integration
 
 ### Phase 2
 

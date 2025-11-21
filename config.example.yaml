@@ -38,12 +38,12 @@ google_docs:
     client_secret: your_google_client_secret
     scopes:
       - https://www.googleapis.com/auth/drive.readonly
-    # Optional legacy fallback (not recommended)
-    # access_token: your_access_token_here
+      # Optional legacy fallback (not recommended)
+      # access_token: your_access_token_here
 whoop:
   enabled: false
   config:
-    # Preferred: store tokens via `pkm auth login whoop`
-    # Legacy fallback (not recommended)
-    # access_token: your_whoop_access_token_here
-    # or set WHOOP_ACCESS_TOKEN environment variable
+# Preferred: store tokens via `pkm auth login whoop`
+# Legacy fallback (not recommended)
+# access_token: your_whoop_access_token_here
+# or set WHOOP_ACCESS_TOKEN environment variable

@@ -4,9 +4,7 @@
 
 ### Phase 0
 
-- [ ] Testing: Add snapshot testing for commands and CLI output
-- [ ] Testing: API response recording and playback, mocking
-- [ ] Testing: Add compherensive integration tests
+- [ ] Add subcommands to the CLI for each datasource, so that we can use the CLI to get data from each datasource separately.
 
 ### Phase 1
 
@@ -32,3 +30,6 @@
 
 - [ ] Introduce structured logging, add extensive logs for troubleshooting
 - [ ] Create a `.config` directory in the home directory and put the config file there. Update all the tooling to use this new location.
+- [ ] Testing: Add snapshot testing for commands and CLI output
+- [ ] Testing: API response recording and playback, mocking
+- [ ] Testing: Add compherensive integration tests

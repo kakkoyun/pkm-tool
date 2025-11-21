@@ -63,7 +63,7 @@ def _fetch_jira_via_library(
                     title=issue["fields"]["summary"],
                     url=f"{base_url}/browse/{issue['key']}",
                     key=issue["key"],
-                    status=issue["fields"]["status"]["name"],
+                    status=issue["fields"]["status"]["name"],  # Issue status from Jira workflow
                     updated=datetime.fromisoformat(
                         issue["fields"]["updated"].replace("Z", "+00:00")
                     ),

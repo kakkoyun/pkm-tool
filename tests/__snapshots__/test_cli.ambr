@@ -1,4 +1,196 @@
 # serializer version: 1
+# name: test_cli_json_output_all_sources
+  '''
+  {
+    "date": "2025-11-21",
+    "calendar_events": [],
+    "github_activities": [
+      {
+        "type": "commit",
+        "title": "Pushed 3 commits",
+        "url": "https://github.com/testuser/test-repo",
+        "repository": "testuser/test-repo",
+        "timestamp": "2025-11-21T10:30:00Z",
+        "details": null
+      },
+      {
+        "type": "pr",
+        "title": "Add new feature",
+        "url": "https://github.com/testuser/awesome-project/pull/42",
+        "repository": "testuser/awesome-project",
+        "timestamp": "2025-11-21T14:15:00Z",
+        "details": "Action: opened"
+      },
+      {
+        "type": "issue",
+        "title": "Fix critical bug",
+        "url": "https://github.com/testuser/bug-tracker/issues/123",
+        "repository": "testuser/bug-tracker",
+        "timestamp": "2025-11-21T09:00:00Z",
+        "details": "Action: opened"
+      },
+      {
+        "type": "review",
+        "title": "Update documentation",
+        "url": "https://github.com/testuser/code-review/pull/5",
+        "repository": "testuser/code-review",
+        "timestamp": "2025-11-21T16:45:00Z",
+        "details": "Reviewed PR"
+      }
+    ],
+    "atlassian_items": [
+      {
+        "type": "jira_issue",
+        "title": "Implement new authentication feature",
+        "url": "https://test.atlassian.net/browse/PROJ-123",
+        "key": "PROJ-123",
+        "status": "In Progress",
+        "updated": "2025-11-21T10:30:00Z"
+      },
+      {
+        "type": "jira_issue",
+        "title": "Fix critical bug in payment processing",
+        "url": "https://test.atlassian.net/browse/PROJ-456",
+        "key": "PROJ-456",
+        "status": "Done",
+        "updated": "2025-11-21T14:45:00Z"
+      },
+      {
+        "type": "confluence_page",
+        "title": "API Documentation",
+        "url": "https://test.atlassian.net/wiki/spaces/DEV/pages/123456/API+Documentation",
+        "key": "123456",
+        "status": null,
+        "updated": "2025-11-21T09:15:00Z"
+      },
+      {
+        "type": "confluence_page",
+        "title": "Team Meeting Notes - Nov 21",
+        "url": "https://test.atlassian.net/wiki/spaces/TEAM/pages/789012/Meeting+Notes",
+        "key": "789012",
+        "status": null,
+        "updated": "2025-11-21T16:00:00Z"
+      }
+    ],
+    "things_tasks": [
+      {
+        "title": "Take your supplements (+ CREATINE)",
+        "completed_date": "2025-11-21T10:55:17",
+        "project": null,
+        "tags": [
+          "Reminder",
+          "Daily"
+        ]
+      },
+      {
+        "title": "things: Triage Today (eisenhower matrix) [Your brain does NOT know the DIFFERENCE if it is in the LIST]",
+        "completed_date": "2025-11-21T10:55:18",
+        "project": null,
+        "tags": [
+          "Do",
+          "Urgent",
+          "Planning"
+        ]
+      },
+      {
+        "title": "flow: READ -> WRITE | EXERCISE ",
+        "completed_date": "2025-11-21T10:55:21",
+        "project": null,
+        "tags": [
+          "Mantra",
+          "Planning"
+        ]
+      },
+      {
+        "title": "STOP BUYING THINGS—invest instead",
+        "completed_date": "2025-11-21T10:55:21",
+        "project": null,
+        "tags": [
+          "Buy"
+        ]
+      },
+      {
+        "title": "Review PRs",
+        "completed_date": "2025-11-21T10:55:31",
+        "project": null,
+        "tags": [
+          "Review",
+          "Work"
+        ]
+      },
+      {
+        "title": "Merge and follow-up on context sharing PR",
+        "completed_date": "2025-11-21T10:55:33",
+        "project": null,
+        "tags": []
+      },
+      {
+        "title": "review: Elliot’s PR",
+        "completed_date": "2025-11-21T10:55:34",
+        "project": null,
+        "tags": []
+      },
+      {
+        "title": "write: Performance Reviews II",
+        "completed_date": "2025-11-21T11:42:25",
+        "project": null,
+        "tags": [
+          "Administration",
+          "Writing"
+        ]
+      },
+      {
+        "title": "submit: Performance Reviews",
+        "completed_date": "2025-11-21T12:31:46",
+        "project": null,
+        "tags": [
+          "Administration"
+        ]
+      },
+      {
+        "title": "Start the process",
+        "completed_date": "2025-11-21T15:46:52",
+        "project": "Tax Clarification (2024)",
+        "tags": [
+          "Chore"
+        ]
+      },
+      {
+        "title": "important: Start writing a tool to create a daily digest",
+        "completed_date": "2025-11-21T15:47:53",
+        "project": "PKM Tool",
+        "tags": [
+          "Automate",
+          "MCP"
+        ]
+      },
+      {
+        "title": "arrange: Psychical Documents",
+        "completed_date": "2025-11-21T16:08:42",
+        "project": "Tax Clarification (2024)",
+        "tags": [
+          "Chore"
+        ]
+      }
+    ],
+    "wakatime_activities": [
+      {
+        "project": "pkm-tool",
+        "duration_seconds": 7200,
+        "language": "Python"
+      },
+      {
+        "project": "awesome-app",
+        "duration_seconds": 3600,
+        "language": "Python"
+      }
+    ],
+    "google_docs": [],
+    "metadata": {}
+  }
+  
+  '''
+# ---
 # name: test_cli_json_output_with_mocks
   '''
   {
@@ -55,6 +247,52 @@
     "google_docs": [],
     "metadata": {}
   }
+  
+  '''
+# ---
+# name: test_cli_markdown_output_all_sources
+  '''
+  # Daily Report - 2025-11-21
+  
+  ## 🐙 GitHub Activities
+  
+  - 📋 **09:00** [testuser/bug-tracker](https://github.com/testuser/bug-tracker/issues/123) - Fix critical bug
+    - Action: opened
+  - 📝 **10:30** [testuser/test-repo](https://github.com/testuser/test-repo) - Pushed 3 commits
+  - 🔀 **14:15** [testuser/awesome-project](https://github.com/testuser/awesome-project/pull/42) - Add new feature
+    - Action: opened
+  - 👁️ **16:45** [testuser/code-review](https://github.com/testuser/code-review/pull/5) - Update documentation
+    - Reviewed PR
+  
+  ## 🏢 Atlassian (Jira/Confluence)
+  
+  - 📄 [123456](https://test.atlassian.net/wiki/spaces/DEV/pages/123456/API+Documentation) - API Documentation
+  - 📋 [PROJ-123](https://test.atlassian.net/browse/PROJ-123) - Implement new authentication feature (In Progress)
+  - 📋 [PROJ-456](https://test.atlassian.net/browse/PROJ-456) - Fix critical bug in payment processing (Done)
+  - 📄 [789012](https://test.atlassian.net/wiki/spaces/TEAM/pages/789012/Meeting+Notes) - Team Meeting Notes - Nov 21
+  
+  ## ✅ Things - Completed Tasks
+  
+  - **10:55** Take your supplements (+ CREATINE) #Reminder, #Daily
+  - **10:55** things: Triage Today (eisenhower matrix) [Your brain does NOT know the DIFFERENCE if it is in the LIST] #Do, #Urgent, #Planning
+  - **10:55** flow: READ -> WRITE | EXERCISE  #Mantra, #Planning
+  - **10:55** STOP BUYING THINGS—invest instead #Buy
+  - **10:55** Review PRs #Review, #Work
+  - **10:55** Merge and follow-up on context sharing PR
+  - **10:55** review: Elliot’s PR
+  - **11:42** write: Performance Reviews II #Administration, #Writing
+  - **12:31** submit: Performance Reviews #Administration
+  - **15:46** Start the process (Tax Clarification (2024)) #Chore
+  - **15:47** important: Start writing a tool to create a daily digest (PKM Tool) #Automate, #MCP
+  - **16:08** arrange: Psychical Documents (Tax Clarification (2024)) #Chore
+  
+  ## ⏱️ Wakatime - Coding Activity
+  
+  **Total Time:** 3.00 hours
+  
+  - pkm-tool (Python): 2.00h
+  - awesome-app (Python): 1.00h
+  
   
   '''
 # ---

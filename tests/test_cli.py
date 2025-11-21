@@ -18,7 +18,7 @@ def cli_runner() -> CliRunner:
 
 @pytest.fixture
 def temp_config(tmp_path: Path) -> Path:
-    """Create a temporary config file."""
+    """Create a temporary config file with only GitHub and Wakatime enabled."""
     config_path = tmp_path / "test_config.yaml"
     config_content = """
 github:
@@ -39,6 +39,43 @@ apple_calendar:
 
 things:
   enabled: false
+
+google_docs:
+  enabled: false
+"""
+    config_path.write_text(config_content)
+    return config_path
+
+
+@pytest.fixture
+def full_sources_config(tmp_path: Path) -> Path:
+    """Create a temporary config file with all sources enabled."""
+    config_path = tmp_path / "full_config.yaml"
+    config_content = """
+github:
+  enabled: true
+  config:
+    token: test_github_token
+
+wakatime:
+  enabled: true
+  config:
+    api_key: test_wakatime_key
+
+atlassian:
+  enabled: true
+  config:
+    base_url: https://test.atlassian.net
+    username: test@example.com
+    api_token: test_token
+
+apple_calendar:
+  enabled: true
+
+things:
+  enabled: true
+  config:
+    database_path: /tmp/test_things.sqlite
 
 google_docs:
   enabled: false
@@ -250,6 +287,78 @@ def test_cli_format_option(
     )
     assert result_json.exit_code == 0
     assert '"date"' in result_json.output
+
+
+@pytest.mark.snapshot
+def test_cli_markdown_output_all_sources(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    full_sources_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+    mock_wakatime_api_success: Mock,
+    mock_atlassian_clients: tuple[Mock, Mock],
+    mock_things_database: Path,
+) -> None:
+    """Test CLI markdown output with ALL data sources enabled."""
+    # Update Things config to use test database
+    config_content = full_sources_config.read_text()
+    config_content = config_content.replace(
+        "database_path: /tmp/test_things.sqlite",
+        f"database_path: {mock_things_database}",
+    )
+    full_sources_config.write_text(config_content)
+
+    result = cli_runner.invoke(
+        main,
+        [
+            "--date",
+            "2025-11-21",
+            "--format",
+            "markdown",
+            "--config",
+            str(full_sources_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot
+
+
+@pytest.mark.snapshot
+def test_cli_json_output_all_sources(
+    cli_runner: CliRunner,
+    snapshot: SnapshotAssertion,
+    full_sources_config: Path,
+    mock_github_client: Mock,
+    mock_github_auth: Mock,
+    mock_wakatime_api_success: Mock,
+    mock_atlassian_clients: tuple[Mock, Mock],
+    mock_things_database: Path,
+) -> None:
+    """Test CLI JSON output with ALL data sources enabled."""
+    # Update Things config to use test database
+    config_content = full_sources_config.read_text()
+    config_content = config_content.replace(
+        "database_path: /tmp/test_things.sqlite",
+        f"database_path: {mock_things_database}",
+    )
+    full_sources_config.write_text(config_content)
+
+    result = cli_runner.invoke(
+        main,
+        [
+            "--date",
+            "2025-11-21",
+            "--format",
+            "json",
+            "--config",
+            str(full_sources_config),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.output == snapshot
 
 
 @pytest.mark.unit

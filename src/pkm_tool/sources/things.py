@@ -1,8 +1,7 @@
 """Things app integration."""
 
-import sqlite3
-from datetime import date, datetime, timedelta
-from pathlib import Path
+import platform
+from datetime import date, datetime
 from typing import Any
 
 from pkm_tool.models import ThingsTask
@@ -10,86 +9,80 @@ from pkm_tool.models import ThingsTask
 
 def fetch_things_tasks(target_date: date, config: dict[str, Any]) -> list[ThingsTask]:
     """
-    Fetch completed tasks from Things logbook.
-
-    Things stores its data in a SQLite database on macOS.
+    Fetch completed tasks from Things logbook using things-py library.
 
     Args:
         target_date: Date to fetch tasks for
-        config: Configuration dictionary with optional 'database_path'
+        config: Configuration dictionary (currently unused, kept for interface compatibility)
 
     Returns:
         List of ThingsTask objects
     """
-    # Default Things database path on macOS
-    default_db_path = (
-        Path.home()
-        / "Library"
-        / "Group Containers"
-        / "JLMPQHK86H.com.culturedcode.ThingsMac"
-        / "Things Database.thingsdatabase"
-        / "main.sqlite"
-    )
-
-    db_path = config.get("database_path", str(default_db_path))
-
-    if not Path(db_path).exists():
+    # Check if running on macOS
+    if platform.system() != "Darwin":
         return []
 
-    tasks = []
-
-    # Calculate date range
-    start_datetime = datetime.combine(target_date, datetime.min.time())
-    end_datetime = datetime.combine(target_date, datetime.max.time())
-
-    # Convert to Things timestamp format (seconds since 2001-01-01)
-    reference_date = datetime(2001, 1, 1)
-    start_timestamp = (start_datetime - reference_date).total_seconds()
-    end_timestamp = (end_datetime - reference_date).total_seconds()
-
     try:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-        cursor = conn.cursor()
+        return _fetch_things_via_library(target_date)
+    except Exception:
+        # Graceful error handling - return empty list on any error
+        return []
 
-        # Query completed tasks
-        query = """
-        SELECT
-            t.title,
-            t.stopDate,
-            p.title as project,
-            GROUP_CONCAT(tg.title, ',') as tags
-        FROM TMTask t
-        LEFT JOIN TMTask p ON t.project = p.uuid
-        LEFT JOIN TMTaskTag tt ON t.uuid = tt.tasks
-        LEFT JOIN TMTag tg ON tt.tags = tg.uuid
-        WHERE t.status = 3
-        AND t.stopDate >= ?
-        AND t.stopDate < ?
-        GROUP BY t.uuid
-        ORDER BY t.stopDate
-        """
 
-        cursor.execute(query, (start_timestamp, end_timestamp))
+def _fetch_things_via_library(target_date: date) -> list[ThingsTask]:
+    """
+    Internal implementation using things-py library.
 
-        for row in cursor.fetchall():
-            title, stop_date, project, tags_str = row
+    Args:
+        target_date: Date to fetch tasks for
 
-            # Convert Things timestamp back to datetime
-            completed_datetime = reference_date + timedelta(seconds=stop_date)
+    Returns:
+        List of ThingsTask objects completed on target_date
+    """
+    import things  # Import here to avoid issues on non-macOS platforms
 
-            # Parse tags
-            tags = [tag.strip() for tag in tags_str.split(",")] if tags_str else []
+    # Fetch all completed tasks
+    completed_tasks = things.todos(status="completed")
 
-            task = ThingsTask(
-                title=title,
-                completed_date=completed_datetime,
-                project=project,
-                tags=tags,
-            )
-            tasks.append(task)
+    # Filter by target date and convert to ThingsTask models
+    tasks = []
+    for task in completed_tasks:
+        # Parse stop_date string to datetime
+        stop_date_str = task.get("stop_date")
+        if not stop_date_str:
+            continue
 
-        conn.close()
-    except (sqlite3.Error, OSError):
-        pass
+        # Parse the stop_date string (format: "YYYY-MM-DD HH:MM:SS")
+        try:
+            completed_datetime = datetime.strptime(stop_date_str, "%Y-%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            continue
+
+        # Filter by date
+        if completed_datetime.date() != target_date:
+            continue
+
+        # Extract project title (not project uuid)
+        project = task.get("project_title")
+
+        # Extract tags (handle None case)
+        tags = task.get("tags", [])
+        if tags is None:
+            tags = []
+
+        # Create ThingsTask model
+        title = task.get("title")
+        if not title:
+            continue
+        things_task = ThingsTask(
+            title=title,
+            completed_date=completed_datetime,
+            project=project,
+            tags=tags,
+        )
+        tasks.append(things_task)
+
+    # Sort by completion time
+    tasks.sort(key=lambda t: t.completed_date)
 
     return tasks

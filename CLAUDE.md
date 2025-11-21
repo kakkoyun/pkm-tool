@@ -157,7 +157,8 @@ Use [Graphite CLI](https://graphite.dev/) for large features requiring multiple 
 
 #### What are Stacked PRs?
 
-Stacked PRs break large features into small, incremental changes built on top of each other. Each PR can be tested, reviewed, and merged independently while maintaining development velocity.
+Stacked PRs break large features into small, incremental changes built on top of each other.
+Each PR can be tested, reviewed, and merged independently while maintaining development velocity.
 
 **Benefits:**
 

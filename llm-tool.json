@@ -1,0 +1,192 @@
+{
+  "name": "pkm_tool",
+  "description": "Personal Knowledge Management Tool - Aggregates daily data from multiple sources",
+  "version": "0.1.0",
+  "tools": [
+    {
+      "name": "get_daily_report",
+      "description": "Get aggregated daily report from multiple knowledge sources including Calendar, GitHub, Jira/Confluence, Things, Wakatime, and Google Docs",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date to fetch report for. Format: YYYY-MM-DD or natural language like 'today', 'yesterday', 'last monday'. Defaults to today if not provided."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["markdown", "json"],
+            "default": "json",
+            "description": "Output format for the report. 'json' provides structured data, 'markdown' provides human-readable format."
+          },
+          "config_path": {
+            "type": "string",
+            "description": "Optional path to configuration file. If not provided, uses default configuration locations."
+          }
+        },
+        "required": []
+      },
+      "returns": {
+        "type": "object",
+        "description": "Aggregated data from all sources",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date of the report in YYYY-MM-DD format"
+          },
+          "calendar_events": {
+            "type": "array",
+            "description": "List of calendar events for the day",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "start": {"type": "string", "format": "date-time"},
+                "end": {"type": "string", "format": "date-time"},
+                "description": {"type": "string"},
+                "location": {"type": "string"}
+              }
+            }
+          },
+          "github_activities": {
+            "type": "array",
+            "description": "List of GitHub activities (commits, PRs, issues, reviews)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"type": "string", "enum": ["commit", "pr", "issue", "review"]},
+                "title": {"type": "string"},
+                "url": {"type": "string"},
+                "repository": {"type": "string"},
+                "timestamp": {"type": "string", "format": "date-time"},
+                "details": {"type": "string"}
+              }
+            }
+          },
+          "atlassian_items": {
+            "type": "array",
+            "description": "List of Jira issues and Confluence pages",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"type": "string", "enum": ["jira_issue", "confluence_page"]},
+                "title": {"type": "string"},
+                "url": {"type": "string"},
+                "key": {"type": "string"},
+                "status": {"type": "string"},
+                "updated": {"type": "string", "format": "date-time"}
+              }
+            }
+          },
+          "things_tasks": {
+            "type": "array",
+            "description": "List of completed tasks from Things",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "completed_date": {"type": "string", "format": "date-time"},
+                "project": {"type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
+          "wakatime_activities": {
+            "type": "array",
+            "description": "List of coding activities from Wakatime (per project)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "project": {"type": "string"},
+                "duration_seconds": {"type": "integer"},
+                "language": {"type": "string"}
+              }
+            }
+          },
+          "google_docs": {
+            "type": "array",
+            "description": "List of recently opened Google Docs",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "url": {"type": "string"},
+                "opened_at": {"type": "string", "format": "date-time"},
+                "doc_type": {"type": "string"}
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata including any errors encountered"
+          }
+        }
+      },
+      "examples": [
+        {
+          "description": "Get today's report in JSON format",
+          "call": {
+            "date": "today",
+            "format": "json"
+          }
+        },
+        {
+          "description": "Get yesterday's report in Markdown format",
+          "call": {
+            "date": "yesterday",
+            "format": "markdown"
+          }
+        },
+        {
+          "description": "Get report for specific date",
+          "call": {
+            "date": "2025-11-20",
+            "format": "json"
+          }
+        }
+      ]
+    }
+  ],
+  "cli": {
+    "command": "pkm",
+    "options": {
+      "--date": "Date to fetch data for (default: today)",
+      "--format": "Output format: markdown or json (default: markdown)",
+      "--config": "Path to configuration file"
+    }
+  },
+  "configuration": {
+    "default_locations": [
+      "~/.config/pkm-tool/config.yaml",
+      "~/.pkm-tool.yaml",
+      "./pkm-tool.yaml"
+    ],
+    "sources": {
+      "apple_calendar": {
+        "platform": "macOS",
+        "description": "Fetches calendar events using AppleScript"
+      },
+      "github": {
+        "authentication": ["gh CLI", "Personal Access Token"],
+        "description": "Fetches commits, PRs, issues, and reviews"
+      },
+      "atlassian": {
+        "services": ["Jira", "Confluence"],
+        "authentication": "API Token",
+        "description": "Fetches Jira issues and Confluence pages"
+      },
+      "things": {
+        "platform": "macOS",
+        "description": "Fetches completed tasks from Things logbook"
+      },
+      "wakatime": {
+        "authentication": "API Key",
+        "description": "Fetches coding activity per project"
+      },
+      "google_docs": {
+        "authentication": "OAuth2 Access Token",
+        "description": "Fetches recently opened Google Docs"
+      }
+    }
+  }
+}

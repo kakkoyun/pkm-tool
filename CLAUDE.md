@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+KEEP THIS FILE UP TO DATE! (Add the end of each plan)!
+WHEN USER WORKS WITH A NEW FLOW!
+
 ## Coding Standards and Principles
 
 - ACT LIKE A PROFESSIONAL EXPERIENCED SOFTWARE ENGINEER!

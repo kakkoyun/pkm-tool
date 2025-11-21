@@ -44,7 +44,7 @@ pkm --help
 ```
 
 ```
-Usage: main [OPTIONS]
+Usage: pkm [OPTIONS]
 
   Personal Knowledge Management Tool.
 

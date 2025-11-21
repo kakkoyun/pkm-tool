@@ -9,7 +9,7 @@ from pkm_tool.aggregator import aggregate_data
 from pkm_tool.formatters import format_as_json, format_as_markdown
 
 
-@click.command()
+@click.command(name="pkm")
 @click.option(
     "--date",
     "-d",

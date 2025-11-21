@@ -44,9 +44,7 @@ from pkm_tool.logging import configure_logging, get_logger
     default="human",
     help="Log output format (default: human)",
 )
-def main(
-    date: str | None, format: str, config: str | None, verbose: bool, log_format: str
-) -> None:
+def main(date: str | None, format: str, config: str | None, verbose: bool, log_format: str) -> None:
     """
     Personal Knowledge Management Tool.
 

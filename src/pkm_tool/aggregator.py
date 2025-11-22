@@ -22,13 +22,16 @@ from pkm_tool.sources.whoop import (
 logger = structlog.get_logger(__name__)
 
 
-def aggregate_data(target_date: date, config_path: str | None = None) -> AggregatedData:
+def aggregate_data(
+    target_date: date, config_path: str | None = None, exclude_weekends_override: bool | None = None
+) -> AggregatedData:
     """
     Aggregate data from all configured sources.
 
     Args:
         target_date: Date to fetch data for
         config_path: Optional path to configuration file
+        exclude_weekends_override: If set, overrides per-source config
 
     Returns:
         AggregatedData containing all fetched information
@@ -37,12 +40,22 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
     config = load_config(config_path)
 
     data = AggregatedData(date=target_date)
+    is_weekend = target_date.weekday() >= 5  # Saturday=5, Sunday=6
 
     # Fetch from each source if enabled
     if config.apple_calendar.enabled:
-        logger.info("fetching_source", source="apple_calendar", enabled=True)
-        start_time = time.time()
-        try:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.apple_calendar.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="apple_calendar")
+        else:
+            logger.info("fetching_source", source="apple_calendar", enabled=True)
+            start_time = time.time()
+            try:
             data.calendar_events = fetch_calendar_events(target_date, config.apple_calendar.config)
             duration = time.time() - start_time
             logger.info(
@@ -60,11 +73,20 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["apple_calendar_error"] = str(e)
+                data.metadata["apple_calendar_error"] = str(e)
     else:
         logger.debug("source_disabled", source="apple_calendar")
 
     if config.github.enabled:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.github.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="github")
+        else:
         logger.info("fetching_source", source="github", enabled=True)
         start_time = time.time()
         try:
@@ -85,11 +107,20 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["github_error"] = str(e)
+                data.metadata["github_error"] = str(e)
     else:
         logger.debug("source_disabled", source="github")
 
     if config.atlassian.enabled:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.atlassian.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="atlassian")
+        else:
         logger.info("fetching_source", source="atlassian", enabled=True)
         start_time = time.time()
         try:
@@ -110,11 +141,20 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["atlassian_error"] = str(e)
+                data.metadata["atlassian_error"] = str(e)
     else:
         logger.debug("source_disabled", source="atlassian")
 
     if config.things.enabled:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.things.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="things")
+        else:
         logger.info("fetching_source", source="things", enabled=True)
         start_time = time.time()
         try:
@@ -135,11 +175,20 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["things_error"] = str(e)
+                data.metadata["things_error"] = str(e)
     else:
         logger.debug("source_disabled", source="things")
 
     if config.wakatime.enabled:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.wakatime.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="wakatime")
+        else:
         logger.info("fetching_source", source="wakatime", enabled=True)
         start_time = time.time()
         try:
@@ -162,11 +211,20 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["wakatime_error"] = str(e)
+                data.metadata["wakatime_error"] = str(e)
     else:
         logger.debug("source_disabled", source="wakatime")
 
     if config.google_docs.enabled:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.google_docs.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="google_docs")
+        else:
         logger.info("fetching_source", source="google_docs", enabled=True)
         start_time = time.time()
         try:
@@ -187,11 +245,20 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["google_docs_error"] = str(e)
+                data.metadata["google_docs_error"] = str(e)
     else:
         logger.debug("source_disabled", source="google_docs")
 
     if config.whoop.enabled:
+        # Check weekend exclusion
+        skip_weekend = (
+            exclude_weekends_override
+            if exclude_weekends_override is not None
+            else config.whoop.exclude_weekends
+        )
+        if is_weekend and skip_weekend:
+            logger.info("source_skipped_weekend", source="whoop")
+        else:
         logger.info("fetching_source", source="whoop", enabled=True)
         start_time = time.time()
         try:
@@ -225,7 +292,7 @@ def aggregate_data(target_date: date, config_path: str | None = None) -> Aggrega
                 duration_seconds=f"{duration:.2f}",
                 exc_info=True,
             )
-            data.metadata["whoop_error"] = str(e)
+                data.metadata["whoop_error"] = str(e)
     else:
         logger.debug("source_disabled", source="whoop")
 

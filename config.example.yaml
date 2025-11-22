@@ -1,5 +1,18 @@
 # Example configuration for PKM Tool
 # Copy this to ~/.config/pkm-tool/config.yaml or ~/.pkm-tool.yaml
+
+# Output settings (Phase 2)
+output_filename_template: "{date} ({day_abbr}).{format}"  # Default template
+output_directory: "."  # Default to current directory
+
+# Template variables:
+#   {date}     - Full date in YYYY-MM-DD format (e.g., "2025-11-22")
+#   {year}     - Four-digit year (e.g., "2025")
+#   {month}    - Two-digit month (e.g., "11")
+#   {day}      - Two-digit day (e.g., "22")
+#   {day_abbr} - Abbreviated day name (e.g., "Mon", "Fri")
+#   {format}   - Output format extension ("md" for markdown, "json" for json)
+
 # Apple Calendar (macOS only)
 apple_calendar:
   enabled: true
@@ -7,6 +20,7 @@ apple_calendar:
 # GitHub integration
 github:
   enabled: true
+  exclude_weekends: false  # Set to true to skip GitHub on weekends
   config:
   # Tokens can be stored securely with `pkm auth login github`
   # Legacy fallback (not recommended):
@@ -28,6 +42,7 @@ things:
 # Wakatime
 wakatime:
   enabled: false
+  exclude_weekends: true  # Example: skip coding activity tracking on weekends
   config:
     api_key: waka_your_api_key_here
 # Google Docs

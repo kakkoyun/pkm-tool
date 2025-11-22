@@ -544,24 +544,49 @@ make fix/python
 
 ### Running the tool
 
-The tool provides a main command with subcommands for each datasource (Phase 0 implemented).
+The tool provides a main command with subcommands for each datasource.
 
-#### Aggregate all sources (default behavior)
+#### Single-day reports (to stdout)
 
 ```bash
 uv run pkm                           # Today's report, all sources (Markdown)
-uv run pkm --date yesterday          # Specific date, all sources (backward compat)
-uv run pkm --format json             # JSON output, all sources (backward compat)
-uv run pkm --config /path/config.yaml --date 2025-11-21  # Custom config (backward compat)
+uv run pkm --date yesterday          # Specific date, all sources
+uv run pkm --format json             # JSON output, all sources
+uv run pkm --config /path/config.yaml --date 2025-11-21  # Custom config
 uv run pkm aggregate --date yesterday # Explicit aggregate subcommand (preferred)
 ```
+
+#### Date range reports (Phase 2 - to files)
+
+Generate reports for multiple days, each in a separate file:
+
+```bash
+# Generate reports for a week
+uv run pkm --from 2025-11-17 --to 2025-11-23
+
+# Skip weekends globally
+uv run pkm --from 2025-11-17 --to 2025-11-23 --exclude-weekends
+
+# Custom output directory (overrides config)
+uv run pkm --from 2025-11-17 --to 2025-11-23 -o ~/Documents/daily-notes/
+
+# Date ranges work with all subcommands
+uv run pkm github --from 2025-11-17 --to 2025-11-23
+uv run pkm wakatime --from 2025-11-17 --to 2025-11-23 --exclude-weekends
+```
+
+**Key behaviors**:
+- `--date` outputs to stdout (existing behavior)
+- `--from`/`--to` writes files to disk (batch mode)
+- Files use configurable template: `{date} ({day_abbr}).{format}` (default)
+- Existing files are intelligently merged (PKM sections updated, manual content preserved)
 
 #### Individual datasource subcommands
 
 Fetch data from specific sources only:
 
 ```bash
-# Fetch only from specific datasource (preferred syntax: FLAGS after subcommand)
+# Single-day mode (stdout)
 uv run pkm github --date yesterday       # GitHub activities only
 uv run pkm things --date yesterday       # Things tasks only
 uv run pkm wakatime --date yesterday     # Wakatime coding time only
@@ -569,6 +594,10 @@ uv run pkm atlassian --date yesterday    # Atlassian (Jira + Confluence) only
 uv run pkm calendar --date yesterday     # Apple Calendar events only
 uv run pkm google-docs --date yesterday  # Google Docs only
 uv run pkm whoop --date yesterday        # Whoop health data only
+
+# Batch mode (files) - Phase 2
+uv run pkm github --from 2025-11-17 --to 2025-11-23 -o ~/notes/
+uv run pkm wakatime --from 2025-11-17 --to 2025-11-23 --exclude-weekends
 
 # With format and config options
 uv run pkm github --format json --date yesterday
@@ -665,11 +694,16 @@ The tool follows a clean, modular architecture:
 
 - **YAML-based configuration** with sensible defaults
 - **Per-source configuration**: Each source can be enabled/disabled independently
+- **Weekend exclusion**: Global and per-source configuration (Phase 2)
+- **Output settings**: Filename template and directory (Phase 2)
 - **Default config locations**:
   - `~/.config/pkm-tool/config.yaml` (preferred)
   - `~/.pkm-tool.yaml`
   - `./pkm-tool.yaml` (project directory)
 - **SourceConfig pattern**: Consistent structure across all sources
+  - `enabled: bool` - Enable/disable source
+  - `exclude_weekends: bool` - Skip source on weekends (Phase 2)
+  - `config: dict` - Source-specific settings
 
 #### Aggregator (`aggregator.py`)
 
@@ -684,6 +718,12 @@ The tool follows a clean, modular architecture:
 - **JSON formatter**: Machine-readable output (uses Pydantic's `model_dump_json`)
 - **Sorted outputs**: Events sorted by time for better readability
 - **Error reporting**: Displays any source errors at the end of reports
+- **Filename templating**: Generate filenames with date variables (Phase 2)
+- **Smart file merging**: Update existing files while preserving manual content (Phase 2)
+  - Parse existing markdown to extract PKM sections
+  - Identify section types (flexible, case-insensitive matching)
+  - Merge: preserve preamble/postamble, update PKM sections, append new sections
+  - Allows mixing automated data with personal journaling
 
 ### Authentication Architecture
 

@@ -1,5 +1,6 @@
 """CLI entry point for PKM tool."""
 
+import datetime as dt
 import functools
 import json
 import time
@@ -367,11 +368,11 @@ def _process_batch_or_single(
         for target_date in dates:
             try:
                 logger.info("fetching_date", source=source_name, date=str(target_date))
-                
+
                 # Create AggregatedData and populate appropriate field
                 data = AggregatedData(date=target_date)
                 result = fetch_func(target_date, source_config)
-                
+
                 # Populate the appropriate field based on source name
                 if source_name == "apple_calendar":
                     data.calendar_events = result
@@ -397,7 +398,9 @@ def _process_batch_or_single(
                 write_report_to_file(data, output_path, format, merge_existing=True)
                 logger.info("report_written", path=str(output_path))
             except Exception as e:
-                logger.error("date_fetch_failed", date=str(target_date), error=str(e), exc_info=True)
+                logger.error(
+                    "date_fetch_failed", date=str(target_date), error=str(e), exc_info=True
+                )
                 click.echo(f"Error processing {target_date}: {e}", err=True)
 
         click.echo(f"Generated {len(dates)} reports in {output_directory}/")
@@ -604,8 +607,9 @@ def aggregate(
         for target_date in dates:
             try:
                 logger.info("fetching_date", date=str(target_date))
+                exclude_override = exclude_weekends if exclude_weekends else None
                 data = aggregate_data(
-                    target_date, config, exclude_weekends_override=exclude_weekends if exclude_weekends else None
+                    target_date, config, exclude_weekends_override=exclude_override
                 )
 
                 # Format filename
@@ -616,7 +620,9 @@ def aggregate(
                 write_report_to_file(data, output_path, format, merge_existing=True)
                 logger.info("report_written", path=str(output_path))
             except Exception as e:
-                logger.error("date_fetch_failed", date=str(target_date), error=str(e), exc_info=True)
+                logger.error(
+                    "date_fetch_failed", date=str(target_date), error=str(e), exc_info=True
+                )
                 click.echo(f"Error processing {target_date}: {e}", err=True)
 
         click.echo(f"Generated {len(dates)} reports in {output_directory}/")
@@ -627,9 +633,8 @@ def aggregate(
 
         try:
             logger.info("starting_data_aggregation", target_date=str(target_date))
-            data = aggregate_data(
-                target_date, config, exclude_weekends_override=exclude_weekends if exclude_weekends else None
-            )
+            exclude_override = exclude_weekends if exclude_weekends else None
+            data = aggregate_data(target_date, config, exclude_weekends_override=exclude_override)
             logger.info("data_aggregation_completed", target_date=str(target_date))
         except Exception as e:
             logger.error("data_aggregation_failed", error=str(e), exc_info=True)
@@ -1040,11 +1045,11 @@ def whoop(
     # Load config for output settings
     cfg = load_config(config)
 
-    def fetch_whoop_data(target_date: date, config: Any) -> tuple:
+    def fetch_whoop_data(target_dt: dt.date, whoop_config: dict[str, Any]) -> tuple:
         """Wrapper to fetch all three types of Whoop data."""
-        recovery = fetch_whoop_recovery(target_date, config)
-        sleep = fetch_whoop_sleep(target_date, config)
-        workouts = fetch_whoop_workouts(target_date, config)
+        recovery = fetch_whoop_recovery(target_dt, whoop_config)
+        sleep = fetch_whoop_sleep(target_dt, whoop_config)
+        workouts = fetch_whoop_workouts(target_dt, whoop_config)
         return (recovery, sleep, workouts)
 
     # Check if batch mode (date range) or single-day mode
@@ -1085,7 +1090,9 @@ def whoop(
                 write_report_to_file(data, output_path, format, merge_existing=True)
                 logger.info("report_written", path=str(output_path))
             except Exception as e:
-                logger.error("date_fetch_failed", date=str(target_date), error=str(e), exc_info=True)
+                logger.error(
+                    "date_fetch_failed", date=str(target_date), error=str(e), exc_info=True
+                )
                 click.echo(f"Error processing {target_date}: {e}", err=True)
 
         click.echo(f"Generated {len(dates)} reports in {output_directory}/")

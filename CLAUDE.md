@@ -576,6 +576,7 @@ uv run pkm wakatime --from 2025-11-17 --to 2025-11-23 --exclude-weekends
 ```
 
 **Key behaviors**:
+
 - `--date` outputs to stdout (existing behavior)
 - `--from`/`--to` writes files to disk (batch mode)
 - Files use configurable template: `{date} ({day_abbr}).{format}` (default)

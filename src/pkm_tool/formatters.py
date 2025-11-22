@@ -239,13 +239,13 @@ def identify_section(header: str) -> str | None:
         return "github_activities"
     if any(word in cleaned for word in ["atlassian", "jira", "confluence"]):
         return "atlassian_items"
-    if "things" in cleaned or "completed" in cleaned and "task" in cleaned:
+    if "things" in cleaned or ("completed" in cleaned and "task" in cleaned):
         return "things_tasks"
-    if "wakatime" in cleaned or "coding" in cleaned and "activity" in cleaned:
+    if "wakatime" in cleaned or ("coding" in cleaned and "activity" in cleaned):
         return "wakatime_activities"
     if "google" in cleaned and "docs" in cleaned:
         return "google_docs"
-    if "whoop" in cleaned or "health" in cleaned and "data" in cleaned:
+    if "whoop" in cleaned or ("health" in cleaned and "data" in cleaned):
         return "whoop_data"
     if "error" in cleaned:
         return "errors"

@@ -132,6 +132,7 @@ pkm wakatime --from 2025-11-17 --to 2025-11-23 --exclude-weekends
 ```
 
 **Smart File Updates**: When generating reports for existing files, the tool intelligently:
+
 - Preserves your manual notes (preamble and postamble)
 - Updates PKM sections with fresh data
 - Appends new PKM sections that weren't in the file
@@ -255,6 +256,7 @@ The `output_filename_template` supports the following variables:
 - `{format}` - Output format extension ("md" for markdown, "json" for json)
 
 Examples:
+
 - `"{date} ({day_abbr}).{format}"` → `2025-11-22 (Fri).md`
 - `"{year}/{month}/{day}.{format}"` → `2025/11/22.md`
 - `"daily-note-{date}.{format}"` → `daily-note-2025-11-22.md`

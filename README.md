@@ -19,6 +19,14 @@ PKM Tool aggregates data from multiple sources into a unified daily report:
 - **✅ Things** - Completed tasks from logbook (macOS only)
 - **⏱️ Wakatime** - Coding activity per project
 - **📝 Google Docs** - Recently opened documents
+- **💪 Whoop** - Recovery, sleep, and workout data
+
+### Phase 2 Features (NEW!)
+
+- **📆 Date Ranges** - Generate reports for multiple days with `--from` and `--to` flags
+- **🗂️ Smart File Updates** - Intelligently merge PKM sections with existing notes while preserving manual content
+- **📝 Configurable Filenames** - Template-based naming (default: `2025-11-22 (Fri).md`)
+- **🚫 Weekend Exclusion** - Skip weekends globally or per-source with `--exclude-weekends`
 
 ## Installation
 
@@ -94,11 +102,41 @@ Commands:
 ### Available Options
 
 - **`-d, --date TEXT`**: Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.
+- **`--from DATE`**: Start date for date range (requires `--to`). Format: YYYY-MM-DD or natural language.
+- **`--to DATE`**: End date for date range (requires `--from`). Format: YYYY-MM-DD or natural language.
+- **`-o, --output-dir PATH`**: Output directory for batch mode (date ranges). Overrides config setting.
+- **`--exclude-weekends`**: Skip weekends (Saturdays and Sundays) in date ranges and source fetching.
 - **`-f, --format [markdown|json]`**: Output format (default: markdown)
 - **`-c, --config PATH`**: Path to configuration file
 - **`-v, --verbose`**: Enable verbose (DEBUG) logging
 - **`--log-format [human|json]`**: Log output format (default: human)
 - **`--help`**: Show this message and exit.
+
+### Date Range Examples (Phase 2)
+
+Generate reports for multiple days at once:
+
+```bash
+# Generate reports for a week
+pkm --from 2025-11-17 --to 2025-11-23
+
+# Skip weekends globally
+pkm --from 2025-11-17 --to 2025-11-23 --exclude-weekends
+
+# Custom output directory
+pkm --from 2025-11-17 --to 2025-11-23 -o ~/Documents/daily-notes/
+
+# Date ranges work with all subcommands
+pkm github --from 2025-11-17 --to 2025-11-23
+pkm wakatime --from 2025-11-17 --to 2025-11-23 --exclude-weekends
+```
+
+**Smart File Updates**: When generating reports for existing files, the tool intelligently:
+
+- Preserves your manual notes (preamble and postamble)
+- Updates PKM sections with fresh data
+- Appends new PKM sections that weren't in the file
+- Allows seamless mixing of automated data with personal journaling
 
 ### Authentication Management
 
@@ -166,13 +204,19 @@ cp config.example.yaml ~/.config/pkm-tool/config.yaml
 Edit the configuration file to enable/disable sources and add credentials:
 
 ```yaml
+# Output settings (Phase 2)
+output_filename_template: "{date} ({day_abbr}).{format}"  # Default: "2025-11-22 (Fri).md"
+output_directory: "./daily-notes"  # Where to write files
+
 github:
   enabled: true
+  exclude_weekends: false  # Set to true to skip GitHub on weekends
   config:
     use_gh_cli: true  # Uses gh CLI for authentication
 
 wakatime:
   enabled: true
+  exclude_weekends: true  # Example: skip coding activity tracking on weekends
   config:
     api_key: waka_your_api_key_here
 
@@ -199,6 +243,23 @@ whoop:
     # Preferred: store tokens via `pkm auth login whoop`
     # access_token: your_whoop_access_token_here
 ```
+
+#### Filename Template Variables
+
+The `output_filename_template` supports the following variables:
+
+- `{date}` - Full date in YYYY-MM-DD format (e.g., "2025-11-22")
+- `{year}` - Four-digit year (e.g., "2025")
+- `{month}` - Two-digit month (e.g., "11")
+- `{day}` - Two-digit day (e.g., "22")
+- `{day_abbr}` - Abbreviated day name (e.g., "Mon", "Fri")
+- `{format}` - Output format extension ("md" for markdown, "json" for json)
+
+Examples:
+
+- `"{date} ({day_abbr}).{format}"` → `2025-11-22 (Fri).md`
+- `"{year}/{month}/{day}.{format}"` → `2025/11/22.md`
+- `"daily-note-{date}.{format}"` → `daily-note-2025-11-22.md`
 
 ### Output Formats
 

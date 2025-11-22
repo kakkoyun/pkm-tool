@@ -1,5 +1,6 @@
 """CLI snapshot tests."""
 
+from datetime import date
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -7,7 +8,8 @@ import pytest
 from click.testing import CliRunner
 from syrupy.assertion import SnapshotAssertion
 
-from pkm_tool.cli import cli
+from pkm_tool.cli import _generate_date_range, _validate_date_options, cli
+from pkm_tool.logging import configure_logging, get_logger
 
 
 @pytest.fixture
@@ -629,3 +631,84 @@ def test_cli_wakatime_subcommand_json(
 
     assert result.exit_code == 0
     assert result.output == snapshot
+
+
+def test_generate_date_range_no_weekends() -> None:
+    """Test date range generation without weekends."""
+    from_date = date(2025, 11, 17)  # Monday
+    to_date = date(2025, 11, 23)  # Sunday
+
+    dates = _generate_date_range(from_date, to_date, exclude_weekends=False)
+
+    assert len(dates) == 7  # All 7 days
+    assert dates[0] == date(2025, 11, 17)
+    assert dates[-1] == date(2025, 11, 23)
+
+
+def test_generate_date_range_exclude_weekends() -> None:
+    """Test date range generation excluding weekends."""
+    from_date = date(2025, 11, 17)  # Monday
+    to_date = date(2025, 11, 23)  # Sunday
+
+    dates = _generate_date_range(from_date, to_date, exclude_weekends=True)
+
+    assert len(dates) == 5  # Only weekdays
+    assert date(2025, 11, 22) not in dates  # Saturday excluded
+    assert date(2025, 11, 23) not in dates  # Sunday excluded
+    assert date(2025, 11, 21) in dates  # Friday included
+
+
+def test_generate_date_range_single_day() -> None:
+    """Test date range with single day."""
+    target = date(2025, 11, 21)
+
+    dates = _generate_date_range(target, target, exclude_weekends=False)
+
+    assert len(dates) == 1
+    assert dates[0] == target
+
+
+def test_validate_date_options_date_only() -> None:
+    """Test validation with only --date."""
+    configure_logging(verbose=False, log_format="human")
+    logger = get_logger(__name__)
+
+    # Should not raise
+    _validate_date_options("2025-11-21", None, None, logger)
+
+
+def test_validate_date_options_range() -> None:
+    """Test validation with date range."""
+    configure_logging(verbose=False, log_format="human")
+    logger = get_logger(__name__)
+
+    # Should not raise
+    _validate_date_options(None, "2025-11-17", "2025-11-23", logger)
+
+
+def test_validate_date_options_conflicting(cli_runner: CliRunner) -> None:
+    """Test validation with conflicting options."""
+    configure_logging(verbose=False, log_format="human")
+    logger = get_logger(__name__)
+
+    from click import ClickException
+
+    # Should raise ClickException
+    with pytest.raises(ClickException, match="Cannot use --date with --from/--to"):
+        _validate_date_options("2025-11-21", "2025-11-17", "2025-11-23", logger)
+
+
+def test_validate_date_options_incomplete_range(cli_runner: CliRunner) -> None:
+    """Test validation with incomplete range."""
+    configure_logging(verbose=False, log_format="human")
+    logger = get_logger(__name__)
+
+    from click import ClickException
+
+    # Only --from provided
+    with pytest.raises(ClickException, match="Both --from and --to must be provided"):
+        _validate_date_options(None, "2025-11-17", None, logger)
+
+    # Only --to provided
+    with pytest.raises(ClickException, match="Both --from and --to must be provided"):
+        _validate_date_options(None, None, "2025-11-23", logger)

@@ -1,10 +1,12 @@
 """CLI entry point for PKM tool."""
 
+import datetime as dt
 import functools
 import json
 import time
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import click
@@ -14,7 +16,12 @@ from pkm_tool.aggregator import aggregate_data
 from pkm_tool.auth import AuthManager
 from pkm_tool.auth.oauth import GoogleOAuthProvider
 from pkm_tool.config import load_config
-from pkm_tool.formatters import format_as_json, format_as_markdown
+from pkm_tool.formatters import (
+    format_as_json,
+    format_as_markdown,
+    format_filename,
+    write_report_to_file,
+)
 from pkm_tool.logging import configure_logging, get_logger
 from pkm_tool.models import AggregatedData
 from pkm_tool.sources.apple_calendar import fetch_calendar_events
@@ -109,6 +116,30 @@ def common_options(func: Callable) -> Callable:
         help="Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.",
     )
     @click.option(
+        "--from",
+        "from_date",
+        default=None,
+        help="Start date for date range (requires --to). Format: YYYY-MM-DD or natural language.",
+    )
+    @click.option(
+        "--to",
+        "to_date",
+        default=None,
+        help="End date for date range (requires --from). Format: YYYY-MM-DD or natural language.",
+    )
+    @click.option(
+        "--output-dir",
+        "-o",
+        default=None,
+        help="Output directory for batch mode (date ranges). Overrides config setting.",
+    )
+    @click.option(
+        "--exclude-weekends",
+        is_flag=True,
+        default=False,
+        help="Skip weekends (Saturdays and Sundays) in date ranges and source fetching.",
+    )
+    @click.option(
         "--format",
         "-f",
         type=click.Choice(["markdown", "json"], case_sensitive=False),
@@ -170,6 +201,27 @@ def _parse_date(date_input: str | None, logger: Any) -> date:
         logger.error("date_parsing_failed", error=str(e), input=date_input)
         click.echo(f"Error parsing date: {e}", err=True)
         raise click.Abort()
+
+
+def _generate_date_range(from_date: date, to_date: date, exclude_weekends: bool) -> list[date]:
+    """
+    Generate list of dates in range.
+
+    Args:
+        from_date: Start date (inclusive)
+        to_date: End date (inclusive)
+        exclude_weekends: Skip Saturdays (5) and Sundays (6)
+
+    Returns:
+        List of dates in range
+    """
+    dates = []
+    current = from_date
+    while current <= to_date:
+        if not exclude_weekends or current.weekday() < 5:
+            dates.append(current)
+        current += timedelta(days=1)
+    return dates
 
 
 def _fetch_single_source(
@@ -258,6 +310,134 @@ def _format_and_output(data: AggregatedData, format: str, logger: Any) -> None:
     logger.info("pkm_tool_completed", output_format=format)
 
 
+def _process_batch_or_single(
+    source_name: str,
+    fetch_func: Any,
+    date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
+    format: str,
+    config: str | None,
+    source_config: Any,
+    logger: Any,
+) -> None:
+    """
+    Process either batch mode (date range) or single-day mode for a source.
+
+    Args:
+        source_name: Name of the source
+        fetch_func: Function to fetch data from source
+        date: Single date option
+        from_date: Start of date range
+        to_date: End of date range
+        output_dir: Output directory override
+        exclude_weekends: Whether to exclude weekends
+        format: Output format
+        config: Config file path
+        source_config: Source-specific config dict
+        logger: Logger instance
+    """
+    # Validate date options
+    _validate_date_options(date, from_date, to_date, logger)
+
+    # Load config for output settings
+    cfg = load_config(config)
+
+    # Check if batch mode (date range) or single-day mode
+    if from_date and to_date:
+        # Batch mode: generate files for date range
+        start_date = _parse_date(from_date, logger)
+        end_date = _parse_date(to_date, logger)
+
+        if start_date > end_date:
+            logger.error("invalid_date_range", reason="Start date must be <= end date")
+            raise click.ClickException("Start date must be before or equal to end date.")
+
+        dates = _generate_date_range(start_date, end_date, exclude_weekends)
+        output_directory = Path(output_dir or cfg.output_directory)
+
+        logger.info(
+            "batch_mode_started",
+            source=source_name,
+            date_count=len(dates),
+            output_directory=str(output_directory),
+        )
+
+        for target_date in dates:
+            try:
+                logger.info("fetching_date", source=source_name, date=str(target_date))
+
+                # Create AggregatedData and populate appropriate field
+                data = AggregatedData(date=target_date)
+                result = fetch_func(target_date, source_config)
+
+                # Populate the appropriate field based on source name
+                if source_name == "apple_calendar":
+                    data.calendar_events = result
+                elif source_name == "github":
+                    data.github_activities = result
+                elif source_name == "atlassian":
+                    data.atlassian_items = result
+                elif source_name == "things":
+                    data.things_tasks = result
+                elif source_name == "wakatime":
+                    data.wakatime_activities = result
+                elif source_name == "google_docs":
+                    data.google_docs = result
+                elif source_name == "whoop":
+                    # For Whoop, result is a tuple of (recovery, sleep, workouts)
+                    data.whoop_recovery, data.whoop_sleep, data.whoop_workouts = result
+
+                # Format filename
+                filename = format_filename(cfg.output_filename_template, target_date, format)
+                output_path = output_directory / filename
+
+                # Write with smart merge
+                write_report_to_file(data, output_path, format, merge_existing=True)
+                logger.info("report_written", path=str(output_path))
+            except Exception as e:
+                logger.error(
+                    "date_fetch_failed", date=str(target_date), error=str(e), exc_info=True
+                )
+                click.echo(f"Error processing {target_date}: {e}", err=True)
+
+        click.echo(f"Generated {len(dates)} reports in {output_directory}/")
+        logger.info("batch_mode_completed", source=source_name, date_count=len(dates))
+    else:
+        # Single-day mode: output to stdout
+        target_date = _parse_date(date, logger)
+        data = _fetch_single_source(source_name, fetch_func, target_date, source_config, logger)
+        _format_and_output(data, format, logger)
+
+
+def _validate_date_options(
+    date: str | None, from_date: str | None, to_date: str | None, logger: Any
+) -> None:
+    """
+    Validate date options combinations.
+
+    Args:
+        date: Single date option
+        from_date: Start of date range
+        to_date: End of date range
+        logger: Logger instance
+
+    Raises:
+        click.ClickException: If options are invalid
+    """
+    # Check for conflicting options
+    if date and (from_date or to_date):
+        logger.error("invalid_date_options", reason="Cannot use --date with --from/--to")
+        raise click.ClickException("Cannot use --date with --from/--to. Use one or the other.")
+
+    # Check that both from and to are provided together
+    if (from_date and not to_date) or (to_date and not from_date):
+        logger.error("invalid_date_range", reason="Both --from and --to must be provided")
+        raise click.ClickException("Both --from and --to must be provided for date ranges.")
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 @click.option(
@@ -265,6 +445,30 @@ def _format_and_output(data: AggregatedData, format: str, logger: Any) -> None:
     "-d",
     default=None,
     help="Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.",
+)
+@click.option(
+    "--from",
+    "from_date",
+    default=None,
+    help="Start date for date range (requires --to). Format: YYYY-MM-DD or natural language.",
+)
+@click.option(
+    "--to",
+    "to_date",
+    default=None,
+    help="End date for date range (requires --from). Format: YYYY-MM-DD or natural language.",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    default=None,
+    help="Output directory for batch mode (date ranges). Overrides config setting.",
+)
+@click.option(
+    "--exclude-weekends",
+    is_flag=True,
+    default=False,
+    help="Skip weekends (Saturdays and Sundays) in date ranges and source fetching.",
 )
 @click.option(
     "--format",
@@ -296,6 +500,10 @@ def _format_and_output(data: AggregatedData, format: str, logger: Any) -> None:
 def cli(
     ctx: click.Context,
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -332,6 +540,10 @@ def cli(
         ctx.invoke(
             aggregate,
             date=date,
+            from_date=from_date,
+            to_date=to_date,
+            output_dir=output_dir,
+            exclude_weekends=exclude_weekends,
             format=format,
             config=config,
             verbose=verbose,
@@ -343,6 +555,10 @@ def cli(
 @common_options
 def aggregate(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -355,29 +571,93 @@ def aggregate(
         "pkm_tool_started",
         command="aggregate",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
+        exclude_weekends=exclude_weekends,
         output_format=format,
         config_path=config,
         verbose=verbose,
     )
 
-    target_date = _parse_date(date, logger)
+    # Validate date options
+    _validate_date_options(date, from_date, to_date, logger)
 
-    try:
-        logger.info("starting_data_aggregation", target_date=str(target_date))
-        data = aggregate_data(target_date, config)
-        logger.info("data_aggregation_completed", target_date=str(target_date))
-    except Exception as e:
-        logger.error("data_aggregation_failed", error=str(e), exc_info=True)
-        click.echo(f"Error aggregating data: {e}", err=True)
-        raise click.Abort()
+    # Load config for output settings
+    cfg = load_config(config)
 
-    _format_and_output(data, format, logger)
+    # Check if batch mode (date range) or single-day mode
+    if from_date and to_date:
+        # Batch mode: generate files for date range
+        start_date = _parse_date(from_date, logger)
+        end_date = _parse_date(to_date, logger)
+
+        if start_date > end_date:
+            logger.error("invalid_date_range", reason="Start date must be <= end date")
+            raise click.ClickException("Start date must be before or equal to end date.")
+
+        dates = _generate_date_range(start_date, end_date, exclude_weekends)
+        output_directory = Path(output_dir or cfg.output_directory)
+
+        logger.info(
+            "batch_mode_started",
+            date_count=len(dates),
+            output_directory=str(output_directory),
+        )
+
+        for target_date in dates:
+            try:
+                logger.info("fetching_date", date=str(target_date))
+                # Only override per-source config if --exclude-weekends was explicitly set (True)
+                # False means "use per-source config", not "force include weekends"
+                # To force include weekends, set exclude_weekends: false in per-source config
+                exclude_override = exclude_weekends if exclude_weekends else None
+                data = aggregate_data(
+                    target_date, config, exclude_weekends_override=exclude_override
+                )
+
+                # Format filename
+                filename = format_filename(cfg.output_filename_template, target_date, format)
+                output_path = output_directory / filename
+
+                # Write with smart merge
+                write_report_to_file(data, output_path, format, merge_existing=True)
+                logger.info("report_written", path=str(output_path))
+            except Exception as e:
+                logger.error(
+                    "date_fetch_failed", date=str(target_date), error=str(e), exc_info=True
+                )
+                click.echo(f"Error processing {target_date}: {e}", err=True)
+
+        click.echo(f"Generated {len(dates)} reports in {output_directory}/")
+        logger.info("batch_mode_completed", date_count=len(dates))
+    else:
+        # Single-day mode: output to stdout
+        target_date = _parse_date(date, logger)
+
+        try:
+            logger.info("starting_data_aggregation", target_date=str(target_date))
+            # Only override per-source config if --exclude-weekends was explicitly set (True)
+            # False means "use per-source config", not "force include weekends"
+            # To force include weekends, set exclude_weekends: false in per-source config
+            exclude_override = exclude_weekends if exclude_weekends else None
+            data = aggregate_data(target_date, config, exclude_weekends_override=exclude_override)
+            logger.info("data_aggregation_completed", target_date=str(target_date))
+        except Exception as e:
+            logger.error("data_aggregation_failed", error=str(e), exc_info=True)
+            click.echo(f"Error aggregating data: {e}", err=True)
+            raise click.Abort()
+
+        _format_and_output(data, format, logger)
 
 
 @cli.command()
 @common_options
 def calendar(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -390,26 +670,35 @@ def calendar(
         "pkm_tool_started",
         command="calendar",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
     cfg = load_config(config)
-
-    data = _fetch_single_source(
+    _process_batch_or_single(
         "apple_calendar",
         fetch_calendar_events,
-        target_date,
+        date,
+        from_date,
+        to_date,
+        output_dir,
+        exclude_weekends,
+        format,
+        config,
         cfg.apple_calendar.config,
         logger,
     )
-    _format_and_output(data, format, logger)
 
 
 @cli.command()
 @common_options
 def github(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -422,26 +711,35 @@ def github(
         "pkm_tool_started",
         command="github",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
     cfg = load_config(config)
-
-    data = _fetch_single_source(
+    _process_batch_or_single(
         "github",
         fetch_github_activities,
-        target_date,
+        date,
+        from_date,
+        to_date,
+        output_dir,
+        exclude_weekends,
+        format,
+        config,
         cfg.github.config,
         logger,
     )
-    _format_and_output(data, format, logger)
 
 
 @cli.command()
 @common_options
 def atlassian(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -454,26 +752,35 @@ def atlassian(
         "pkm_tool_started",
         command="atlassian",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
     cfg = load_config(config)
-
-    data = _fetch_single_source(
+    _process_batch_or_single(
         "atlassian",
         fetch_atlassian_items,
-        target_date,
+        date,
+        from_date,
+        to_date,
+        output_dir,
+        exclude_weekends,
+        format,
+        config,
         cfg.atlassian.config,
         logger,
     )
-    _format_and_output(data, format, logger)
 
 
 @cli.command()
 @common_options
 def things(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -486,26 +793,35 @@ def things(
         "pkm_tool_started",
         command="things",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
     cfg = load_config(config)
-
-    data = _fetch_single_source(
+    _process_batch_or_single(
         "things",
         fetch_things_tasks,
-        target_date,
+        date,
+        from_date,
+        to_date,
+        output_dir,
+        exclude_weekends,
+        format,
+        config,
         cfg.things.config,
         logger,
     )
-    _format_and_output(data, format, logger)
 
 
 @cli.command()
 @common_options
 def wakatime(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -518,20 +834,25 @@ def wakatime(
         "pkm_tool_started",
         command="wakatime",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
     cfg = load_config(config)
-
-    data = _fetch_single_source(
+    _process_batch_or_single(
         "wakatime",
         fetch_wakatime_activities,
-        target_date,
+        date,
+        from_date,
+        to_date,
+        output_dir,
+        exclude_weekends,
+        format,
+        config,
         cfg.wakatime.config,
         logger,
     )
-    _format_and_output(data, format, logger)
 
 
 @cli.group()
@@ -662,6 +983,10 @@ def auth_refresh(source: str, config: str | None) -> None:
 @common_options
 def google_docs(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -674,26 +999,35 @@ def google_docs(
         "pkm_tool_started",
         command="google-docs",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
     cfg = load_config(config)
-
-    data = _fetch_single_source(
+    _process_batch_or_single(
         "google_docs",
         fetch_google_docs,
-        target_date,
+        date,
+        from_date,
+        to_date,
+        output_dir,
+        exclude_weekends,
+        format,
+        config,
         cfg.google_docs.config,
         logger,
     )
-    _format_and_output(data, format, logger)
 
 
 @cli.command()
 @common_options
 def whoop(
     date: str | None,
+    from_date: str | None,
+    to_date: str | None,
+    output_dir: str | None,
+    exclude_weekends: bool,
     format: str,
     config: str | None,
     verbose: bool,
@@ -706,46 +1040,107 @@ def whoop(
         "pkm_tool_started",
         command="whoop",
         date_input=date,
+        from_date=from_date,
+        to_date=to_date,
         output_format=format,
     )
 
-    target_date = _parse_date(date, logger)
+    # Validate date options
+    _validate_date_options(date, from_date, to_date, logger)
+
+    # Load config for output settings
     cfg = load_config(config)
 
-    # Create AggregatedData and populate Whoop fields
-    data = AggregatedData(date=target_date)
+    def fetch_whoop_data(target_dt: dt.date, whoop_config: dict[str, Any]) -> tuple:
+        """Wrapper to fetch all three types of Whoop data."""
+        recovery = fetch_whoop_recovery(target_dt, whoop_config)
+        sleep = fetch_whoop_sleep(target_dt, whoop_config)
+        workouts = fetch_whoop_workouts(target_dt, whoop_config)
+        return (recovery, sleep, workouts)
 
-    logger.info("fetching_source", source="whoop")
-    start_time = time.time()
-    try:
-        # Fetch all three types of Whoop data
-        data.whoop_recovery = fetch_whoop_recovery(target_date, cfg.whoop.config)
-        data.whoop_sleep = fetch_whoop_sleep(target_date, cfg.whoop.config)
-        data.whoop_workouts = fetch_whoop_workouts(target_date, cfg.whoop.config)
+    # Check if batch mode (date range) or single-day mode
+    if from_date and to_date:
+        # Batch mode: generate files for date range
+        start_date = _parse_date(from_date, logger)
+        end_date = _parse_date(to_date, logger)
 
-        recovery_count = 1 if data.whoop_recovery else 0
-        total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
-        duration = time.time() - start_time
+        if start_date > end_date:
+            logger.error("invalid_date_range", reason="Start date must be <= end date")
+            raise click.ClickException("Start date must be before or equal to end date.")
+
+        dates = _generate_date_range(start_date, end_date, exclude_weekends)
+        output_directory = Path(output_dir or cfg.output_directory)
 
         logger.info(
-            "source_fetch_completed",
+            "batch_mode_started",
             source="whoop",
-            duration_seconds=f"{duration:.2f}",
-            items_count=total_items,
+            date_count=len(dates),
+            output_directory=str(output_directory),
         )
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(
-            "source_fetch_failed",
-            source="whoop",
-            error=str(e),
-            duration_seconds=f"{duration:.2f}",
-            exc_info=True,
-        )
-        click.echo(f"Error fetching whoop: {e}", err=True)
-        raise click.Abort()
 
-    _format_and_output(data, format, logger)
+        for target_date in dates:
+            try:
+                logger.info("fetching_date", source="whoop", date=str(target_date))
+
+                # Create AggregatedData and populate Whoop fields
+                data = AggregatedData(date=target_date)
+                data.whoop_recovery, data.whoop_sleep, data.whoop_workouts = fetch_whoop_data(
+                    target_date, cfg.whoop.config
+                )
+
+                # Format filename
+                filename = format_filename(cfg.output_filename_template, target_date, format)
+                output_path = output_directory / filename
+
+                # Write with smart merge
+                write_report_to_file(data, output_path, format, merge_existing=True)
+                logger.info("report_written", path=str(output_path))
+            except Exception as e:
+                logger.error(
+                    "date_fetch_failed", date=str(target_date), error=str(e), exc_info=True
+                )
+                click.echo(f"Error processing {target_date}: {e}", err=True)
+
+        click.echo(f"Generated {len(dates)} reports in {output_directory}/")
+        logger.info("batch_mode_completed", source="whoop", date_count=len(dates))
+    else:
+        # Single-day mode: output to stdout
+        target_date = _parse_date(date, logger)
+
+        # Create AggregatedData and populate Whoop fields
+        data = AggregatedData(date=target_date)
+
+        logger.info("fetching_source", source="whoop")
+        start_time = time.time()
+        try:
+            # Fetch all three types of Whoop data
+            data.whoop_recovery = fetch_whoop_recovery(target_date, cfg.whoop.config)
+            data.whoop_sleep = fetch_whoop_sleep(target_date, cfg.whoop.config)
+            data.whoop_workouts = fetch_whoop_workouts(target_date, cfg.whoop.config)
+
+            recovery_count = 1 if data.whoop_recovery else 0
+            total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
+            duration = time.time() - start_time
+
+            logger.info(
+                "source_fetch_completed",
+                source="whoop",
+                duration_seconds=f"{duration:.2f}",
+                items_count=total_items,
+            )
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(
+                "source_fetch_failed",
+                source="whoop",
+                error=str(e),
+                duration_seconds=f"{duration:.2f}",
+                exc_info=True,
+            )
+            click.echo(f"Error fetching whoop: {e}", err=True)
+            raise click.Abort()
+
+        _format_and_output(data, format, logger)
 
 
 # Keep main() as entry point for backward compatibility

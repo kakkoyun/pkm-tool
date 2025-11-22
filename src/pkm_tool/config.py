@@ -14,12 +14,18 @@ class SourceConfig(BaseModel):
     """Configuration for a data source."""
 
     enabled: bool = True
+    exclude_weekends: bool = False
     config: dict[str, Any] = Field(default_factory=dict)
 
 
 class Config(BaseModel):
     """Main configuration for PKM tool."""
 
+    # Output settings
+    output_filename_template: str = "{date} ({day_abbr}).{format}"
+    output_directory: str = "."
+
+    # Source configurations
     apple_calendar: SourceConfig = Field(default_factory=SourceConfig)
     github: SourceConfig = Field(default_factory=SourceConfig)
     atlassian: SourceConfig = Field(default_factory=SourceConfig)

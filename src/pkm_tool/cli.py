@@ -607,6 +607,9 @@ def aggregate(
         for target_date in dates:
             try:
                 logger.info("fetching_date", date=str(target_date))
+                # Only override per-source config if --exclude-weekends was explicitly set (True)
+                # False means "use per-source config", not "force include weekends"
+                # To force include weekends, set exclude_weekends: false in per-source config
                 exclude_override = exclude_weekends if exclude_weekends else None
                 data = aggregate_data(
                     target_date, config, exclude_weekends_override=exclude_override
@@ -633,6 +636,9 @@ def aggregate(
 
         try:
             logger.info("starting_data_aggregation", target_date=str(target_date))
+            # Only override per-source config if --exclude-weekends was explicitly set (True)
+            # False means "use per-source config", not "force include weekends"
+            # To force include weekends, set exclude_weekends: false in per-source config
             exclude_override = exclude_weekends if exclude_weekends else None
             data = aggregate_data(target_date, config, exclude_weekends_override=exclude_override)
             logger.info("data_aggregation_completed", target_date=str(target_date))

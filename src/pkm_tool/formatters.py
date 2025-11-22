@@ -273,7 +273,8 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
     sections: dict[str, str] = {"_preamble": "", "_postamble": ""}
     current_section: str | None = None
     current_content: list[str] = []
-    last_pkm_section_end = 0
+    in_preamble = True
+    in_postamble = False
 
     for i, line in enumerate(lines):
         # Check if this is a header line
@@ -281,7 +282,11 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
             section_id = identify_section(line)
 
             if section_id:
-                # Save previous section if any
+                # This is a PKM section header
+                in_preamble = False
+                in_postamble = False
+
+                # Save previous PKM section if any
                 if current_section:
                     sections[current_section] = "\n".join(current_content)
                     current_content = []
@@ -289,22 +294,32 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
                 # Start new PKM section
                 current_section = section_id
                 current_content = [line]
-                last_pkm_section_end = i
-            elif current_section:
-                # This is a non-PKM header within a PKM section - continue current section
-                current_content.append(line)
             else:
-                # This is a non-PKM header before any PKM section - part of preamble
-                if not sections["_preamble"]:
-                    sections["_preamble"] = "\n".join(lines[: i + 1])
+                # This is a non-PKM header
+                if current_section:
+                    # We were in a PKM section, now entering postamble
+                    sections[current_section] = "\n".join(current_content)
+                    current_section = None
+                    current_content = []
+                    in_postamble = True
+                    sections["_postamble"] = line
+                elif in_preamble:
+                    # Still in preamble
+                    if sections["_preamble"]:
+                        sections["_preamble"] += "\n" + line
+                    else:
+                        sections["_preamble"] = line
                 else:
-                    sections["_preamble"] += "\n" + line
+                    # In postamble
+                    sections["_postamble"] += "\n" + line
+        elif in_postamble:
+            # Content in postamble (after PKM sections)
+            sections["_postamble"] += "\n" + line
         elif current_section:
             # We're inside a PKM section
             current_content.append(line)
-            last_pkm_section_end = i
-        elif not any(sections.get(k) for k in sections if k.startswith("_") is False):
-            # We haven't encountered any PKM sections yet - this is preamble
+        elif in_preamble:
+            # We're in the preamble (before any PKM sections)
             if sections["_preamble"]:
                 sections["_preamble"] += "\n" + line
             else:
@@ -313,10 +328,6 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
     # Save the last PKM section if any
     if current_section and current_content:
         sections[current_section] = "\n".join(current_content)
-
-    # Everything after the last PKM section is postamble
-    if last_pkm_section_end < len(lines) - 1:
-        sections["_postamble"] = "\n".join(lines[last_pkm_section_end + 1 :])
 
     return sections
 

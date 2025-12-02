@@ -1,0 +1,45 @@
+# serializer version: 1
+# name: test_format_markdown_custom_order_snapshot
+  '''
+  # Daily Report - 2025-11-21
+  
+  ## 🐙 GitHub Activities
+  
+  - 📝 **10:30** [test/repo](https://github.com/test/repo) - Fixed authentication bug
+  
+  ## 📅 Calendar Events
+  
+  - **09:00 - 09:30** Team Standup
+  
+  '''
+# ---
+# name: test_format_markdown_custom_titles_snapshot
+  '''
+  # Daily Report - 2025-11-21
+  
+  ## 📆 Today's Schedule
+  
+  - **09:00 - 09:30** Team Standup
+  
+  ## 💻 Development
+  
+  - 📝 **10:30** [test/repo](https://github.com/test/repo) - Fixed authentication bug
+  
+  '''
+# ---
+# name: test_format_markdown_default_config_snapshot
+  '''
+  # Daily Report - 2025-11-21
+  
+  ## 📅 Calendar Events
+  
+  - **09:00 - 09:30** Team Standup
+    - Location: Zoom
+  
+  ## 🐙 GitHub Activities
+  
+  - 📝 **10:30** [test/repo](https://github.com/test/repo) - Fixed authentication bug
+    - 3 commits pushed
+  
+  '''
+# ---

@@ -10,6 +10,38 @@ from pydantic import BaseModel, Field
 logger = structlog.get_logger(__name__)
 
 
+# Default section titles with emojis
+DEFAULT_SECTION_TITLES: dict[str, str] = {
+    "calendar_events": "📅 Calendar Events",
+    "github_activities": "🐙 GitHub Activities",
+    "atlassian_items": "🏢 Atlassian (Jira/Confluence)",
+    "things_tasks": "✅ Things - Completed Tasks",
+    "wakatime_activities": "⏱️ Wakatime - Coding Activity",
+    "google_docs": "📝 Google Docs",
+    "whoop_data": "💪 Whoop Health Data",
+    "errors": "⚠️ Errors",
+}
+
+# Default section order
+DEFAULT_SECTION_ORDER: list[str] = [
+    "calendar_events",
+    "github_activities",
+    "atlassian_items",
+    "things_tasks",
+    "wakatime_activities",
+    "google_docs",
+    "whoop_data",
+    "errors",
+]
+
+
+class SectionConfig(BaseModel):
+    """Configuration for section titles and order."""
+
+    titles: dict[str, str] = Field(default_factory=lambda: DEFAULT_SECTION_TITLES.copy())
+    order: list[str] = Field(default_factory=lambda: DEFAULT_SECTION_ORDER.copy())
+
+
 class SourceConfig(BaseModel):
     """Configuration for a data source."""
 
@@ -24,6 +56,9 @@ class Config(BaseModel):
     # Output settings
     output_filename_template: str = "{date} ({day_abbr}).{format}"
     output_directory: str = "."
+
+    # Section configuration for titles and order
+    sections: SectionConfig = Field(default_factory=SectionConfig)
 
     # Source configurations
     apple_calendar: SourceConfig = Field(default_factory=SourceConfig)

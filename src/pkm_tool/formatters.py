@@ -4,7 +4,22 @@ import re
 from datetime import date
 from pathlib import Path
 
+from pkm_tool.config import DEFAULT_SECTION_ORDER, DEFAULT_SECTION_TITLES, SectionConfig
 from pkm_tool.models import AggregatedData
+
+
+def _get_section_title(section_name: str, section_config: SectionConfig | None) -> str:
+    """Get section title from config or default."""
+    if section_config and section_name in section_config.titles:
+        return section_config.titles[section_name]
+    return DEFAULT_SECTION_TITLES.get(section_name, section_name.replace("_", " ").title())
+
+
+def _get_section_order(section_config: SectionConfig | None) -> list[str]:
+    """Get section order from config or default."""
+    if section_config:
+        return section_config.order
+    return DEFAULT_SECTION_ORDER
 
 
 def format_as_json(data: AggregatedData) -> str:
@@ -20,172 +35,229 @@ def format_as_json(data: AggregatedData) -> str:
     return data.model_dump_json(indent=2)
 
 
-def format_as_markdown(data: AggregatedData) -> str:
+def _format_calendar_events_content(data: AggregatedData) -> list[str]:
+    """Format calendar events content (without header)."""
+    lines: list[str] = []
+    for event in sorted(data.calendar_events, key=lambda e: e.start):
+        time_str = f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}"
+        lines.append(f"- **{time_str}** {event.title}")
+        if event.location:
+            lines.append(f"  - Location: {event.location}")
+        if event.description:
+            lines.append(f"  - {event.description}")
+    return lines
+
+
+def _format_github_activities_content(data: AggregatedData) -> list[str]:
+    """Format GitHub activities content (without header)."""
+    lines: list[str] = []
+    for activity in sorted(data.github_activities, key=lambda a: a.timestamp):
+        time_str = activity.timestamp.strftime("%H:%M")
+        icon = {"commit": "📝", "pr": "🔀", "issue": "📋", "review": "👁️"}.get(
+            activity.type, "•"
+        )
+        link_text = f"[{activity.repository}]({activity.url})"
+        lines.append(f"- {icon} **{time_str}** {link_text} - {activity.title}")
+        if activity.details:
+            lines.append(f"  - {activity.details}")
+    return lines
+
+
+def _format_atlassian_items_content(data: AggregatedData) -> list[str]:
+    """Format Atlassian items content (without header)."""
+    lines: list[str] = []
+    for item in sorted(data.atlassian_items, key=lambda i: i.updated):
+        icon = "📋" if item.type == "jira_issue" else "📄"
+        status_str = f" ({item.status})" if item.status else ""
+        lines.append(f"- {icon} [{item.key}]({item.url}) - {item.title}{status_str}")
+    return lines
+
+
+def _format_things_tasks_content(data: AggregatedData) -> list[str]:
+    """Format Things tasks content (without header)."""
+    lines: list[str] = []
+    for task in sorted(data.things_tasks, key=lambda t: t.completed_date):
+        time_str = task.completed_date.strftime("%H:%M")
+        project_str = f" ({task.project})" if task.project else ""
+        tags_str = f" #{', #'.join(task.tags)}" if task.tags else ""
+        lines.append(f"- **{time_str}** {task.title}{project_str}{tags_str}")
+    return lines
+
+
+def _format_wakatime_activities_content(data: AggregatedData) -> list[str]:
+    """Format Wakatime activities content (without header)."""
+    lines: list[str] = []
+    total_seconds = sum(a.duration_seconds for a in data.wakatime_activities)
+    total_hours = total_seconds / 3600
+    lines.append(f"**Total Time:** {total_hours:.2f} hours")
+    lines.append("")
+    sorted_activities = sorted(
+        data.wakatime_activities, key=lambda a: a.duration_seconds, reverse=True
+    )
+    for activity in sorted_activities:
+        hours = activity.duration_seconds / 3600
+        lang_str = f" ({activity.language})" if activity.language else ""
+        lines.append(f"- {activity.project}{lang_str}: {hours:.2f}h")
+    return lines
+
+
+def _format_google_docs_content(data: AggregatedData) -> list[str]:
+    """Format Google Docs content (without header)."""
+    lines: list[str] = []
+    for doc in sorted(data.google_docs, key=lambda d: d.opened_at):
+        time_str = doc.opened_at.strftime("%H:%M")
+        lines.append(f"- **{time_str}** [{doc.title}]({doc.url})")
+    return lines
+
+
+def _format_whoop_data_content(data: AggregatedData) -> list[str]:
+    """Format Whoop health data content (without header)."""
+    lines: list[str] = []
+
+    # Recovery
+    if data.whoop_recovery:
+        recovery = data.whoop_recovery
+        lines.append(
+            f"**Recovery:** {recovery.recovery_score:.0f}% "
+            f"(HRV: {recovery.hrv:.0f}ms, Resting HR: {recovery.resting_heart_rate} bpm)"
+        )
+        lines.append("")
+
+    # Sleep
+    if data.whoop_sleep:
+        lines.append("**Sleep:**")
+        for sleep in sorted(data.whoop_sleep, key=lambda s: s.start):
+            start_str = sleep.start.strftime("%H:%M")
+            end_str = sleep.end.strftime("%H:%M")
+            hours = sleep.duration_minutes // 60
+            mins = sleep.duration_minutes % 60
+            efficiency_str = (
+                f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
+            )
+            lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
+
+            # Sleep stages
+            stages = []
+            if sleep.deep_sleep_minutes:
+                deep_h = sleep.deep_sleep_minutes // 60
+                deep_m = sleep.deep_sleep_minutes % 60
+                stages.append(f"Deep: {deep_h}h {deep_m}m")
+            if sleep.light_sleep_minutes:
+                light_h = sleep.light_sleep_minutes // 60
+                light_m = sleep.light_sleep_minutes % 60
+                stages.append(f"Light: {light_h}h {light_m}m")
+            if sleep.rem_sleep_minutes:
+                rem_h = sleep.rem_sleep_minutes // 60
+                rem_m = sleep.rem_sleep_minutes % 60
+                stages.append(f"REM: {rem_h}h {rem_m}m")
+            if stages:
+                lines.append(f"  - {', '.join(stages)}")
+        lines.append("")
+
+    # Workouts
+    if data.whoop_workouts:
+        lines.append("**Workouts:**")
+        for workout in sorted(data.whoop_workouts, key=lambda w: w.start):
+            time_str = workout.start.strftime("%H:%M")
+            hours = workout.duration_minutes // 60
+            mins = workout.duration_minutes % 60
+            duration_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
+
+            strain_str = f"Strain: {workout.strain:.1f}"
+            hr_str = (
+                f", Avg HR: {workout.average_heart_rate} bpm"
+                if workout.average_heart_rate
+                else ""
+            )
+
+            lines.append(
+                f"- **{time_str}** {workout.sport_name} ({duration_str}) - {strain_str}{hr_str}"
+            )
+
+    return lines
+
+
+def _format_errors_content(data: AggregatedData) -> list[str]:
+    """Format errors content (without header)."""
+    lines: list[str] = []
+    errors = {k: v for k, v in data.metadata.items() if k.endswith("_error")}
+    for source, error in errors.items():
+        source_name = source.replace("_error", "").replace("_", " ").title()
+        lines.append(f"- **{source_name}:** {error}")
+    return lines
+
+
+def _has_section_data(data: AggregatedData, section_name: str) -> bool:
+    """Check if a section has data to display."""
+    if section_name == "calendar_events":
+        return bool(data.calendar_events)
+    if section_name == "github_activities":
+        return bool(data.github_activities)
+    if section_name == "atlassian_items":
+        return bool(data.atlassian_items)
+    if section_name == "things_tasks":
+        return bool(data.things_tasks)
+    if section_name == "wakatime_activities":
+        return bool(data.wakatime_activities)
+    if section_name == "google_docs":
+        return bool(data.google_docs)
+    if section_name == "whoop_data":
+        return bool(data.whoop_recovery or data.whoop_sleep or data.whoop_workouts)
+    if section_name == "errors":
+        return any(k.endswith("_error") for k in data.metadata)
+    return False
+
+
+def _format_section_content(data: AggregatedData, section_name: str) -> list[str]:
+    """Get formatted content for a section (without header)."""
+    if section_name == "calendar_events":
+        return _format_calendar_events_content(data)
+    if section_name == "github_activities":
+        return _format_github_activities_content(data)
+    if section_name == "atlassian_items":
+        return _format_atlassian_items_content(data)
+    if section_name == "things_tasks":
+        return _format_things_tasks_content(data)
+    if section_name == "wakatime_activities":
+        return _format_wakatime_activities_content(data)
+    if section_name == "google_docs":
+        return _format_google_docs_content(data)
+    if section_name == "whoop_data":
+        return _format_whoop_data_content(data)
+    if section_name == "errors":
+        return _format_errors_content(data)
+    return []
+
+
+def format_as_markdown(
+    data: AggregatedData, section_config: SectionConfig | None = None
+) -> str:
     """
     Format aggregated data as Markdown.
 
     Args:
         data: AggregatedData to format
+        section_config: Optional section configuration for titles and order
 
     Returns:
         Markdown string
     """
-    lines = []
+    lines: list[str] = []
 
     # Header
     lines.append(f"# Daily Report - {data.date.strftime('%Y-%m-%d')}")
     lines.append("")
 
-    # Calendar Events
-    if data.calendar_events:
-        lines.append("## 📅 Calendar Events")
-        lines.append("")
-        for event in sorted(data.calendar_events, key=lambda e: e.start):
-            time_str = f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}"
-            lines.append(f"- **{time_str}** {event.title}")
-            if event.location:
-                lines.append(f"  - Location: {event.location}")
-            if event.description:
-                lines.append(f"  - {event.description}")
-        lines.append("")
-
-    # GitHub Activities
-    if data.github_activities:
-        lines.append("## 🐙 GitHub Activities")
-        lines.append("")
-        for activity in sorted(data.github_activities, key=lambda a: a.timestamp):
-            time_str = activity.timestamp.strftime("%H:%M")
-            icon = {"commit": "📝", "pr": "🔀", "issue": "📋", "review": "👁️"}.get(
-                activity.type, "•"
-            )
-            link_text = f"[{activity.repository}]({activity.url})"
-            lines.append(f"- {icon} **{time_str}** {link_text} - {activity.title}")
-            if activity.details:
-                lines.append(f"  - {activity.details}")
-        lines.append("")
-
-    # Atlassian Items
-    if data.atlassian_items:
-        lines.append("## 🏢 Atlassian (Jira/Confluence)")
-        lines.append("")
-        for item in sorted(data.atlassian_items, key=lambda i: i.updated):
-            icon = "📋" if item.type == "jira_issue" else "📄"
-            status_str = f" ({item.status})" if item.status else ""
-            lines.append(f"- {icon} [{item.key}]({item.url}) - {item.title}{status_str}")
-        lines.append("")
-
-    # Things Tasks
-    if data.things_tasks:
-        lines.append("## ✅ Things - Completed Tasks")
-        lines.append("")
-        for task in sorted(data.things_tasks, key=lambda t: t.completed_date):
-            time_str = task.completed_date.strftime("%H:%M")
-            project_str = f" ({task.project})" if task.project else ""
-            tags_str = f" #{', #'.join(task.tags)}" if task.tags else ""
-            lines.append(f"- **{time_str}** {task.title}{project_str}{tags_str}")
-        lines.append("")
-
-    # Wakatime Activities
-    if data.wakatime_activities:
-        lines.append("## ⏱️ Wakatime - Coding Activity")
-        lines.append("")
-        total_seconds = sum(a.duration_seconds for a in data.wakatime_activities)
-        total_hours = total_seconds / 3600
-        lines.append(f"**Total Time:** {total_hours:.2f} hours")
-        lines.append("")
-        sorted_activities = sorted(
-            data.wakatime_activities, key=lambda a: a.duration_seconds, reverse=True
-        )
-        for activity in sorted_activities:
-            hours = activity.duration_seconds / 3600
-            lang_str = f" ({activity.language})" if activity.language else ""
-            lines.append(f"- {activity.project}{lang_str}: {hours:.2f}h")
-        lines.append("")
-
-    # Google Docs
-    if data.google_docs:
-        lines.append("## 📝 Google Docs")
-        lines.append("")
-        for doc in sorted(data.google_docs, key=lambda d: d.opened_at):
-            time_str = doc.opened_at.strftime("%H:%M")
-            lines.append(f"- **{time_str}** [{doc.title}]({doc.url})")
-        lines.append("")
-
-    # Whoop Health Data
-    if data.whoop_recovery or data.whoop_sleep or data.whoop_workouts:
-        lines.append("## 💪 Whoop Health Data")
-        lines.append("")
-
-        # Recovery
-        if data.whoop_recovery:
-            recovery = data.whoop_recovery
-            lines.append(
-                f"**Recovery:** {recovery.recovery_score:.0f}% "
-                f"(HRV: {recovery.hrv:.0f}ms, Resting HR: {recovery.resting_heart_rate} bpm)"
-            )
+    # Format sections in configured order
+    section_order = _get_section_order(section_config)
+    for section_name in section_order:
+        if _has_section_data(data, section_name):
+            title = _get_section_title(section_name, section_config)
+            lines.append(f"## {title}")
             lines.append("")
-
-        # Sleep
-        if data.whoop_sleep:
-            lines.append("**Sleep:**")
-            for sleep in sorted(data.whoop_sleep, key=lambda s: s.start):
-                start_str = sleep.start.strftime("%H:%M")
-                end_str = sleep.end.strftime("%H:%M")
-                hours = sleep.duration_minutes // 60
-                mins = sleep.duration_minutes % 60
-                efficiency_str = (
-                    f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
-                )
-                lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
-
-                # Sleep stages
-                stages = []
-                if sleep.deep_sleep_minutes:
-                    deep_h = sleep.deep_sleep_minutes // 60
-                    deep_m = sleep.deep_sleep_minutes % 60
-                    stages.append(f"Deep: {deep_h}h {deep_m}m")
-                if sleep.light_sleep_minutes:
-                    light_h = sleep.light_sleep_minutes // 60
-                    light_m = sleep.light_sleep_minutes % 60
-                    stages.append(f"Light: {light_h}h {light_m}m")
-                if sleep.rem_sleep_minutes:
-                    rem_h = sleep.rem_sleep_minutes // 60
-                    rem_m = sleep.rem_sleep_minutes % 60
-                    stages.append(f"REM: {rem_h}h {rem_m}m")
-                if stages:
-                    lines.append(f"  - {', '.join(stages)}")
+            content = _format_section_content(data, section_name)
+            lines.extend(content)
             lines.append("")
-
-        # Workouts
-        if data.whoop_workouts:
-            lines.append("**Workouts:**")
-            for workout in sorted(data.whoop_workouts, key=lambda w: w.start):
-                time_str = workout.start.strftime("%H:%M")
-                hours = workout.duration_minutes // 60
-                mins = workout.duration_minutes % 60
-                duration_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
-
-                strain_str = f"Strain: {workout.strain:.1f}"
-                hr_str = (
-                    f", Avg HR: {workout.average_heart_rate} bpm"
-                    if workout.average_heart_rate
-                    else ""
-                )
-
-                lines.append(
-                    f"- **{time_str}** {workout.sport_name} ({duration_str}) - {strain_str}{hr_str}"
-                )
-            lines.append("")
-
-    # Errors
-    errors = {k: v for k, v in data.metadata.items() if k.endswith("_error")}
-    if errors:
-        lines.append("## ⚠️ Errors")
-        lines.append("")
-        for source, error in errors.items():
-            source_name = source.replace("_error", "").replace("_", " ").title()
-            lines.append(f"- **{source_name}:** {error}")
-        lines.append("")
 
     return "\n".join(lines)
 
@@ -332,169 +404,40 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
     return sections
 
 
-def _format_section(data: AggregatedData, section_name: str) -> str:
+def _format_section(
+    data: AggregatedData, section_name: str, section_config: SectionConfig | None = None
+) -> str:
     """
     Format a single section from AggregatedData.
 
     Args:
         data: Aggregated data
         section_name: Section identifier (e.g., "calendar_events")
+        section_config: Optional section configuration for titles
 
     Returns:
         Formatted markdown section
     """
-    lines = []
+    if not _has_section_data(data, section_name):
+        return ""
 
-    if section_name == "calendar_events" and data.calendar_events:
-        lines.append("## 📅 Calendar Events")
-        lines.append("")
-        for event in sorted(data.calendar_events, key=lambda e: e.start):
-            time_str = f"{event.start.strftime('%H:%M')} - {event.end.strftime('%H:%M')}"
-            lines.append(f"- **{time_str}** {event.title}")
-            if event.location:
-                lines.append(f"  - Location: {event.location}")
-            if event.description:
-                lines.append(f"  - {event.description}")
-        lines.append("")
-
-    elif section_name == "github_activities" and data.github_activities:
-        lines.append("## 🐙 GitHub Activities")
-        lines.append("")
-        for activity in sorted(data.github_activities, key=lambda a: a.timestamp):
-            time_str = activity.timestamp.strftime("%H:%M")
-            icon = {"commit": "📝", "pr": "🔀", "issue": "📋", "review": "👁️"}.get(
-                activity.type, "•"
-            )
-            link_text = f"[{activity.repository}]({activity.url})"
-            lines.append(f"- {icon} **{time_str}** {link_text} - {activity.title}")
-            if activity.details:
-                lines.append(f"  - {activity.details}")
-        lines.append("")
-
-    elif section_name == "atlassian_items" and data.atlassian_items:
-        lines.append("## 🏢 Atlassian (Jira/Confluence)")
-        lines.append("")
-        for item in sorted(data.atlassian_items, key=lambda i: i.updated):
-            icon = "📋" if item.type == "jira_issue" else "📄"
-            status_str = f" ({item.status})" if item.status else ""
-            lines.append(f"- {icon} [{item.key}]({item.url}) - {item.title}{status_str}")
-        lines.append("")
-
-    elif section_name == "things_tasks" and data.things_tasks:
-        lines.append("## ✅ Things - Completed Tasks")
-        lines.append("")
-        for task in sorted(data.things_tasks, key=lambda t: t.completed_date):
-            time_str = task.completed_date.strftime("%H:%M")
-            project_str = f" ({task.project})" if task.project else ""
-            tags_str = f" #{', #'.join(task.tags)}" if task.tags else ""
-            lines.append(f"- **{time_str}** {task.title}{project_str}{tags_str}")
-        lines.append("")
-
-    elif section_name == "wakatime_activities" and data.wakatime_activities:
-        lines.append("## ⏱️ Wakatime - Coding Activity")
-        lines.append("")
-        total_seconds = sum(a.duration_seconds for a in data.wakatime_activities)
-        total_hours = total_seconds / 3600
-        lines.append(f"**Total Time:** {total_hours:.2f} hours")
-        lines.append("")
-        sorted_activities = sorted(
-            data.wakatime_activities, key=lambda a: a.duration_seconds, reverse=True
-        )
-        for activity in sorted_activities:
-            hours = activity.duration_seconds / 3600
-            lang_str = f" ({activity.language})" if activity.language else ""
-            lines.append(f"- {activity.project}{lang_str}: {hours:.2f}h")
-        lines.append("")
-
-    elif section_name == "google_docs" and data.google_docs:
-        lines.append("## 📝 Google Docs")
-        lines.append("")
-        for doc in sorted(data.google_docs, key=lambda d: d.opened_at):
-            time_str = doc.opened_at.strftime("%H:%M")
-            lines.append(f"- **{time_str}** [{doc.title}]({doc.url})")
-        lines.append("")
-
-    elif section_name == "whoop_data" and (
-        data.whoop_recovery or data.whoop_sleep or data.whoop_workouts
-    ):
-        lines.append("## 💪 Whoop Health Data")
-        lines.append("")
-
-        # Recovery
-        if data.whoop_recovery:
-            recovery = data.whoop_recovery
-            lines.append(
-                f"**Recovery:** {recovery.recovery_score:.0f}% "
-                f"(HRV: {recovery.hrv:.0f}ms, Resting HR: {recovery.resting_heart_rate} bpm)"
-            )
-            lines.append("")
-
-        # Sleep
-        if data.whoop_sleep:
-            lines.append("**Sleep:**")
-            for sleep in sorted(data.whoop_sleep, key=lambda s: s.start):
-                start_str = sleep.start.strftime("%H:%M")
-                end_str = sleep.end.strftime("%H:%M")
-                hours = sleep.duration_minutes // 60
-                mins = sleep.duration_minutes % 60
-                efficiency_str = (
-                    f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
-                )
-                lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
-
-                # Sleep stages
-                stages = []
-                if sleep.deep_sleep_minutes:
-                    deep_h = sleep.deep_sleep_minutes // 60
-                    deep_m = sleep.deep_sleep_minutes % 60
-                    stages.append(f"Deep: {deep_h}h {deep_m}m")
-                if sleep.light_sleep_minutes:
-                    light_h = sleep.light_sleep_minutes // 60
-                    light_m = sleep.light_sleep_minutes % 60
-                    stages.append(f"Light: {light_h}h {light_m}m")
-                if sleep.rem_sleep_minutes:
-                    rem_h = sleep.rem_sleep_minutes // 60
-                    rem_m = sleep.rem_sleep_minutes % 60
-                    stages.append(f"REM: {rem_h}h {rem_m}m")
-                if stages:
-                    lines.append(f"  - {', '.join(stages)}")
-            lines.append("")
-
-        # Workouts
-        if data.whoop_workouts:
-            lines.append("**Workouts:**")
-            for workout in sorted(data.whoop_workouts, key=lambda w: w.start):
-                time_str = workout.start.strftime("%H:%M")
-                hours = workout.duration_minutes // 60
-                mins = workout.duration_minutes % 60
-                duration_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
-
-                strain_str = f"Strain: {workout.strain:.1f}"
-                hr_str = (
-                    f", Avg HR: {workout.average_heart_rate} bpm"
-                    if workout.average_heart_rate
-                    else ""
-                )
-
-                lines.append(
-                    f"- **{time_str}** {workout.sport_name} ({duration_str}) - {strain_str}{hr_str}"
-                )
-            lines.append("")
-
-    elif section_name == "errors":
-        errors = {k: v for k, v in data.metadata.items() if k.endswith("_error")}
-        if errors:
-            lines.append("## ⚠️ Errors")
-            lines.append("")
-            for source, error in errors.items():
-                source_name = source.replace("_error", "").replace("_", " ").title()
-                lines.append(f"- **{source_name}:** {error}")
-            lines.append("")
+    lines: list[str] = []
+    title = _get_section_title(section_name, section_config)
+    lines.append(f"## {title}")
+    lines.append("")
+    content = _format_section_content(data, section_name)
+    lines.extend(content)
+    lines.append("")
 
     return "\n".join(lines).rstrip()
 
 
-def merge_sections(existing: dict[str, str], new_data: AggregatedData, format: str) -> str:
+def merge_sections(
+    existing: dict[str, str],
+    new_data: AggregatedData,
+    format: str,
+    section_config: SectionConfig | None = None,
+) -> str:
     """
     Merge existing file sections with new PKM data.
 
@@ -506,11 +449,12 @@ def merge_sections(existing: dict[str, str], new_data: AggregatedData, format: s
         existing: Parsed sections from existing file
         new_data: New aggregated data
         format: Output format (should be "markdown")
+        section_config: Optional section configuration for titles and order
 
     Returns:
         Merged markdown content
     """
-    lines = []
+    lines: list[str] = []
 
     # Start with preamble (manual content before PKM sections)
     if existing.get("_preamble"):
@@ -519,26 +463,17 @@ def merge_sections(existing: dict[str, str], new_data: AggregatedData, format: s
             lines.append(preamble)
             lines.append("")
 
-    # Define section order for PKM sections
-    section_order = [
-        "calendar_events",
-        "github_activities",
-        "atlassian_items",
-        "things_tasks",
-        "wakatime_activities",
-        "google_docs",
-        "whoop_data",
-        "errors",
-    ]
+    # Get section order from config
+    section_order = _get_section_order(section_config)
 
     # Track which sections have been added
-    added_sections = set()
+    added_sections: set[str] = set()
 
     # First, add sections that existed in the original file (to maintain order)
     for section_name in section_order:
         if section_name in existing and section_name not in ["_preamble", "_postamble"]:
             # Replace with fresh data
-            section_content = _format_section(new_data, section_name)
+            section_content = _format_section(new_data, section_name, section_config)
             if section_content:
                 lines.append(section_content)
                 added_sections.add(section_name)
@@ -546,7 +481,7 @@ def merge_sections(existing: dict[str, str], new_data: AggregatedData, format: s
     # Then add new sections that weren't in the original file
     for section_name in section_order:
         if section_name not in added_sections:
-            section_content = _format_section(new_data, section_name)
+            section_content = _format_section(new_data, section_name, section_config)
             if section_content:
                 lines.append(section_content)
 
@@ -563,7 +498,11 @@ def merge_sections(existing: dict[str, str], new_data: AggregatedData, format: s
 
 
 def write_report_to_file(
-    data: AggregatedData, output_path: Path, format: str, merge_existing: bool = True
+    data: AggregatedData,
+    output_path: Path,
+    format: str,
+    merge_existing: bool = True,
+    section_config: SectionConfig | None = None,
 ) -> None:
     """
     Write report to file, optionally merging with existing content.
@@ -573,6 +512,7 @@ def write_report_to_file(
         output_path: Target file path
         format: "markdown" or "json"
         merge_existing: If True and file exists, merge sections
+        section_config: Optional section configuration for titles and order
     """
     if format == "json":
         # JSON mode: always overwrite
@@ -584,9 +524,9 @@ def write_report_to_file(
     # Markdown mode: smart merge if file exists
     if merge_existing and output_path.exists():
         existing = parse_existing_file(output_path)
-        output = merge_sections(existing, data, format)
+        output = merge_sections(existing, data, format, section_config)
     else:
-        output = format_as_markdown(data)
+        output = format_as_markdown(data, section_config)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(output)

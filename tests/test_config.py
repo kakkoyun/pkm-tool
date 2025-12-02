@@ -105,3 +105,75 @@ wakatime:
             assert config.wakatime.exclude_weekends is False
         finally:
             Path(f.name).unlink()
+
+
+def test_section_config_defaults() -> None:
+    """Test SectionConfig defaults."""
+    from pkm_tool.config import DEFAULT_SECTION_ORDER, DEFAULT_SECTION_TITLES, SectionConfig
+
+    config = SectionConfig()
+    assert config.titles == DEFAULT_SECTION_TITLES
+    assert config.order == DEFAULT_SECTION_ORDER
+
+
+def test_config_sections_defaults() -> None:
+    """Test Config.sections uses defaults."""
+    config = Config()
+    assert config.sections is not None
+    assert "calendar_events" in config.sections.titles
+    assert "github_activities" in config.sections.order
+
+
+def test_load_config_with_custom_sections() -> None:
+    """Test loading config with custom section titles and order."""
+    yaml_content = """
+sections:
+  titles:
+    calendar_events: "📆 My Schedule"
+    github_activities: "Code Changes"
+  order:
+    - github_activities
+    - calendar_events
+    - things_tasks
+
+github:
+  enabled: true
+"""
+
+    with NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(yaml_content)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.sections.titles["calendar_events"] == "📆 My Schedule"
+            assert config.sections.titles["github_activities"] == "Code Changes"
+            assert config.sections.order[0] == "github_activities"
+            assert config.sections.order[1] == "calendar_events"
+        finally:
+            Path(f.name).unlink()
+
+
+def test_load_config_with_partial_section_titles() -> None:
+    """Test loading config with only some section titles customized."""
+    yaml_content = """
+sections:
+  titles:
+    calendar_events: "Schedule"
+  # Keep default order
+
+github:
+  enabled: true
+"""
+
+    with NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(yaml_content)
+        f.flush()
+
+        try:
+            config = load_config(f.name)
+            assert config.sections.titles["calendar_events"] == "Schedule"
+            # Other titles should use defaults - but since we're overriding titles dict,
+            # only the specified keys will be present
+        finally:
+            Path(f.name).unlink()

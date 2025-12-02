@@ -13,6 +13,30 @@ output_directory: "."  # Default to current directory
 #   {day_abbr} - Abbreviated day name (e.g., "Mon", "Fri")
 #   {format}   - Output format extension ("md" for markdown, "json" for json)
 
+# Section configuration for customizing markdown output
+# sections:
+#   # Custom section titles (override defaults)
+#   titles:
+#     calendar_events: "📆 My Schedule"
+#     github_activities: "💻 Development"
+#     atlassian_items: "🏢 Atlassian"
+#     things_tasks: "✅ Completed Tasks"
+#     wakatime_activities: "⏱️ Coding Time"
+#     google_docs: "📝 Documents"
+#     whoop_data: "💪 Health"
+#     errors: "⚠️ Errors"
+#
+#   # Custom section order (all sections must be listed)
+#   order:
+#     - calendar_events
+#     - github_activities
+#     - atlassian_items
+#     - things_tasks
+#     - wakatime_activities
+#     - google_docs
+#     - whoop_data
+#     - errors
+
 # Apple Calendar (macOS only)
 apple_calendar:
   enabled: true

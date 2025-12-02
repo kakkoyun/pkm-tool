@@ -4,6 +4,10 @@ from datetime import date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+from syrupy.assertion import SnapshotAssertion
+
+from pkm_tool.config import SectionConfig
 from pkm_tool.formatters import (
     format_as_json,
     format_as_markdown,
@@ -331,3 +335,235 @@ Manual notes.
         assert "Calendar Events" in final_content  # PKM section added
         assert "Meeting" in final_content
         assert "My Section" in final_content  # Postamble preserved
+
+
+def test_format_as_markdown_with_custom_titles() -> None:
+    """Test Markdown formatting with custom section titles."""
+    event = Event(
+        title="Test Meeting",
+        start=datetime(2025, 11, 21, 10, 0),
+        end=datetime(2025, 11, 21, 11, 0),
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+    )
+
+    # Use custom title
+    section_config = SectionConfig(
+        titles={"calendar_events": "📆 My Schedule"},
+    )
+
+    output = format_as_markdown(data, section_config)
+
+    assert "## 📆 My Schedule" in output
+    assert "Test Meeting" in output
+    # Should not have the default title
+    assert "📅 Calendar Events" not in output
+
+
+def test_format_as_markdown_with_custom_order() -> None:
+    """Test Markdown formatting respects custom section order."""
+    event = Event(
+        title="Test Meeting",
+        start=datetime(2025, 11, 21, 10, 0),
+        end=datetime(2025, 11, 21, 11, 0),
+    )
+
+    activity = GitHubActivity(
+        type="commit",
+        title="Fixed bug",
+        url="https://github.com/test/repo",
+        repository="test/repo",
+        timestamp=datetime(2025, 11, 21, 14, 0),
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+        github_activities=[activity],
+    )
+
+    # Custom order: GitHub before Calendar
+    section_config = SectionConfig(
+        order=["github_activities", "calendar_events"],
+    )
+
+    output = format_as_markdown(data, section_config)
+
+    # Find positions of sections
+    github_pos = output.find("GitHub Activities")
+    calendar_pos = output.find("Calendar Events")
+
+    assert github_pos > 0
+    assert calendar_pos > 0
+    assert github_pos < calendar_pos  # GitHub should come before Calendar
+
+
+def test_format_as_markdown_with_custom_titles_and_order() -> None:
+    """Test Markdown formatting with both custom titles and order."""
+    event = Event(
+        title="Test Meeting",
+        start=datetime(2025, 11, 21, 10, 0),
+        end=datetime(2025, 11, 21, 11, 0),
+    )
+
+    activity = GitHubActivity(
+        type="commit",
+        title="Fixed bug",
+        url="https://github.com/test/repo",
+        repository="test/repo",
+        timestamp=datetime(2025, 11, 21, 14, 0),
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+        github_activities=[activity],
+    )
+
+    # Custom titles and order
+    section_config = SectionConfig(
+        titles={
+            "calendar_events": "Schedule",
+            "github_activities": "Code Changes",
+        },
+        order=["github_activities", "calendar_events"],
+    )
+
+    output = format_as_markdown(data, section_config)
+
+    assert "## Code Changes" in output
+    assert "## Schedule" in output
+
+    # Verify order
+    code_pos = output.find("Code Changes")
+    schedule_pos = output.find("Schedule")
+    assert code_pos < schedule_pos
+
+
+def test_format_as_markdown_defaults_without_config() -> None:
+    """Test that format_as_markdown uses defaults when no config provided."""
+    event = Event(
+        title="Test Meeting",
+        start=datetime(2025, 11, 21, 10, 0),
+        end=datetime(2025, 11, 21, 11, 0),
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+    )
+
+    # No config provided - should use defaults
+    output = format_as_markdown(data)
+
+    assert "## 📅 Calendar Events" in output
+    assert "Test Meeting" in output
+
+
+
+# Snapshot tests for formatter output
+@pytest.mark.snapshot
+def test_format_markdown_default_config_snapshot(snapshot: SnapshotAssertion) -> None:
+    """Snapshot test for markdown formatting with default config."""
+    event = Event(
+        title="Team Standup",
+        start=datetime(2025, 11, 21, 9, 0),
+        end=datetime(2025, 11, 21, 9, 30),
+        location="Zoom",
+    )
+
+    activity = GitHubActivity(
+        type="commit",
+        title="Fixed authentication bug",
+        url="https://github.com/test/repo",
+        repository="test/repo",
+        timestamp=datetime(2025, 11, 21, 10, 30),
+        details="3 commits pushed",
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+        github_activities=[activity],
+    )
+
+    output = format_as_markdown(data)
+    assert output == snapshot
+
+
+@pytest.mark.snapshot
+def test_format_markdown_custom_titles_snapshot(snapshot: SnapshotAssertion) -> None:
+    """Snapshot test for markdown formatting with custom section titles."""
+    event = Event(
+        title="Team Standup",
+        start=datetime(2025, 11, 21, 9, 0),
+        end=datetime(2025, 11, 21, 9, 30),
+    )
+
+    activity = GitHubActivity(
+        type="commit",
+        title="Fixed authentication bug",
+        url="https://github.com/test/repo",
+        repository="test/repo",
+        timestamp=datetime(2025, 11, 21, 10, 30),
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+        github_activities=[activity],
+    )
+
+    section_config = SectionConfig(
+        titles={
+            "calendar_events": "📆 Today's Schedule",
+            "github_activities": "💻 Development",
+        },
+    )
+
+    output = format_as_markdown(data, section_config)
+    assert output == snapshot
+
+
+@pytest.mark.snapshot
+def test_format_markdown_custom_order_snapshot(snapshot: SnapshotAssertion) -> None:
+    """Snapshot test for markdown formatting with custom section order."""
+    event = Event(
+        title="Team Standup",
+        start=datetime(2025, 11, 21, 9, 0),
+        end=datetime(2025, 11, 21, 9, 30),
+    )
+
+    activity = GitHubActivity(
+        type="commit",
+        title="Fixed authentication bug",
+        url="https://github.com/test/repo",
+        repository="test/repo",
+        timestamp=datetime(2025, 11, 21, 10, 30),
+    )
+
+    data = AggregatedData(
+        date=date(2025, 11, 21),
+        calendar_events=[event],
+        github_activities=[activity],
+    )
+
+    # Custom order: GitHub first, then calendar
+    section_config = SectionConfig(
+        order=[
+            "github_activities",
+            "calendar_events",
+            "atlassian_items",
+            "things_tasks",
+            "wakatime_activities",
+            "google_docs",
+            "whoop_data",
+            "errors",
+        ],
+    )
+
+    output = format_as_markdown(data, section_config)
+    assert output == snapshot

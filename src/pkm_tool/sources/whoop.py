@@ -7,18 +7,25 @@ from typing import Any
 import httpx
 
 from pkm_tool.auth import AuthManager
+from pkm_tool.cache import get_cached_client
+from pkm_tool.config import CacheConfig
 from pkm_tool.models import WhoopRecovery, WhoopSleep, WhoopWorkout
 
 _AUTH_MANAGER = AuthManager()
 
 
-def fetch_whoop_recovery(target_date: date, config: dict[str, Any]) -> WhoopRecovery | None:
+def fetch_whoop_recovery(
+    target_date: date,
+    config: dict[str, Any],
+    cache_config: CacheConfig | None = None,
+) -> WhoopRecovery | None:
     """
     Fetch Whoop recovery data for a given date.
 
     Args:
         target_date: Date to fetch recovery for
         config: Configuration dictionary with 'access_token'
+        cache_config: Optional cache configuration for HTTP response caching
 
     Returns:
         WhoopRecovery object or None if not found/error
@@ -31,7 +38,13 @@ def fetch_whoop_recovery(target_date: date, config: dict[str, Any]) -> WhoopReco
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        with httpx.Client(headers=headers, timeout=30.0) as client:
+        # Use cached client if cache config provided, otherwise regular httpx client
+        if cache_config:
+            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
+        else:
+            client = httpx.Client(headers=headers, timeout=30.0)
+
+        with client:
             # Fetch recovery cycles for a date range around target date
             # Whoop API v2: GET /v1/recovery
             start_str = target_date.strftime("%Y-%m-%d")
@@ -73,13 +86,18 @@ def fetch_whoop_recovery(target_date: date, config: dict[str, Any]) -> WhoopReco
     return None
 
 
-def fetch_whoop_sleep(target_date: date, config: dict[str, Any]) -> list[WhoopSleep]:
+def fetch_whoop_sleep(
+    target_date: date,
+    config: dict[str, Any],
+    cache_config: CacheConfig | None = None,
+) -> list[WhoopSleep]:
     """
     Fetch Whoop sleep cycles for a given date.
 
     Args:
         target_date: Date to fetch sleep for (sleep ending on this date)
         config: Configuration dictionary with 'access_token'
+        cache_config: Optional cache configuration for HTTP response caching
 
     Returns:
         List of WhoopSleep objects
@@ -89,12 +107,18 @@ def fetch_whoop_sleep(target_date: date, config: dict[str, Any]) -> list[WhoopSl
     if not access_token:
         return []
 
-    sleep_cycles = []
+    sleep_cycles: list[WhoopSleep] = []
 
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        with httpx.Client(headers=headers, timeout=30.0) as client:
+        # Use cached client if cache config provided, otherwise regular httpx client
+        if cache_config:
+            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
+        else:
+            client = httpx.Client(headers=headers, timeout=30.0)
+
+        with client:
             # Fetch sleep cycles for date range
             # Whoop API v2: GET /v1/sleep
             start_str = target_date.strftime("%Y-%m-%d")
@@ -163,13 +187,18 @@ def fetch_whoop_sleep(target_date: date, config: dict[str, Any]) -> list[WhoopSl
     return sleep_cycles
 
 
-def fetch_whoop_workouts(target_date: date, config: dict[str, Any]) -> list[WhoopWorkout]:
+def fetch_whoop_workouts(
+    target_date: date,
+    config: dict[str, Any],
+    cache_config: CacheConfig | None = None,
+) -> list[WhoopWorkout]:
     """
     Fetch Whoop workouts for a given date.
 
     Args:
         target_date: Date to fetch workouts for
         config: Configuration dictionary with 'access_token'
+        cache_config: Optional cache configuration for HTTP response caching
 
     Returns:
         List of WhoopWorkout objects
@@ -179,12 +208,18 @@ def fetch_whoop_workouts(target_date: date, config: dict[str, Any]) -> list[Whoo
     if not access_token:
         return []
 
-    workouts = []
+    workouts: list[WhoopWorkout] = []
 
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        with httpx.Client(headers=headers, timeout=30.0) as client:
+        # Use cached client if cache config provided, otherwise regular httpx client
+        if cache_config:
+            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
+        else:
+            client = httpx.Client(headers=headers, timeout=30.0)
+
+        with client:
             # Fetch workouts for date range
             # Whoop API v2: GET /v1/workout
             start_str = target_date.strftime("%Y-%m-%d")

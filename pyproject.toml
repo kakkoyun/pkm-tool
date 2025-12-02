@@ -20,6 +20,7 @@ dependencies = [
     "structlog>=24.1.0",
     "cryptography>=42.0.0",
     "keyring>=25.0.0",
+    "hishel>=1.1.0",
 ]
 
 [project.optional-dependencies]

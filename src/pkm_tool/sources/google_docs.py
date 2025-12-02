@@ -8,12 +8,18 @@ import httpx
 
 from pkm_tool.auth import AuthManager
 from pkm_tool.auth.oauth import GoogleOAuthProvider
+from pkm_tool.cache import get_cached_client
+from pkm_tool.config import CacheConfig
 from pkm_tool.models import GoogleDoc
 
 _AUTH_MANAGER = AuthManager()
 
 
-def fetch_google_docs(target_date: date, config: dict[str, Any]) -> list[GoogleDoc]:
+def fetch_google_docs(
+    target_date: date,
+    config: dict[str, Any],
+    cache_config: CacheConfig | None = None,
+) -> list[GoogleDoc]:
     """
     Fetch Google Docs opened on target date.
 
@@ -23,6 +29,7 @@ def fetch_google_docs(target_date: date, config: dict[str, Any]) -> list[GoogleD
     Args:
         target_date: Date to fetch docs for
         config: Configuration dictionary with OAuth credentials
+        cache_config: Optional cache configuration for HTTP response caching
 
     Returns:
         List of GoogleDoc objects
@@ -41,12 +48,18 @@ def fetch_google_docs(target_date: date, config: dict[str, Any]) -> list[GoogleD
     if not access_token:
         return []
 
-    docs = []
+    docs: list[GoogleDoc] = []
 
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        with httpx.Client(headers=headers, timeout=30.0) as client:
+        # Use cached client if cache config provided, otherwise regular httpx client
+        if cache_config:
+            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
+        else:
+            client = httpx.Client(headers=headers, timeout=30.0)
+
+        with client:
             # Query Drive API for recently opened docs
             # Note: Google Drive API doesn't directly track "opened" events
             # This queries for modified/viewed files instead

@@ -35,12 +35,23 @@ class SourceConfig(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
 
 
+class CacheConfig(BaseModel):
+    """Configuration for HTTP response cache."""
+
+    enabled: bool = True
+    directory: str = ".pkm-cache"  # Local directory, easy to clean
+    ttl_hours: int = 24  # Cache expiration time in hours
+
+
 class Config(BaseModel):
     """Main configuration for PKM tool."""
 
     # Output settings
     output_filename_template: str = "{date} ({day_abbr}).{format}"
     output_directory: str = "."
+
+    # Cache settings
+    cache: CacheConfig = Field(default_factory=CacheConfig)
 
     # Source configurations (order here defines default display order)
     apple_calendar: SourceConfig = Field(default_factory=SourceConfig)

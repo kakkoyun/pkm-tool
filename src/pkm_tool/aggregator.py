@@ -5,7 +5,7 @@ from datetime import date
 
 import structlog
 
-from pkm_tool.config import load_config
+from pkm_tool.config import CacheConfig, load_config
 from pkm_tool.models import AggregatedData
 from pkm_tool.sources.apple_calendar import fetch_calendar_events
 from pkm_tool.sources.atlassian import fetch_atlassian_items
@@ -41,6 +41,15 @@ def aggregate_data(
 
     data = AggregatedData(date=target_date)
     is_weekend = target_date.weekday() >= 5  # Saturday=5, Sunday=6
+
+    # Get cache config for HTTP-based sources
+    cache_config: CacheConfig | None = config.cache if config.cache.enabled else None
+    if cache_config:
+        logger.debug(
+            "cache_enabled",
+            directory=config.cache.directory,
+            ttl_hours=config.cache.ttl_hours,
+        )
 
     # Fetch from each source if enabled
     if config.apple_calendar.enabled:
@@ -195,7 +204,7 @@ def aggregate_data(
             start_time = time.time()
             try:
                 data.wakatime_activities = fetch_wakatime_activities(
-                    target_date, config.wakatime.config
+                    target_date, config.wakatime.config, cache_config
                 )
                 duration = time.time() - start_time
                 logger.info(
@@ -230,7 +239,9 @@ def aggregate_data(
             logger.info("fetching_source", source="google_docs", enabled=True)
             start_time = time.time()
             try:
-                data.google_docs = fetch_google_docs(target_date, config.google_docs.config)
+                data.google_docs = fetch_google_docs(
+                    target_date, config.google_docs.config, cache_config
+                )
                 duration = time.time() - start_time
                 logger.info(
                     "source_fetch_completed",
@@ -265,14 +276,18 @@ def aggregate_data(
             start_time = time.time()
             try:
                 # Fetch recovery data (single entry per day)
-                data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config)
+                data.whoop_recovery = fetch_whoop_recovery(
+                    target_date, config.whoop.config, cache_config
+                )
                 recovery_count = 1 if data.whoop_recovery else 0
 
                 # Fetch sleep cycles (can be multiple per day)
-                data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config)
+                data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
 
                 # Fetch workouts (can be multiple per day)
-                data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config)
+                data.whoop_workouts = fetch_whoop_workouts(
+                    target_date, config.whoop.config, cache_config
+                )
 
                 total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
                 duration = time.time() - start_time

@@ -28,6 +28,9 @@ server = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
 ]
+mcp = [
+    "mcp>=1.1.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
@@ -76,4 +79,9 @@ markers = [
 addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=80 --cov-report=xml --cov-report=term"
 filterwarnings = [
     "ignore::ResourceWarning:unittest.mock",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.3.0",
 ]

@@ -582,6 +582,15 @@ def test_cli_aggregate_subcommand_help(cli_runner: CliRunner) -> None:
     assert "Aggregate data from all configured sources" in result.output
 
 
+@pytest.mark.unit
+def test_cli_mcp_help(cli_runner: CliRunner) -> None:
+    """Test MCP subcommand help."""
+    result = cli_runner.invoke(cli, ["mcp", "--help"])
+    assert result.exit_code == 0
+    assert "MCP" in result.output or "Model Context Protocol" in result.output
+    assert "stdio" in result.output
+
+
 @pytest.mark.snapshot
 def test_cli_github_subcommand_json(
     cli_runner: CliRunner,

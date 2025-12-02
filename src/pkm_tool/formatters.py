@@ -53,9 +53,7 @@ def _format_github_activities_content(data: AggregatedData) -> list[str]:
     lines: list[str] = []
     for activity in sorted(data.github_activities, key=lambda a: a.timestamp):
         time_str = activity.timestamp.strftime("%H:%M")
-        icon = {"commit": "📝", "pr": "🔀", "issue": "📋", "review": "👁️"}.get(
-            activity.type, "•"
-        )
+        icon = {"commit": "📝", "pr": "🔀", "issue": "📋", "review": "👁️"}.get(activity.type, "•")
         link_text = f"[{activity.repository}]({activity.url})"
         lines.append(f"- {icon} **{time_str}** {link_text} - {activity.title}")
         if activity.details:
@@ -165,9 +163,7 @@ def _format_whoop_data_content(data: AggregatedData) -> list[str]:
 
             strain_str = f"Strain: {workout.strain:.1f}"
             hr_str = (
-                f", Avg HR: {workout.average_heart_rate} bpm"
-                if workout.average_heart_rate
-                else ""
+                f", Avg HR: {workout.average_heart_rate} bpm" if workout.average_heart_rate else ""
             )
 
             lines.append(
@@ -229,9 +225,7 @@ def _format_section_content(data: AggregatedData, section_name: str) -> list[str
     return []
 
 
-def format_as_markdown(
-    data: AggregatedData, section_config: SectionConfig | None = None
-) -> str:
+def format_as_markdown(data: AggregatedData, section_config: SectionConfig | None = None) -> str:
     """
     Format aggregated data as Markdown.
 

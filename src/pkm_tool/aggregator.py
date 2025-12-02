@@ -276,14 +276,18 @@ def aggregate_data(
             start_time = time.time()
             try:
                 # Fetch recovery data (single entry per day)
-                data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config)
+                data.whoop_recovery = fetch_whoop_recovery(
+                    target_date, config.whoop.config, cache_config
+                )
                 recovery_count = 1 if data.whoop_recovery else 0
 
                 # Fetch sleep cycles (can be multiple per day)
-                data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config)
+                data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
 
                 # Fetch workouts (can be multiple per day)
-                data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config)
+                data.whoop_workouts = fetch_whoop_workouts(
+                    target_date, config.whoop.config, cache_config
+                )
 
                 total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
                 duration = time.time() - start_time

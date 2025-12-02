@@ -168,6 +168,92 @@ CLI without running a local server.
 
 <!-- CLI_USAGE_END -->
 
+### Server Mode
+
+PKM Tool can run as a web server providing a REST API for fetching data. This is useful for:
+
+- Testing and troubleshooting data sources
+- Integrating with other tools and services
+- Building custom UIs or dashboards
+
+#### Starting the Server
+
+```bash
+# Start server on default port (8000)
+pkm server
+
+# Start on custom port with auto-reload
+pkm server --port 8080 --reload
+
+# Start with verbose logging
+pkm server --verbose
+```
+
+The server will be accessible at `http://127.0.0.1:8000` by default.
+
+#### Server Options
+
+- `--host TEXT` - Host to bind the server to (default: 127.0.0.1)
+- `--port INTEGER` - Port to bind the server to (default: 8000)
+- `--reload` - Enable auto-reload on code changes (development mode)
+- `-c, --config PATH` - Path to configuration file
+- `-v, --verbose` - Enable verbose (DEBUG) logging
+- `--log-format [human|json]` - Log output format (default: human)
+
+#### API Endpoints
+
+Once the server is running, you can access:
+
+- **Interactive API docs**: `http://127.0.0.1:8000/docs`
+- **ReDoc documentation**: `http://127.0.0.1:8000/redoc`
+
+**Available Endpoints:**
+
+- `GET /health` - Health check endpoint
+  ```bash
+  curl http://127.0.0.1:8000/health
+  ```
+
+- `GET /api/sources` - List all available data sources
+  ```bash
+  curl http://127.0.0.1:8000/api/sources
+  ```
+
+- `GET /api/config` - Get configuration information
+  ```bash
+  curl http://127.0.0.1:8000/api/config
+  ```
+
+- `GET /api/data` - Fetch aggregated data for a specific date
+  ```bash
+  # Get today's data in markdown format
+  curl "http://127.0.0.1:8000/api/data"
+  
+  # Get specific date in JSON format
+  curl "http://127.0.0.1:8000/api/data?date=2025-12-02&format=json"
+  
+  # Get data from specific sources only
+  curl "http://127.0.0.1:8000/api/data?date=2025-12-02&sources=github,wakatime"
+  ```
+
+**Query Parameters:**
+
+- `date` - Date to fetch (YYYY-MM-DD format, default: today)
+- `format` - Output format (`markdown` or `json`, default: markdown)
+- `sources` - Comma-separated list of sources to fetch (default: all enabled sources)
+
+#### Installing Server Dependencies
+
+The server requires additional dependencies that are installed as an optional extra:
+
+```bash
+# Install server dependencies
+uv sync --extra server
+
+# Or with pip
+pip install -e ".[server]"
+```
+
 ### Logging
 
 The tool includes comprehensive structured logging for troubleshooting:

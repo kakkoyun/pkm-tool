@@ -712,3 +712,21 @@ def test_validate_date_options_incomplete_range(cli_runner: CliRunner) -> None:
     # Only --to provided
     with pytest.raises(ClickException, match="Both --from and --to must be provided"):
         _validate_date_options(None, None, "2025-11-23", logger)
+
+
+def test_cli_server_subcommand_help(cli_runner: CliRunner) -> None:
+    """Test server subcommand help output."""
+    result = cli_runner.invoke(cli, ["server", "--help"])
+    assert result.exit_code == 0
+    assert "Start the PKM Tool web server" in result.output
+    assert "--host" in result.output
+    assert "--port" in result.output
+    assert "--reload" in result.output
+
+
+def test_cli_main_shows_server_command(cli_runner: CliRunner) -> None:
+    """Test that main help shows server command."""
+    result = cli_runner.invoke(cli, ["--help"])
+    assert result.exit_code == 0
+    assert "server" in result.output
+    assert "Start the PKM Tool web server" in result.output

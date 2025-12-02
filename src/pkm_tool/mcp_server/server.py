@@ -10,7 +10,7 @@ from typing import Any
 from dateutil import parser as date_parser
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
 
 from pkm_tool.aggregator import aggregate_data
 from pkm_tool.config import load_config

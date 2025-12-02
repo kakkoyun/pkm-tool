@@ -40,6 +40,12 @@ cd pkm-tool
 # Install with uv
 uv sync
 
+# Optional: Install server extras for FastAPI web server
+uv sync --extra server
+
+# Optional: Install MCP extras for Model Context Protocol server
+uv sync --extra mcp
+
 # Run the CLI
 uv run pkm
 ```
@@ -48,6 +54,9 @@ Or install directly:
 
 ```bash
 uv pip install -e .
+
+# Or with extras
+uv pip install -e ".[server,mcp]"
 ```
 
 ## Usage
@@ -78,6 +87,9 @@ Usage: cli [OPTIONS] COMMAND [ARGS]...
   pkm things --date yesterday         Fetch Things tasks only
   pkm wakatime --date yesterday       Fetch Wakatime coding activities only
   pkm google-docs --date yesterday    Fetch Google Docs only
+  pkm whoop --date yesterday          Fetch Whoop health data only
+  pkm server                          Start FastAPI web server
+  pkm mcp                             Run as MCP (Model Context Protocol) server
 
 Options:
   -d, --date TEXT               Date to fetch data for (default: today). Format:
@@ -95,9 +107,49 @@ Commands:
   calendar     Fetch Apple Calendar events only.
   github       Fetch GitHub activities only.
   google-docs  Fetch Google Docs only.
+  mcp          Run as MCP (Model Context Protocol) server.
+  server       Start FastAPI web server.
   things       Fetch Things tasks only.
   wakatime     Fetch Wakatime coding activities only.
+  whoop        Fetch Whoop health data only.
 ```
+
+### MCP Server Mode (NEW!)
+
+PKM Tool can run as an MCP (Model Context Protocol) server, allowing AI assistants like Claude to access your personal data securely:
+
+```bash
+# Run as MCP server (stdio mode)
+pkm mcp
+```
+
+**Integration with Claude Desktop:**
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "pkm-tool": {
+      "command": "pkm",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+- `fetch_aggregated_data` - Get data from all configured sources
+- `fetch_calendar_events` - Get Apple Calendar events
+- `fetch_github_activities` - Get GitHub activities
+- `fetch_atlassian_items` - Get Atlassian (Jira/Confluence) items
+- `fetch_things_tasks` - Get Things tasks
+- `fetch_wakatime_activities` - Get Wakatime coding activities
+- `fetch_google_docs` - Get Google Docs
+- `fetch_whoop_data` - Get Whoop health data
+
+Once configured, Claude can fetch and analyze your daily data on demand.
 
 ### Available Options
 

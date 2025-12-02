@@ -554,6 +554,7 @@ uv run pkm --date yesterday          # Specific date, all sources
 uv run pkm --format json             # JSON output, all sources
 uv run pkm --config /path/config.yaml --date 2025-11-21  # Custom config
 uv run pkm aggregate --date yesterday # Explicit aggregate subcommand (preferred)
+uv run pkm mcp                       # Run as MCP server (Model Context Protocol)
 ```
 
 #### Date range reports (Phase 2 - to files)
@@ -635,6 +636,90 @@ uv run pkm server --verbose
 ```bash
 # Install server dependencies
 uv sync --extra server
+```
+
+#### MCP mode (NEW!)
+
+Run as an MCP (Model Context Protocol) server for AI assistants:
+
+```bash
+# Start MCP server (stdio mode)
+uv run pkm mcp
+
+# The MCP server exposes tools that AI assistants can use:
+# - fetch_aggregated_data: Get data from all sources
+# - fetch_calendar_events: Get Apple Calendar events
+# - fetch_github_activities: Get GitHub activities
+# - fetch_atlassian_items: Get Atlassian items
+# - fetch_things_tasks: Get Things tasks
+# - fetch_wakatime_activities: Get Wakatime activities
+# - fetch_google_docs: Get Google Docs
+# - fetch_whoop_data: Get Whoop health data
+```
+
+**MCP dependencies** (optional):
+
+```bash
+# Install MCP dependencies
+uv sync --extra mcp
+```
+
+**Claude Desktop Integration:**
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "pkm-tool": {
+      "command": "pkm",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+#### MCP mode (NEW!)
+
+Run as an MCP (Model Context Protocol) server for AI assistants:
+
+```bash
+# Start MCP server (stdio mode)
+uv run pkm mcp
+
+# The MCP server exposes tools that AI assistants can use:
+# - fetch_aggregated_data: Get data from all sources
+# - fetch_calendar_events: Get Apple Calendar events
+# - fetch_github_activities: Get GitHub activities
+# - fetch_atlassian_items: Get Atlassian items
+# - fetch_things_tasks: Get Things tasks
+# - fetch_wakatime_activities: Get Wakatime activities
+# - fetch_google_docs: Get Google Docs
+# - fetch_whoop_data: Get Whoop health data
+```
+
+**MCP dependencies** (optional):
+
+```bash
+# Install MCP dependencies
+uv sync --extra mcp
+```
+
+**Claude Desktop Integration:**
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "pkm-tool": {
+      "command": "pkm",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
 ```
 
 ### Direct uv commands (reference)

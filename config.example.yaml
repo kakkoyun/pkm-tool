@@ -13,65 +13,64 @@ output_directory: "."  # Default to current directory
 #   {day_abbr} - Abbreviated day name (e.g., "Mon", "Fri")
 #   {format}   - Output format extension ("md" for markdown, "json" for json)
 
-# Section configuration for customizing markdown output
-# sections:
-#   # Custom section titles (override defaults)
-#   titles:
-#     calendar_events: "📆 My Schedule"
-#     github_activities: "💻 Development"
-#     atlassian_items: "🏢 Atlassian"
-#     things_tasks: "✅ Completed Tasks"
-#     wakatime_activities: "⏱️ Coding Time"
-#     google_docs: "📝 Documents"
-#     whoop_data: "💪 Health"
-#     errors: "⚠️ Errors"
-#
-#   # Custom section order (all sections must be listed)
-#   order:
-#     - calendar_events
-#     - github_activities
-#     - atlassian_items
-#     - things_tasks
-#     - wakatime_activities
-#     - google_docs
-#     - whoop_data
-#     - errors
+# Section titles and order are configured per-source using "title" and "order" fields
+# - title: Custom section title (optional, uses default with emoji if not set)
+# - order: Display order number (optional, uses config definition order if not set)
+# - Sources without explicit order appear after ordered sources, in config file order
+# - Errors are always displayed last in a folded/collapsible format
 
 # Apple Calendar (macOS only)
 apple_calendar:
   enabled: true
+  # title: "📆 My Schedule"  # Custom section title
+  # order: 1                  # Display order (lower = earlier)
   config: {}
+
 # GitHub integration
 github:
   enabled: true
   exclude_weekends: false  # Set to true to skip GitHub on weekends
+  # title: "💻 Code Changes"  # Custom section title
+  # order: 2                   # Display order
   config:
   # Tokens can be stored securely with `pkm auth login github`
   # Legacy fallback (not recommended):
   # token: ghp_your_token_here
   # username: your_github_username
+
 # Atlassian (Jira/Confluence)
 atlassian:
   enabled: false
+  # title: "🏢 Work Items"
+  # order: 3
   config:
     base_url: https://your-domain.atlassian.net
     username: your.email@example.com
     api_token: your_api_token_here
+
 # Things (macOS only)
 things:
   enabled: true
+  # title: "✅ Completed Tasks"
+  # order: 4
   config:
   # Optional: custom database path
   # database_path: /path/to/Things Database.thingsdatabase/main.sqlite
+
 # Wakatime
 wakatime:
   enabled: false
   exclude_weekends: true  # Example: skip coding activity tracking on weekends
+  # title: "⏱️ Coding Time"
+  # order: 5
   config:
     api_key: waka_your_api_key_here
+
 # Google Docs
 google_docs:
   enabled: false
+  # title: "📝 Documents"
+  # order: 6
   config:
     client_id: your_google_client_id.apps.googleusercontent.com
     client_secret: your_google_client_secret
@@ -79,10 +78,14 @@ google_docs:
       - https://www.googleapis.com/auth/drive.readonly
       # Optional legacy fallback (not recommended)
       # access_token: your_access_token_here
+
+# Whoop
 whoop:
   enabled: false
+  # title: "💪 Health Data"
+  # order: 7
   config:
-# Preferred: store tokens via `pkm auth login whoop`
-# Legacy fallback (not recommended)
-# access_token: your_whoop_access_token_here
-# or set WHOOP_ACCESS_TOKEN environment variable
+  # Preferred: store tokens via `pkm auth login whoop`
+  # Legacy fallback (not recommended)
+  # access_token: your_whoop_access_token_here
+  # or set WHOOP_ACCESS_TOKEN environment variable

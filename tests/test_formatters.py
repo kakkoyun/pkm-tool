@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
-from pkm_tool.config import SectionConfig
+from pkm_tool.config import Config, SourceConfig
 from pkm_tool.formatters import (
     format_as_json,
     format_as_markdown,
@@ -350,12 +350,12 @@ def test_format_as_markdown_with_custom_titles() -> None:
         calendar_events=[event],
     )
 
-    # Use custom title
-    section_config = SectionConfig(
-        titles={"calendar_events": "📆 My Schedule"},
+    # Use custom title via SourceConfig
+    config = Config(
+        apple_calendar=SourceConfig(title="📆 My Schedule"),
     )
 
-    output = format_as_markdown(data, section_config)
+    output = format_as_markdown(data, config)
 
     assert "## 📆 My Schedule" in output
     assert "Test Meeting" in output
@@ -385,12 +385,13 @@ def test_format_as_markdown_with_custom_order() -> None:
         github_activities=[activity],
     )
 
-    # Custom order: GitHub before Calendar
-    section_config = SectionConfig(
-        order=["github_activities", "calendar_events"],
+    # Custom order: GitHub (order=1) before Calendar (order=2)
+    config = Config(
+        github=SourceConfig(order=1),
+        apple_calendar=SourceConfig(order=2),
     )
 
-    output = format_as_markdown(data, section_config)
+    output = format_as_markdown(data, config)
 
     # Find positions of sections
     github_pos = output.find("GitHub Activities")
@@ -423,16 +424,13 @@ def test_format_as_markdown_with_custom_titles_and_order() -> None:
         github_activities=[activity],
     )
 
-    # Custom titles and order
-    section_config = SectionConfig(
-        titles={
-            "calendar_events": "Schedule",
-            "github_activities": "Code Changes",
-        },
-        order=["github_activities", "calendar_events"],
+    # Custom titles and order via SourceConfig
+    config = Config(
+        apple_calendar=SourceConfig(title="Schedule", order=2),
+        github=SourceConfig(title="Code Changes", order=1),
     )
 
-    output = format_as_markdown(data, section_config)
+    output = format_as_markdown(data, config)
 
     assert "## Code Changes" in output
     assert "## Schedule" in output
@@ -516,14 +514,12 @@ def test_format_markdown_custom_titles_snapshot(snapshot: SnapshotAssertion) -> 
         github_activities=[activity],
     )
 
-    section_config = SectionConfig(
-        titles={
-            "calendar_events": "📆 Today's Schedule",
-            "github_activities": "💻 Development",
-        },
+    config = Config(
+        apple_calendar=SourceConfig(title="📆 Today's Schedule"),
+        github=SourceConfig(title="💻 Development"),
     )
 
-    output = format_as_markdown(data, section_config)
+    output = format_as_markdown(data, config)
     assert output == snapshot
 
 
@@ -550,19 +546,11 @@ def test_format_markdown_custom_order_snapshot(snapshot: SnapshotAssertion) -> N
         github_activities=[activity],
     )
 
-    # Custom order: GitHub first, then calendar
-    section_config = SectionConfig(
-        order=[
-            "github_activities",
-            "calendar_events",
-            "atlassian_items",
-            "things_tasks",
-            "wakatime_activities",
-            "google_docs",
-            "whoop_data",
-            "errors",
-        ],
+    # Custom order: GitHub first (order=1), then calendar (order=2)
+    config = Config(
+        github=SourceConfig(order=1),
+        apple_calendar=SourceConfig(order=2),
     )
 
-    output = format_as_markdown(data, section_config)
+    output = format_as_markdown(data, config)
     assert output == snapshot

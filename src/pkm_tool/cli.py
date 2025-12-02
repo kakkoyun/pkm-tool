@@ -15,7 +15,7 @@ from dateutil import parser as date_parser
 from pkm_tool.aggregator import aggregate_data
 from pkm_tool.auth import AuthManager
 from pkm_tool.auth.oauth import GoogleOAuthProvider
-from pkm_tool.config import SectionConfig, load_config
+from pkm_tool.config import Config, load_config
 from pkm_tool.formatters import (
     format_as_json,
     format_as_markdown,
@@ -296,7 +296,7 @@ def _format_and_output(
     data: AggregatedData,
     format: str,
     logger: Any,
-    section_config: SectionConfig | None = None,
+    config: Config | None = None,
 ) -> None:
     """
     Format data and output to stdout.
@@ -305,13 +305,13 @@ def _format_and_output(
         data: AggregatedData to format
         format: Output format (markdown or json)
         logger: Logger instance
-        section_config: Optional section configuration for titles and order
+        config: Optional config for titles and order
     """
     logger.debug("formatting_output", format=format)
     if format.lower() == "json":
         output = format_as_json(data)
     else:
-        output = format_as_markdown(data, section_config)
+        output = format_as_markdown(data, config)
     click.echo(output)
     logger.info("pkm_tool_completed", output_format=format)
 
@@ -401,9 +401,7 @@ def _process_batch_or_single(
                 output_path = output_directory / filename
 
                 # Write with smart merge
-                write_report_to_file(
-                    data, output_path, format, merge_existing=True, section_config=cfg.sections
-                )
+                write_report_to_file(data, output_path, format, merge_existing=True, config=cfg)
                 logger.info("report_written", path=str(output_path))
             except Exception as e:
                 logger.error(
@@ -417,7 +415,7 @@ def _process_batch_or_single(
         # Single-day mode: output to stdout
         target_date = _parse_date(date, logger)
         data = _fetch_single_source(source_name, fetch_func, target_date, source_config, logger)
-        _format_and_output(data, format, logger, cfg.sections)
+        _format_and_output(data, format, logger, cfg)
 
 
 def _validate_date_options(
@@ -628,9 +626,7 @@ def aggregate(
                 output_path = output_directory / filename
 
                 # Write with smart merge
-                write_report_to_file(
-                    data, output_path, format, merge_existing=True, section_config=cfg.sections
-                )
+                write_report_to_file(data, output_path, format, merge_existing=True, config=cfg)
                 logger.info("report_written", path=str(output_path))
             except Exception as e:
                 logger.error(
@@ -657,7 +653,7 @@ def aggregate(
             click.echo(f"Error aggregating data: {e}", err=True)
             raise click.Abort()
 
-        _format_and_output(data, format, logger, cfg.sections)
+        _format_and_output(data, format, logger, cfg)
 
 
 @cli.command()
@@ -1103,9 +1099,7 @@ def whoop(
                 output_path = output_directory / filename
 
                 # Write with smart merge
-                write_report_to_file(
-                    data, output_path, format, merge_existing=True, section_config=cfg.sections
-                )
+                write_report_to_file(data, output_path, format, merge_existing=True, config=cfg)
                 logger.info("report_written", path=str(output_path))
             except Exception as e:
                 logger.error(
@@ -1152,7 +1146,7 @@ def whoop(
             click.echo(f"Error fetching whoop: {e}", err=True)
             raise click.Abort()
 
-        _format_and_output(data, format, logger, cfg.sections)
+        _format_and_output(data, format, logger, cfg)
 
 
 # Keep main() as entry point for backward compatibility

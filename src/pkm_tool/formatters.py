@@ -4,22 +4,19 @@ import re
 from datetime import date
 from pathlib import Path
 
-from pkm_tool.config import DEFAULT_SECTION_ORDER, DEFAULT_SECTION_TITLES, SectionConfig
+from pkm_tool.config import DEFAULT_SOURCE_TITLES, ERRORS_TITLE, Config
 from pkm_tool.models import AggregatedData
 
-
-def _get_section_title(section_name: str, section_config: SectionConfig | None) -> str:
-    """Get section title from config or default."""
-    if section_config and section_name in section_config.titles:
-        return section_config.titles[section_name]
-    return DEFAULT_SECTION_TITLES.get(section_name, section_name.replace("_", " ").title())
-
-
-def _get_section_order(section_config: SectionConfig | None) -> list[str]:
-    """Get section order from config or default."""
-    if section_config:
-        return section_config.order
-    return DEFAULT_SECTION_ORDER
+# Mapping from source name to data field name
+SOURCE_TO_DATA_FIELD: dict[str, str] = {
+    "apple_calendar": "calendar_events",
+    "github": "github_activities",
+    "atlassian": "atlassian_items",
+    "things": "things_tasks",
+    "wakatime": "wakatime_activities",
+    "google_docs": "google_docs",
+    "whoop": "whoop_data",
+}
 
 
 def format_as_json(data: AggregatedData) -> str:
@@ -174,64 +171,71 @@ def _format_whoop_data_content(data: AggregatedData) -> list[str]:
 
 
 def _format_errors_content(data: AggregatedData) -> list[str]:
-    """Format errors content (without header)."""
+    """Format errors content (without header), in folded/details format."""
     lines: list[str] = []
     errors = {k: v for k, v in data.metadata.items() if k.endswith("_error")}
-    for source, error in errors.items():
-        source_name = source.replace("_error", "").replace("_", " ").title()
-        lines.append(f"- **{source_name}:** {error}")
+    if errors:
+        lines.append("<details>")
+        lines.append("<summary>Click to expand errors</summary>")
+        lines.append("")
+        for source, error in errors.items():
+            source_name = source.replace("_error", "").replace("_", " ").title()
+            lines.append(f"- **{source_name}:** {error}")
+        lines.append("")
+        lines.append("</details>")
     return lines
 
 
-def _has_section_data(data: AggregatedData, section_name: str) -> bool:
-    """Check if a section has data to display."""
-    if section_name == "calendar_events":
+def _has_source_data(data: AggregatedData, source_name: str) -> bool:
+    """Check if a source has data to display."""
+    if source_name == "apple_calendar":
         return bool(data.calendar_events)
-    if section_name == "github_activities":
+    if source_name == "github":
         return bool(data.github_activities)
-    if section_name == "atlassian_items":
+    if source_name == "atlassian":
         return bool(data.atlassian_items)
-    if section_name == "things_tasks":
+    if source_name == "things":
         return bool(data.things_tasks)
-    if section_name == "wakatime_activities":
+    if source_name == "wakatime":
         return bool(data.wakatime_activities)
-    if section_name == "google_docs":
+    if source_name == "google_docs":
         return bool(data.google_docs)
-    if section_name == "whoop_data":
+    if source_name == "whoop":
         return bool(data.whoop_recovery or data.whoop_sleep or data.whoop_workouts)
-    if section_name == "errors":
-        return any(k.endswith("_error") for k in data.metadata)
     return False
 
 
-def _format_section_content(data: AggregatedData, section_name: str) -> list[str]:
-    """Get formatted content for a section (without header)."""
-    if section_name == "calendar_events":
+def _format_source_content(data: AggregatedData, source_name: str) -> list[str]:
+    """Get formatted content for a source (without header)."""
+    if source_name == "apple_calendar":
         return _format_calendar_events_content(data)
-    if section_name == "github_activities":
+    if source_name == "github":
         return _format_github_activities_content(data)
-    if section_name == "atlassian_items":
+    if source_name == "atlassian":
         return _format_atlassian_items_content(data)
-    if section_name == "things_tasks":
+    if source_name == "things":
         return _format_things_tasks_content(data)
-    if section_name == "wakatime_activities":
+    if source_name == "wakatime":
         return _format_wakatime_activities_content(data)
-    if section_name == "google_docs":
+    if source_name == "google_docs":
         return _format_google_docs_content(data)
-    if section_name == "whoop_data":
+    if source_name == "whoop":
         return _format_whoop_data_content(data)
-    if section_name == "errors":
-        return _format_errors_content(data)
     return []
 
 
-def format_as_markdown(data: AggregatedData, section_config: SectionConfig | None = None) -> str:
+def _has_errors(data: AggregatedData) -> bool:
+    """Check if there are any errors in the data."""
+    return any(k.endswith("_error") for k in data.metadata)
+
+
+def format_as_markdown(data: AggregatedData, config: Config | None = None) -> str:
     """
     Format aggregated data as Markdown.
 
     Args:
         data: AggregatedData to format
-        section_config: Optional section configuration for titles and order
+        config: Optional Config for titles and order
 
     Returns:
         Markdown string
@@ -242,16 +246,42 @@ def format_as_markdown(data: AggregatedData, section_config: SectionConfig | Non
     lines.append(f"# Daily Report - {data.date.strftime('%Y-%m-%d')}")
     lines.append("")
 
-    # Format sections in configured order
-    section_order = _get_section_order(section_config)
-    for section_name in section_order:
-        if _has_section_data(data, section_name):
-            title = _get_section_title(section_name, section_config)
+    # Get ordered sources from config or use default order
+    if config:
+        source_order = config.get_ordered_sources()
+    else:
+        source_order = [
+            "apple_calendar",
+            "github",
+            "atlassian",
+            "things",
+            "wakatime",
+            "google_docs",
+            "whoop",
+        ]
+
+    # Format sources in order
+    for source_name in source_order:
+        if _has_source_data(data, source_name):
+            if config:
+                title = config.get_source_title(source_name)
+            else:
+                title = DEFAULT_SOURCE_TITLES.get(
+                    source_name, source_name.replace("_", " ").title()
+                )
             lines.append(f"## {title}")
             lines.append("")
-            content = _format_section_content(data, section_name)
+            content = _format_source_content(data, source_name)
             lines.extend(content)
             lines.append("")
+
+    # Errors always last, in folded format
+    if _has_errors(data):
+        lines.append(f"## {ERRORS_TITLE}")
+        lines.append("")
+        content = _format_errors_content(data)
+        lines.extend(content)
+        lines.append("")
 
     return "\n".join(lines)
 
@@ -398,28 +428,44 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
     return sections
 
 
-def _format_section(
-    data: AggregatedData, section_name: str, section_config: SectionConfig | None = None
-) -> str:
+def _format_section(data: AggregatedData, source_name: str, config: Config | None = None) -> str:
     """
     Format a single section from AggregatedData.
 
     Args:
         data: Aggregated data
-        section_name: Section identifier (e.g., "calendar_events")
-        section_config: Optional section configuration for titles
+        source_name: Source identifier (e.g., "github", "apple_calendar")
+        config: Optional config for titles
 
     Returns:
         Formatted markdown section
     """
-    if not _has_section_data(data, section_name):
+    if not _has_source_data(data, source_name):
         return ""
 
     lines: list[str] = []
-    title = _get_section_title(section_name, section_config)
+    if config:
+        title = config.get_source_title(source_name)
+    else:
+        title = DEFAULT_SOURCE_TITLES.get(source_name, source_name.replace("_", " ").title())
     lines.append(f"## {title}")
     lines.append("")
-    content = _format_section_content(data, section_name)
+    content = _format_source_content(data, source_name)
+    lines.extend(content)
+    lines.append("")
+
+    return "\n".join(lines).rstrip()
+
+
+def _format_errors_section(data: AggregatedData) -> str:
+    """Format the errors section."""
+    if not _has_errors(data):
+        return ""
+
+    lines: list[str] = []
+    lines.append(f"## {ERRORS_TITLE}")
+    lines.append("")
+    content = _format_errors_content(data)
     lines.extend(content)
     lines.append("")
 
@@ -430,7 +476,7 @@ def merge_sections(
     existing: dict[str, str],
     new_data: AggregatedData,
     format: str,
-    section_config: SectionConfig | None = None,
+    config: Config | None = None,
 ) -> str:
     """
     Merge existing file sections with new PKM data.
@@ -438,12 +484,13 @@ def merge_sections(
     - Preserve preamble and postamble (manual content)
     - Replace existing PKM sections with fresh data
     - Append new PKM sections that weren't in file
+    - Errors are always last
 
     Args:
         existing: Parsed sections from existing file
         new_data: New aggregated data
         format: Output format (should be "markdown")
-        section_config: Optional section configuration for titles and order
+        config: Optional config for titles and order
 
     Returns:
         Merged markdown content
@@ -457,27 +504,61 @@ def merge_sections(
             lines.append(preamble)
             lines.append("")
 
-    # Get section order from config
-    section_order = _get_section_order(section_config)
+    # Get source order from config
+    if config:
+        source_order = config.get_ordered_sources()
+    else:
+        source_order = [
+            "apple_calendar",
+            "github",
+            "atlassian",
+            "things",
+            "wakatime",
+            "google_docs",
+            "whoop",
+        ]
 
-    # Track which sections have been added
-    added_sections: set[str] = set()
+    # Track which sources have been added
+    added_sources: set[str] = set()
+
+    # Map from old section names to new source names for compatibility
+    section_to_source = {
+        "calendar_events": "apple_calendar",
+        "github_activities": "github",
+        "atlassian_items": "atlassian",
+        "things_tasks": "things",
+        "wakatime_activities": "wakatime",
+        "google_docs": "google_docs",
+        "whoop_data": "whoop",
+    }
 
     # First, add sections that existed in the original file (to maintain order)
-    for section_name in section_order:
-        if section_name in existing and section_name not in ["_preamble", "_postamble"]:
+    for source_name in source_order:
+        # Check if this source was in the existing file (using old section names)
+        old_section_name = None
+        for old_name, new_name in section_to_source.items():
+            if new_name == source_name and old_name in existing:
+                old_section_name = old_name
+                break
+
+        if old_section_name and old_section_name not in ["_preamble", "_postamble"]:
             # Replace with fresh data
-            section_content = _format_section(new_data, section_name, section_config)
+            section_content = _format_section(new_data, source_name, config)
             if section_content:
                 lines.append(section_content)
-                added_sections.add(section_name)
+                added_sources.add(source_name)
 
     # Then add new sections that weren't in the original file
-    for section_name in section_order:
-        if section_name not in added_sections:
-            section_content = _format_section(new_data, section_name, section_config)
+    for source_name in source_order:
+        if source_name not in added_sources:
+            section_content = _format_section(new_data, source_name, config)
             if section_content:
                 lines.append(section_content)
+
+    # Errors always last
+    errors_content = _format_errors_section(new_data)
+    if errors_content:
+        lines.append(errors_content)
 
     # End with postamble (manual content after PKM sections)
     if existing.get("_postamble"):
@@ -496,7 +577,7 @@ def write_report_to_file(
     output_path: Path,
     format: str,
     merge_existing: bool = True,
-    section_config: SectionConfig | None = None,
+    config: Config | None = None,
 ) -> None:
     """
     Write report to file, optionally merging with existing content.
@@ -506,7 +587,7 @@ def write_report_to_file(
         output_path: Target file path
         format: "markdown" or "json"
         merge_existing: If True and file exists, merge sections
-        section_config: Optional section configuration for titles and order
+        config: Optional config for titles and order
     """
     if format == "json":
         # JSON mode: always overwrite
@@ -518,9 +599,9 @@ def write_report_to_file(
     # Markdown mode: smart merge if file exists
     if merge_existing and output_path.exists():
         existing = parse_existing_file(output_path)
-        output = merge_sections(existing, data, format, section_config)
+        output = merge_sections(existing, data, format, config)
     else:
-        output = format_as_markdown(data, section_config)
+        output = format_as_markdown(data, config)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(output)

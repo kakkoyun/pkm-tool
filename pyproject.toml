@@ -69,7 +69,7 @@ markers = [
     "integration: Integration tests",
     "snapshot: Snapshot tests",
 ]
-addopts = "--verbose --cov=src/pkm_tool"
+addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=80"
 filterwarnings = [
     "ignore::ResourceWarning:unittest.mock",
 ]

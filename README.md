@@ -210,28 +210,32 @@ Once the server is running, you can access:
 **Available Endpoints:**
 
 - `GET /health` - Health check endpoint
+
   ```bash
   curl http://127.0.0.1:8000/health
   ```
 
 - `GET /api/sources` - List all available data sources
+
   ```bash
   curl http://127.0.0.1:8000/api/sources
   ```
 
 - `GET /api/config` - Get configuration information
+
   ```bash
   curl http://127.0.0.1:8000/api/config
   ```
 
 - `GET /api/data` - Fetch aggregated data for a specific date
+
   ```bash
   # Get today's data in markdown format
   curl "http://127.0.0.1:8000/api/data"
-  
+
   # Get specific date in JSON format
   curl "http://127.0.0.1:8000/api/data?date=2025-12-02&format=json"
-  
+
   # Get data from specific sources only
   curl "http://127.0.0.1:8000/api/data?date=2025-12-02&sources=github,wakatime"
   ```

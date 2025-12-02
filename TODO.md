@@ -25,11 +25,11 @@
 
 ### Phase 4
 
+- [x] Feature: Add a mode to run as a web server `pkm server ...` that serves a REST API and a web UI using FastAPI and Streamlit.
 - [ ] Feature: Add a mode to run as an MCP server `pkm mcp ...`
-- [ ] Feature: Add a mode to run as a web server `pkm server ...` that serves a REST API and a web UI using FastAPI and Streamlit.
 
 ## Plumbing
 
-- [ ] Make sure code is properly typed with ty everywhere!
-- [ ] This tool never released, we don't have legacy or need to migrate clean the codebase and docs!
-- [ ] Make sure we have consistent patterns and conventions throughout the codebase!
+- [ ] consistency: Make sure code is properly typed with ty everywhere!
+- [ ] cleanup: This tool never released, we don't have legacy or need to migrate clean the codebase and docs!
+- [ ] consistency: Make sure we have consistent patterns and conventions throughout the codebase!

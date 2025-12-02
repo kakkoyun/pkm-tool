@@ -631,6 +631,7 @@ uv run pkm server --verbose
 ```
 
 **Server dependencies** (optional):
+
 ```bash
 # Install server dependencies
 uv sync --extra server

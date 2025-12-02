@@ -1249,8 +1249,7 @@ def server(
     except ImportError:
         logger.error("server_dependencies_missing")
         click.echo(
-            "Error: Server dependencies not installed. "
-            "Install with: uv sync --extra server",
+            "Error: Server dependencies not installed. Install with: uv sync --extra server",
             err=True,
         )
         raise click.Abort()

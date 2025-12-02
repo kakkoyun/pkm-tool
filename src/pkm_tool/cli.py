@@ -1194,7 +1194,8 @@ def mcp(
     - fetch_google_docs: Get Google Docs
     - fetch_whoop_data: Get Whoop health data
 
-    Example configuration for Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json):
+    Example configuration for Claude Desktop:
+    (~/Library/Application Support/Claude/claude_desktop_config.json)
 
     \b
     {

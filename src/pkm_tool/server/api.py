@@ -1,6 +1,7 @@
 """FastAPI application for PKM tool REST API."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from dateutil import parser as date_parser
@@ -30,6 +31,14 @@ from pkm_tool.sources.whoop import (
 configure_logging(verbose=False, log_format="human")
 logger = get_logger(__name__)
 
+
+class OutputFormat(str, Enum):
+    """Output format options."""
+
+    MARKDOWN = "markdown"
+    JSON = "json"
+
+
 # Create FastAPI app
 app = FastAPI(
     title="PKM Tool API",
@@ -39,10 +48,11 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Add CORS middleware to allow browser access
+# Add CORS middleware - allow all origins for development
+# TODO: Make this configurable via environment variable or config file for production
 app.add_middleware(
-    CORSMiddleware,  # type: ignore[arg-type]
-    allow_origins=["*"],  # Allow all origins for testing
+    CORSMiddleware,  # type: ignore[arg-type]  # FastAPI/Starlette typing issue
+    allow_origins=["*"],  # Development mode - configure for production use
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,14 +84,6 @@ class SourceInfo(BaseModel):
     display_name: str = Field(description="Display name")
     enabled: bool = Field(description="Whether source is enabled")
     description: str = Field(description="Source description")
-
-
-class DataRequest(BaseModel):
-    """Request for fetching data."""
-
-    date: str | None = Field(default=None, description="Date to fetch (YYYY-MM-DD or natural)")
-    sources: list[str] | None = Field(default=None, description="List of sources to fetch")
-    format: str = Field(default="markdown", description="Output format (markdown or json)")
 
 
 class DataResponse(BaseModel):
@@ -220,7 +222,9 @@ async def get_data(
     date_str: str | None = Query(
         None, alias="date", description="Date to fetch (YYYY-MM-DD or natural language)"
     ),
-    output_format: str = Query("markdown", alias="format", description="Output format"),
+    output_format: OutputFormat = Query(
+        OutputFormat.MARKDOWN, alias="format", description="Output format"
+    ),
     sources: str | None = Query(None, description="Comma-separated list of sources"),
 ) -> DataResponse:
     """
@@ -294,7 +298,7 @@ async def get_data(
             data = aggregate_data(target_date, config_path=None)
 
         # Format output
-        if output_format.lower() == "json":
+        if output_format == OutputFormat.JSON:
             formatted_data = format_as_json(data)
             return DataResponse(
                 date=str(target_date),

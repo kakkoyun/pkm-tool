@@ -157,3 +157,12 @@ def test_get_data_default_date(mock_aggregate):
 
     assert "date" in data
     assert data["format"] == "markdown"  # Default format
+
+
+def test_output_format_enum():
+    """Test that OutputFormat enum is properly defined."""
+    from pkm_tool.server.api import OutputFormat
+
+    assert OutputFormat.MARKDOWN == "markdown"
+    assert OutputFormat.JSON == "json"
+    assert len(OutputFormat) == 2  # Only two values

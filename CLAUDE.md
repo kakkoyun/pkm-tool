@@ -610,6 +610,32 @@ uv run pkm wakatime --config ~/.config/pkm-tool/config.yaml --date 2025-11-21
 - **Preferred**: `pkm <subcommand> --date yesterday` (FLAGS after subcommand)
 - **Backward compat**: `pkm --date yesterday` (FLAGS before implicit aggregate subcommand)
 
+#### Server mode
+
+Run as a web server with REST API:
+
+```bash
+# Start server on default port (8000)
+uv run pkm server
+
+# Start on custom port with auto-reload
+uv run pkm server --port 8080 --reload
+
+# Start with verbose logging
+uv run pkm server --verbose
+
+# The server provides:
+# - REST API at http://127.0.0.1:8000/api/*
+# - Interactive API docs at http://127.0.0.1:8000/docs
+# - Health check at http://127.0.0.1:8000/health
+```
+
+**Server dependencies** (optional):
+```bash
+# Install server dependencies
+uv sync --extra server
+```
+
 ### Direct uv commands (reference)
 
 ```bash

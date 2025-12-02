@@ -463,7 +463,6 @@ def test_format_as_markdown_defaults_without_config() -> None:
     assert "Test Meeting" in output
 
 
-
 # Snapshot tests for formatter output
 @pytest.mark.snapshot
 def test_format_markdown_default_config_snapshot(snapshot: SnapshotAssertion) -> None:

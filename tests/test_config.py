@@ -173,7 +173,8 @@ github:
         try:
             config = load_config(f.name)
             assert config.sections.titles["calendar_events"] == "Schedule"
-            # Other titles should use defaults - but since we're overriding titles dict,
-            # only the specified keys will be present
+            # When titles dict is provided in YAML, it completely replaces the default
+            # Only the specified keys will be present (YAML behavior)
+            assert "github_activities" not in config.sections.titles
         finally:
             Path(f.name).unlink()

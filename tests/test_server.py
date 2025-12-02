@@ -166,3 +166,49 @@ def test_output_format_enum():
     assert OutputFormat.MARKDOWN == "markdown"
     assert OutputFormat.JSON == "json"
     assert len(OutputFormat) == 2  # Only two values
+
+
+def test_get_config_cache_settings():
+    """Test that config endpoint returns cache settings."""
+    response = client.get("/api/config")
+    assert response.status_code == 200
+    config = response.json()
+
+    # Verify cache settings are present
+    assert "cache" in config
+    assert "enabled" in config["cache"]
+    assert "directory" in config["cache"]
+    assert "ttl_hours" in config["cache"]
+
+    # Verify sources have exclude_weekends flag
+    for source in ["calendar", "github", "wakatime"]:
+        assert source in config["sources"]
+        assert "exclude_weekends" in config["sources"][source]
+
+
+@patch("pkm_tool.server.api.fetch_github_activities")
+@patch("pkm_tool.server.api.fetch_wakatime_activities")
+@patch("pkm_tool.server.api.get_config")
+def test_get_data_multiple_sources(mock_get_config, mock_fetch_wakatime, mock_fetch_github):
+    """Test fetching data from multiple specific sources."""
+
+    # Mock config
+    mock_config = MagicMock()
+    mock_config.github.enabled = True
+    mock_config.github.config = {}
+    mock_config.wakatime.enabled = True
+    mock_config.wakatime.config = {}
+    mock_get_config.return_value = mock_config
+
+    # Mock fetch functions
+    mock_fetch_github.return_value = []
+    mock_fetch_wakatime.return_value = []
+
+    response = client.get("/api/data?date=2025-12-02&sources=github,wakatime")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["date"] == "2025-12-02"
+    # Both sources should be called
+    assert mock_fetch_github.call_count == 1
+    assert mock_fetch_wakatime.call_count == 1

@@ -10,11 +10,28 @@ from pydantic import BaseModel, Field
 logger = structlog.get_logger(__name__)
 
 
+# Default section titles with emojis (keyed by source name in config)
+DEFAULT_SOURCE_TITLES: dict[str, str] = {
+    "apple_calendar": "📅 Calendar Events",
+    "github": "🐙 GitHub Activities",
+    "atlassian": "🏢 Atlassian (Jira/Confluence)",
+    "things": "✅ Things - Completed Tasks",
+    "wakatime": "⏱️ Wakatime - Coding Activity",
+    "google_docs": "📝 Google Docs",
+    "whoop": "💪 Whoop Health Data",
+}
+
+# Errors title (always last, in folded format)
+ERRORS_TITLE: str = "⚠️ Errors"
+
+
 class SourceConfig(BaseModel):
     """Configuration for a data source."""
 
     enabled: bool = True
     exclude_weekends: bool = False
+    title: str | None = None  # Custom section title, uses default if None
+    order: int | None = None  # Custom order, uses config definition order if None
     config: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -25,7 +42,7 @@ class Config(BaseModel):
     output_filename_template: str = "{date} ({day_abbr}).{format}"
     output_directory: str = "."
 
-    # Source configurations
+    # Source configurations (order here defines default display order)
     apple_calendar: SourceConfig = Field(default_factory=SourceConfig)
     github: SourceConfig = Field(default_factory=SourceConfig)
     atlassian: SourceConfig = Field(default_factory=SourceConfig)
@@ -33,6 +50,37 @@ class Config(BaseModel):
     wakatime: SourceConfig = Field(default_factory=SourceConfig)
     google_docs: SourceConfig = Field(default_factory=SourceConfig)
     whoop: SourceConfig = Field(default_factory=SourceConfig)
+
+    def get_source_title(self, source_name: str) -> str:
+        """Get title for a source, using custom title if set or default."""
+        source_config = getattr(self, source_name, None)
+        if source_config and source_config.title:
+            return source_config.title
+        return DEFAULT_SOURCE_TITLES.get(source_name, source_name.replace("_", " ").title())
+
+    def get_ordered_sources(self) -> list[str]:
+        """Get list of source names ordered by their order field or config definition order."""
+        # All source names in config definition order
+        sources = [
+            "apple_calendar",
+            "github",
+            "atlassian",
+            "things",
+            "wakatime",
+            "google_docs",
+            "whoop",
+        ]
+
+        def get_order_key(source_name: str) -> tuple[int, int]:
+            """Return (has_order, order_value) for sorting."""
+            source_config = getattr(self, source_name, None)
+            if source_config and source_config.order is not None:
+                # Has explicit order - sort by it first
+                return (0, source_config.order)
+            # No explicit order - maintain config definition order
+            return (1, sources.index(source_name))
+
+        return sorted(sources, key=get_order_key)
 
 
 def load_config(config_path: str | None = None) -> Config:

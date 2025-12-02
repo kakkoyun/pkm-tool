@@ -189,4 +189,3 @@ def get_cache_stats(cache_config: CacheConfig) -> dict[str, Any]:
         "directory": str(cache_dir),
         "ttl_hours": cache_config.ttl_hours,
     }
-

@@ -1,0 +1,39 @@
+# Codecov configuration
+# https://docs.codecov.com/docs/codecovyml-reference
+
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "80...100"  # Coverage range for color coding (green when >= 80%)
+
+  status:
+    # Project-level coverage status
+    project:
+      default:
+        target: 80%  # Target coverage threshold
+        threshold: 1%  # Allow 1% drop before failing
+        if_ci_failed: error
+
+    # Patch coverage status (for new/changed code in PRs)
+    patch:
+      default:
+        target: 80%  # New code should meet 80% coverage
+        threshold: 0%
+
+    # Changes status (coverage changes)
+    changes: false
+
+# Pull request comment configuration
+comment:
+  layout: "diff, flags, files"
+  behavior: default
+  require_changes: false
+
+# Ignore paths from coverage
+ignore:
+  - "tests/**/*"
+  - "scripts/**/*"
+  - "htmlcov/**/*"

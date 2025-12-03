@@ -28,6 +28,9 @@ server = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
 ]
+mcp = [
+    "mcp>=1.1.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
@@ -61,7 +64,10 @@ select = ["E", "F", "I", "N", "UP", "RUF"]
 
 [tool.ty]
 # Astral's ty type checker configuration
-# Add specific ty configuration here as needed
+# Ignore unresolved imports for third-party packages without type stubs
+
+[tool.ty.rules]
+unresolved-import = "ignore"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -76,4 +82,9 @@ markers = [
 addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=80 --cov-report=xml --cov-report=term --junitxml=junit.xml"
 filterwarnings = [
     "ignore::ResourceWarning:unittest.mock",
+]
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio>=1.3.0",
 ]

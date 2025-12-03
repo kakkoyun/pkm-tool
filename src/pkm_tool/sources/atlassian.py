@@ -81,6 +81,10 @@ def _fetch_jira_via_library(
 
         # Execute JQL query
         results = jira.jql(jql, limit=100)  # type: ignore
+        if not results:
+            logger.warning("jira_query_returned_none")
+            return items
+
         logger.debug("jira_response_received", issue_count=len(results.get("issues", [])))
 
         # Map results to AtlassianItem models

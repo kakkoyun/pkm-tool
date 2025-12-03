@@ -521,7 +521,7 @@ def merge_sections(
     # Track which sources have been added
     added_sources: set[str] = set()
 
-    # Map from old section names to new source names for compatibility
+    # Map from data field names to source names (used by identify_section)
     section_to_source = {
         "calendar_events": "apple_calendar",
         "github_activities": "github",

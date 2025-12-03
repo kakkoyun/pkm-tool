@@ -34,7 +34,7 @@ github:
   # order: 2                   # Display order
   config:
   # Tokens can be stored securely with `pkm auth login github`
-  # Legacy fallback (not recommended):
+  # Alternatively, set token in config or use GITHUB_TOKEN env var:
   # token: ghp_your_token_here
   # username: your_github_username
 
@@ -76,7 +76,7 @@ google_docs:
     client_secret: your_google_client_secret
     scopes:
       - https://www.googleapis.com/auth/drive.readonly
-      # Optional legacy fallback (not recommended)
+      # Alternatively, use access_token from `pkm auth login google-docs`
       # access_token: your_access_token_here
 
 # Whoop
@@ -86,6 +86,5 @@ whoop:
   # order: 7
   config:
 # Preferred: store tokens via `pkm auth login whoop`
-# Legacy fallback (not recommended)
+# Alternatively, set in config or use WHOOP_ACCESS_TOKEN env var:
 # access_token: your_whoop_access_token_here
-# or set WHOOP_ACCESS_TOKEN environment variable

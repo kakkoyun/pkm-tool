@@ -444,77 +444,9 @@ def _validate_date_options(
         raise click.ClickException("Both --from and --to must be provided for date ranges.")
 
 
-@click.group(invoke_without_command=True)
+@click.group()
 @click.pass_context
-@click.option(
-    "--date",
-    "-d",
-    default=None,
-    help="Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.",
-)
-@click.option(
-    "--from",
-    "from_date",
-    default=None,
-    help="Start date for date range (requires --to). Format: YYYY-MM-DD or natural language.",
-)
-@click.option(
-    "--to",
-    "to_date",
-    default=None,
-    help="End date for date range (requires --from). Format: YYYY-MM-DD or natural language.",
-)
-@click.option(
-    "--output-dir",
-    "-o",
-    default=None,
-    help="Output directory for batch mode (date ranges). Overrides config setting.",
-)
-@click.option(
-    "--exclude-weekends",
-    is_flag=True,
-    default=False,
-    help="Skip weekends (Saturdays and Sundays) in date ranges and source fetching.",
-)
-@click.option(
-    "--format",
-    "-f",
-    type=click.Choice(["markdown", "json"], case_sensitive=False),
-    default="markdown",
-    help="Output format (default: markdown)",
-)
-@click.option(
-    "--config",
-    "-c",
-    type=click.Path(exists=True),
-    default=None,
-    help="Path to configuration file",
-)
-@click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    default=False,
-    help="Enable verbose (DEBUG) logging",
-)
-@click.option(
-    "--log-format",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    help="Log output format (default: human)",
-)
-def cli(
-    ctx: click.Context,
-    date: str | None,
-    from_date: str | None,
-    to_date: str | None,
-    output_dir: str | None,
-    exclude_weekends: bool,
-    format: str,
-    config: str | None,
-    verbose: bool,
-    log_format: str,
-) -> None:
+def cli(ctx: click.Context) -> None:
     """
     Personal Knowledge Management Tool.
 
@@ -527,12 +459,10 @@ def cli(
     - Google Docs
     - Whoop
 
-    Run without subcommand to aggregate all sources, or use subcommands
-    to fetch from individual sources:
+    Use subcommands to aggregate all sources or fetch from individual sources:
 
     \b
-    pkm --date yesterday                Aggregate all sources (backward compat)
-    pkm aggregate --date yesterday      Explicitly aggregate all sources
+    pkm aggregate --date yesterday      Aggregate all sources
     pkm calendar --date yesterday       Fetch Apple Calendar events only
     pkm github --date yesterday         Fetch GitHub activities only
     pkm atlassian --date yesterday      Fetch Atlassian (Jira/Confluence) items only
@@ -540,21 +470,10 @@ def cli(
     pkm wakatime --date yesterday       Fetch Wakatime coding activities only
     pkm google-docs --date yesterday    Fetch Google Docs only
     pkm whoop --date yesterday          Fetch Whoop health data only
+    pkm server                          Start FastAPI web server
+    pkm mcp                             Run as MCP (Model Context Protocol) server
     """
-    # Backward compatibility: if no subcommand specified, run aggregate with group options
-    if ctx.invoked_subcommand is None:
-        ctx.invoke(
-            aggregate,
-            date=date,
-            from_date=from_date,
-            to_date=to_date,
-            output_dir=output_dir,
-            exclude_weekends=exclude_weekends,
-            format=format,
-            config=config,
-            verbose=verbose,
-            log_format=log_format,
-        )
+    pass
 
 
 @cli.command()
@@ -1344,9 +1263,8 @@ def server(
         raise click.Abort()
 
 
-# Keep main() as entry point for backward compatibility
 def main() -> None:
-    """Entry point wrapper for backward compatibility."""
+    """Entry point for the CLI."""
     cli()
 
 

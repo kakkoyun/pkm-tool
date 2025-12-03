@@ -116,7 +116,8 @@ Commands:
 
 ### MCP Server Mode (NEW!)
 
-PKM Tool can run as an MCP (Model Context Protocol) server, allowing AI assistants like Claude to access your personal data securely:
+PKM Tool can run as an MCP (Model Context Protocol) server,
+allowing AI assistants like Claude to access your personal data securely:
 
 ```bash
 # Run as MCP server (stdio mode)
@@ -140,6 +141,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```
 
 **Available MCP Tools:**
+
 - `fetch_aggregated_data` - Get data from all configured sources
 - `fetch_calendar_events` - Get Apple Calendar events
 - `fetch_github_activities` - Get GitHub activities

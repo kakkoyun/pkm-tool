@@ -638,7 +638,7 @@ uv run pkm server --verbose
 uv sync --extra server
 ```
 
-#### MCP mode (NEW!)
+#### MCP mode
 
 Run as an MCP (Model Context Protocol) server for AI assistants:
 
@@ -679,8 +679,6 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   }
 }
 ```
-
-#### MCP mode (NEW!)
 
 Run as an MCP (Model Context Protocol) server for AI assistants:
 

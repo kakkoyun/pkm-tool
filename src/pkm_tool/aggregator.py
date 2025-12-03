@@ -73,7 +73,7 @@ def _fetch_from_source(
             result = fetch_func(target_date, source_config.config, cache_config)
         else:
             result = fetch_func(target_date, source_config.config)
-        
+
         duration = time.time() - start_time
         result_setter(data, result)
         # Get count - handle both list results and single object results

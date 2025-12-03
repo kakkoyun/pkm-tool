@@ -4,8 +4,9 @@ This module implements an MCP (Model Context Protocol) server that exposes
 PKM Tool's data fetching capabilities as tools that can be used by AI assistants.
 """
 
+from collections.abc import Callable
 from datetime import date, datetime
-from typing import Any
+from typing import Any, cast
 
 from dateutil import parser as date_parser
 from mcp.server import Server
@@ -64,7 +65,16 @@ def _fetch_source_data(
     cache_config: CacheConfig | None = config.cache if config.cache.enabled else None
 
     # Map source names to fetch functions with their config and cache requirements
-    source_handlers: dict[str, tuple[Any, Any, bool]] = {
+    # Tuple structure: (fetch_func: Callable, source_config: dict, uses_cache: bool)
+    source_handlers: dict[
+        str,
+        tuple[
+            Callable[[date, dict[str, Any]], Any]
+            | Callable[[date, dict[str, Any], CacheConfig | None], Any],
+            dict[str, Any],
+            bool,
+        ],
+    ] = {
         "calendar": (fetch_calendar_events, config.apple_calendar.config, False),
         "github": (fetch_github_activities, config.github.config, False),
         "atlassian": (fetch_atlassian_items, config.atlassian.config, False),
@@ -77,9 +87,13 @@ def _fetch_source_data(
     if source in source_handlers:
         fetch_func, source_config, uses_cache = source_handlers[source]
         if uses_cache:
-            result = fetch_func(target_date, source_config, cache_config)
+            result = cast(Callable[[date, dict[str, Any], CacheConfig | None], Any], fetch_func)(
+                target_date, source_config, cache_config
+            )
         else:
-            result = fetch_func(target_date, source_config)
+            result = cast(Callable[[date, dict[str, Any]], Any], fetch_func)(
+                target_date, source_config
+            )
 
         # Set result on appropriate data field
         field_mapping = {

@@ -1,8 +1,9 @@
 """FastAPI application for PKM tool REST API."""
 
+from collections.abc import Callable
 from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from dateutil import parser as date_parser
 from fastapi import FastAPI, HTTPException, Query
@@ -11,7 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from pkm_tool.aggregator import aggregate_data
-from pkm_tool.config import Config, load_config
+from pkm_tool.config import CacheConfig, Config, load_config
 from pkm_tool.formatters import format_as_json, format_as_markdown
 from pkm_tool.logging import configure_logging, get_logger
 from pkm_tool.models import AggregatedData
@@ -231,59 +232,87 @@ def _parse_target_date(date_str: str | None) -> date:
 
 
 def _fetch_single_source(
-    source: str, target_date: date, config: Config, data: AggregatedData
+    source: str,
+    target_date: date,
+    config: Config,
+    data: AggregatedData,
+    cache_config: CacheConfig | None = None,
 ) -> None:
     """Fetch data from a single source and update the data object."""
     # Map source names to fetch functions and config attributes
-    source_handlers: dict[str, tuple[Any, Any, Any]] = {
+    # Tuple structure: (enabled: bool, fetch_func: Callable, setter: Callable, uses_cache: bool)
+    source_handlers: dict[
+        str,
+        tuple[
+            bool,
+            Callable[[date, dict[str, Any]], Any]
+            | Callable[[date, dict[str, Any], CacheConfig | None], Any],
+            Callable[[AggregatedData, Any], None],
+            bool,
+        ],
+    ] = {
         "calendar": (
             config.apple_calendar.enabled,
             fetch_calendar_events,
             lambda d, result: setattr(d, "calendar_events", result),
+            False,
         ),
         "github": (
             config.github.enabled,
             fetch_github_activities,
             lambda d, result: setattr(d, "github_activities", result),
+            False,
         ),
         "atlassian": (
             config.atlassian.enabled,
             fetch_atlassian_items,
             lambda d, result: setattr(d, "atlassian_items", result),
+            False,
         ),
         "things": (
             config.things.enabled,
             fetch_things_tasks,
             lambda d, result: setattr(d, "things_tasks", result),
+            False,
         ),
         "wakatime": (
             config.wakatime.enabled,
             fetch_wakatime_activities,
             lambda d, result: setattr(d, "wakatime_activities", result),
+            True,
         ),
         "google-docs": (
             config.google_docs.enabled,
             fetch_google_docs,
             lambda d, result: setattr(d, "google_docs", result),
+            True,
         ),
     }
 
     # Handle regular sources
     if source in source_handlers:
-        enabled, fetch_func, setter = source_handlers[source]
+        enabled, fetch_func, setter, uses_cache = source_handlers[source]
         if enabled:
             # Get config for the source
             config_attr = source.replace("-", "_")
             source_config = getattr(config, config_attr).config
-            result = fetch_func(target_date, source_config)
+            # Call fetch function with or without cache_config based on whether it uses cache
+            if uses_cache:
+                result = cast(
+                    Callable[[date, dict[str, Any], CacheConfig | None], Any], fetch_func
+                )(target_date, source_config, cache_config)
+            else:
+                result = cast(Callable[[date, dict[str, Any]], Any], fetch_func)(
+                    target_date, source_config
+                )
             setter(data, result)
         return
 
     # Handle whoop separately (multiple endpoints)
     if source == "whoop" and config.whoop.enabled:
-        data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config)
-        data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config)
-        data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config)
+        data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config, cache_config)
+        data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
+        data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config, cache_config)
         return
 
     # Unknown or disabled source
@@ -326,8 +355,10 @@ async def get_data(
             # Fetch specific sources
             selected_sources = [s.strip() for s in sources.split(",")]
             data = AggregatedData(date=target_date)
+            # Get cache config for HTTP-based sources
+            cache_config: CacheConfig | None = config.cache if config.cache.enabled else None
             for source in selected_sources:
-                _fetch_single_source(source, target_date, config, data)
+                _fetch_single_source(source, target_date, config, data, cache_config)
         else:
             # Aggregate all sources
             data = aggregate_data(target_date, config_path=None)

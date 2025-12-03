@@ -1,9 +1,9 @@
 """Output formatters for PKM tool."""
 
 import re
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Any
 
 from pkm_tool.config import DEFAULT_SOURCE_TITLES, ERRORS_TITLE, Config
 from pkm_tool.models import AggregatedData
@@ -190,7 +190,7 @@ def _format_errors_content(data: AggregatedData) -> list[str]:
 def _has_source_data(data: AggregatedData, source_name: str) -> bool:
     """Check if a source has data to display."""
     # Map source names to data checking functions
-    data_checkers: dict[str, Any] = {
+    data_checkers: dict[str, Callable[[AggregatedData], bool]] = {
         "apple_calendar": lambda d: bool(d.calendar_events),
         "github": lambda d: bool(d.github_activities),
         "atlassian": lambda d: bool(d.atlassian_items),
@@ -206,7 +206,7 @@ def _has_source_data(data: AggregatedData, source_name: str) -> bool:
 def _format_source_content(data: AggregatedData, source_name: str) -> list[str]:
     """Get formatted content for a source (without header)."""
     # Map source names to formatting functions
-    content_formatters: dict[str, Any] = {
+    content_formatters: dict[str, Callable[[AggregatedData], list[str]]] = {
         "apple_calendar": _format_calendar_events_content,
         "github": _format_github_activities_content,
         "atlassian": _format_atlassian_items_content,
@@ -391,11 +391,11 @@ def _handle_non_pkm_header(
     if in_preamble:
         # Still in preamble
         _append_to_section(sections, "_preamble", line)
-    else:
-        # In postamble
-        _append_to_section(sections, "_postamble", line)
+        return current_section, current_content, in_preamble, False
 
-    return current_section, current_content, in_preamble, in_preamble or True
+    # In postamble
+    _append_to_section(sections, "_postamble", line)
+    return current_section, current_content, in_preamble, True
 
 
 def parse_existing_file(file_path: Path) -> dict[str, str]:

@@ -47,7 +47,7 @@ test/parallel: ## Run all tests in parallel (use for slow/large test suites >30s
 	uv run pytest -v -n auto --durations=10
 
 test/coverage: ## Run tests with coverage report
-	uv run pytest --cov --cov-report=term-missing --cov-report=html --junitxml=junit.xml -o junit_family=legacy
+	uv run pytest -v --durations=10 --cov --cov-report=term-missing --cov-report=html --junitxml=junit.xml -o junit_family=legacy
 
 test/timing: ## Run tests with detailed timing information
 	uv run pytest -v --durations=0
@@ -94,7 +94,9 @@ format/shell: ## Format shell scripts with shfmt
 		echo "shfmt not available (install: go install mvdan.cc/sh/v3/cmd/shfmt@latest), skipping"; \
 	fi
 
-lint: lint/python lint/shell lint/actions lint/yaml lint/markdown
+# TODO: Add lint/makefile after fixing or allowlisting Makefile issues
+
+lint: lint/python lint/shell lint/actions lint/yaml lint/markdown ## Run all linters
 
 lint/python: ## Run Python linter (ruff)
 	uv run ruff check src tests
@@ -151,10 +153,13 @@ lint/makefile: ## Check Makefile with checkmake
 		echo "checkmake not available (install via pre-commit), skipping"; \
 	fi
 
-check: lint format/python/check typecheck/python ## Run all Python checks without modifying files
+check: lint ratchet/check format/python/check typecheck/python ## Run all Python checks without modifying files
+
+.PHONY: fix
+fix: fix/python lint/markdown/fix format ## Auto-fix all fixable issues (format + lint --fix)
 
 .PHONY: fix/python
-fix/python: format/python lint/python/fix lint/markdown/fix ## Auto-fix all fixable issues (format + lint --fix)
+fix/python: format/python lint/python/fix ## Auto-fix all fixable issues (format + lint --fix)
 
 # ============================================================================
 # Section 4: Pre-commit Integration
@@ -252,8 +257,8 @@ clean/all: clean ## Deep clean (clean + remove virtual environment)
 
 .PHONY: all ci
 
-all: format lint typecheck/python test ## Run full pipeline: format → lint → typecheck → test
-ci: check test ## Run CI pipeline: check → test (what GitHub Actions runs)
+all: format check lint test ## Run full pipeline: format → lint → typecheck → test
+ci: check test/coverage ## Run CI pipeline: check → test (what GitHub Actions runs)
 
 # ============================================================================
 # Section 9: Help

@@ -15,25 +15,24 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history for all branches and tags
 
+      - uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # ratchet:astral-sh/setup-uv@v7
+
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # ratchet:actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install commitlint
-        run: |
-          npm install --save-dev \
-            @commitlint/config-conventional@19.8.1 \
-            @commitlint/cli@19.8.1
+      - run: uv python install
+
+      - run: make tools/install
 
       - name: Validate current commit (for push)
         if: github.event_name == 'push'
-        run: npx commitlint --from HEAD~1 --to HEAD --verbose
+        run: make lint/commits
 
       - name: Validate PR commits (for pull_request)
         if: github.event_name == 'pull_request'
         run: |
-          npx commitlint \
-            --from ${{ github.event.pull_request.base.sha }} \
-            --to ${{ github.event.pull_request.head.sha }} \
-            --verbose
+          make lint/commits/range \
+            FROM=${{ github.event.pull_request.base.sha }} \
+            TO=${{ github.event.pull_request.head.sha }}

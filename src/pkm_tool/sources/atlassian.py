@@ -101,8 +101,9 @@ def _fetch_jira_via_library(
                 # Skip malformed issues
                 continue
 
-    except Exception:
+    except Exception as e:
         # Return empty list on any error (connection, auth, etc.)
+        logger.warning("jira_fetch_failed", error=str(e), exc_info=True)
         pass
 
     return items
@@ -146,9 +147,9 @@ def _fetch_confluence_via_library(
                 # Skip malformed pages
                 continue
 
-    except Exception:
+    except Exception as e:
         # Return empty list on any error (connection, auth, etc.)
-        pass
+        logger.warning("confluence_fetch_failed", error=str(e), exc_info=True)
 
     return items
 

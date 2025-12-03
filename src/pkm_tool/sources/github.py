@@ -58,14 +58,14 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
         GithubException: GitHub API errors (auth, rate limit, etc.)
         Exception: Other errors during GitHub API interaction
     """
-    # Get token from token store first, then config/env fallback
-    token = _get_github_token(config)
-    if not token:
-        logger.warning("github_no_token", message="No GitHub token configured")
-        return []
-
     g = None
     try:
+        # Get token from token store first, then config/env fallback
+        token = _get_github_token(config)
+        if not token:
+            logger.warning("github_no_token", message="No GitHub token configured")
+            return []
+
         # Authenticate with GitHub
         logger.debug("github_authenticating")
         auth = Auth.Token(token)

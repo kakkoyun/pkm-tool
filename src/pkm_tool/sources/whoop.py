@@ -13,6 +13,84 @@ from pkm_tool.sources.common import create_http_client, get_source_token
 logger = structlog.get_logger(__name__)
 
 
+def _convert_millis_to_minutes(value: int | None, default: int = 0) -> int:
+    """Convert milliseconds to minutes, with a default fallback."""
+    return value // 60000 if value else default
+
+
+def _convert_millis_to_minutes_optional(value: int | None) -> int | None:
+    """Convert milliseconds to minutes, preserving None."""
+    return value // 60000 if value else None
+
+
+def _parse_sleep_record(record: dict[str, Any], target_date: date) -> WhoopSleep | None:
+    """Parse a single sleep record, return None if invalid or doesn't match target date."""
+    # Extract timestamps
+    start_str = record.get("start")
+    end_str = record.get("end")
+    if not start_str or not end_str:
+        return None
+
+    start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+
+    # Filter by end date matching target date
+    if end.date() != target_date:
+        return None
+
+    # Extract sleep stages and metrics
+    score = record.get("score", {})
+    stages = score.get("stage_summary", {})
+
+    return WhoopSleep(
+        start=start,
+        end=end,
+        duration_minutes=_convert_millis_to_minutes(score.get("total_in_bed_time_milli", 0)),
+        sleep_efficiency=score.get("sleep_efficiency_percentage"),
+        light_sleep_minutes=_convert_millis_to_minutes_optional(
+            stages.get("light_sleep_duration_milli")
+        ),
+        deep_sleep_minutes=_convert_millis_to_minutes_optional(
+            stages.get("slow_wave_sleep_duration_milli")
+        ),
+        rem_sleep_minutes=_convert_millis_to_minutes_optional(stages.get("rem_sleep_duration_milli")),
+        awake_minutes=_convert_millis_to_minutes_optional(stages.get("awake_duration_milli")),
+        disturbances=score.get("disturbance_count"),
+        sleep_performance=score.get("sleep_performance_percentage"),
+    )
+
+
+def _parse_workout_record(record: dict[str, Any], target_date: date) -> WhoopWorkout | None:
+    """Parse a single workout record, return None if invalid or doesn't match target date."""
+    # Extract timestamps
+    start_str = record.get("start")
+    end_str = record.get("end")
+    if not start_str or not end_str:
+        return None
+
+    start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+    end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+
+    # Filter by start date
+    if start.date() != target_date:
+        return None
+
+    # Extract workout metrics
+    score_data = record.get("score", {})
+    kilojoule = score_data.get("kilojoule")
+
+    return WhoopWorkout(
+        start=start,
+        end=end,
+        sport_name=record.get("sport_name", "Unknown"),
+        strain=score_data.get("strain", 0.0),
+        duration_minutes=_convert_millis_to_minutes(score_data.get("duration_milli", 0)),
+        average_heart_rate=score_data.get("average_heart_rate"),
+        max_heart_rate=score_data.get("max_heart_rate"),
+        calories=kilojoule // 4 if kilojoule else None,  # Convert kJ to rough kcal
+    )
+
+
 def fetch_whoop_recovery(
     target_date: date,
     config: dict[str, Any],
@@ -133,55 +211,12 @@ def fetch_whoop_sleep(
             response.raise_for_status()
             data = response.json()
 
-            # Parse sleep cycles
+            # Parse sleep cycles using helper function
             records = data.get("records", [])
             for record in records:
-                # Extract timestamps
-                start_str = record.get("start")
-                end_str = record.get("end")
-                if not start_str or not end_str:
-                    continue
-
-                start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-                end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-
-                # Filter by end date matching target date
-                if end.date() != target_date:
-                    continue
-
-                # Extract sleep stages
-                stages = record.get("score", {}).get("stage_summary", {})
-                duration_ms = record.get("score", {}).get("total_in_bed_time_milli", 0)
-
-                sleep_cycle = WhoopSleep(
-                    start=start,
-                    end=end,
-                    duration_minutes=duration_ms // 60000,
-                    sleep_efficiency=record.get("score", {}).get("sleep_efficiency_percentage"),
-                    light_sleep_minutes=(
-                        stages.get("light_sleep_duration_milli", 0) // 60000
-                        if stages.get("light_sleep_duration_milli")
-                        else None
-                    ),
-                    deep_sleep_minutes=(
-                        stages.get("slow_wave_sleep_duration_milli", 0) // 60000
-                        if stages.get("slow_wave_sleep_duration_milli")
-                        else None
-                    ),
-                    rem_sleep_minutes=(
-                        stages.get("rem_sleep_duration_milli", 0) // 60000
-                        if stages.get("rem_sleep_duration_milli")
-                        else None
-                    ),
-                    awake_minutes=(
-                        stages.get("awake_duration_milli", 0) // 60000
-                        if stages.get("awake_duration_milli")
-                        else None
-                    ),
-                    disturbances=record.get("score", {}).get("disturbance_count"),
-                    sleep_performance=record.get("score", {}).get("sleep_performance_percentage"),
-                )
-                sleep_cycles.append(sleep_cycle)
+                sleep_cycle = _parse_sleep_record(record, target_date)
+                if sleep_cycle:
+                    sleep_cycles.append(sleep_cycle)
 
         logger.info("whoop_sleep_fetched", cycle_count=len(sleep_cycles))
 
@@ -237,39 +272,12 @@ def fetch_whoop_workouts(
             response.raise_for_status()
             data = response.json()
 
-            # Parse workouts
+            # Parse workouts using helper function
             records = data.get("records", [])
             for record in records:
-                # Extract timestamps
-                start_str = record.get("start")
-                end_str = record.get("end")
-                if not start_str or not end_str:
-                    continue
-
-                start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-                end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-
-                # Filter by start date
-                if start.date() != target_date:
-                    continue
-
-                # Extract workout metrics
-                score_data = record.get("score", {})
-                duration_ms = score_data.get("duration_milli", 0)
-
-                workout = WhoopWorkout(
-                    start=start,
-                    end=end,
-                    sport_name=record.get("sport_name", "Unknown"),
-                    strain=score_data.get("strain", 0.0),
-                    duration_minutes=duration_ms // 60000,
-                    average_heart_rate=score_data.get("average_heart_rate"),
-                    max_heart_rate=score_data.get("max_heart_rate"),
-                    calories=score_data.get("kilojoule", 0) // 4
-                    if score_data.get("kilojoule")
-                    else None,  # Convert kJ to rough kcal
-                )
-                workouts.append(workout)
+                workout = _parse_workout_record(record, target_date)
+                if workout:
+                    workouts.append(workout)
 
         logger.info("whoop_workouts_fetched", workout_count=len(workouts))
 

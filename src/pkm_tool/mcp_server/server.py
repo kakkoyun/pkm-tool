@@ -63,21 +63,36 @@ def _fetch_source_data(
     # Get cache config for HTTP-based sources
     cache_config: CacheConfig | None = config.cache if config.cache.enabled else None
 
-    if source == "calendar":
-        data.calendar_events = fetch_calendar_events(target_date, config.apple_calendar.config)
-    elif source == "github":
-        data.github_activities = fetch_github_activities(target_date, config.github.config)
-    elif source == "atlassian":
-        data.atlassian_items = fetch_atlassian_items(target_date, config.atlassian.config)
-    elif source == "things":
-        data.things_tasks = fetch_things_tasks(target_date, config.things.config)
-    elif source == "wakatime":
-        data.wakatime_activities = fetch_wakatime_activities(
-            target_date, config.wakatime.config, cache_config
-        )
-    elif source == "google-docs":
-        data.google_docs = fetch_google_docs(target_date, config.google_docs.config, cache_config)
+    # Map source names to fetch functions with their config and cache requirements
+    source_handlers: dict[str, tuple[Any, Any, bool]] = {
+        "calendar": (fetch_calendar_events, config.apple_calendar.config, False),
+        "github": (fetch_github_activities, config.github.config, False),
+        "atlassian": (fetch_atlassian_items, config.atlassian.config, False),
+        "things": (fetch_things_tasks, config.things.config, False),
+        "wakatime": (fetch_wakatime_activities, config.wakatime.config, True),
+        "google-docs": (fetch_google_docs, config.google_docs.config, True),
+    }
+
+    # Handle regular sources
+    if source in source_handlers:
+        fetch_func, source_config, uses_cache = source_handlers[source]
+        if uses_cache:
+            result = fetch_func(target_date, source_config, cache_config)
+        else:
+            result = fetch_func(target_date, source_config)
+
+        # Set result on appropriate data field
+        field_mapping = {
+            "calendar": "calendar_events",
+            "github": "github_activities",
+            "atlassian": "atlassian_items",
+            "things": "things_tasks",
+            "wakatime": "wakatime_activities",
+            "google-docs": "google_docs",
+        }
+        setattr(data, field_mapping[source], result)
     elif source == "whoop":
+        # Whoop has multiple endpoints
         data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config, cache_config)
         data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
         data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config, cache_config)

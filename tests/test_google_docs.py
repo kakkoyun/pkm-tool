@@ -255,6 +255,7 @@ class TestGoogleDocsWithOAuth:
         # Mock the auth manager to return no stored token
         with patch("pkm_tool.sources.google_docs._AUTH_MANAGER") as mock_auth:
             mock_auth.ensure_oauth_token.return_value = None
+            mock_auth.get_token.return_value = None
 
             respx.get("https://www.googleapis.com/drive/v3/files").mock(
                 return_value=httpx.Response(200, json=google_drive_files_response)

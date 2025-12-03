@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import Any
 
 import httpx
+import structlog
 
 from pkm_tool.auth import AuthManager
 from pkm_tool.auth.oauth import GoogleOAuthProvider
@@ -12,6 +13,7 @@ from pkm_tool.cache import get_cached_client
 from pkm_tool.config import CacheConfig
 from pkm_tool.models import GoogleDoc
 
+logger = structlog.get_logger(__name__)
 _AUTH_MANAGER = AuthManager()
 
 
@@ -34,6 +36,7 @@ def fetch_google_docs(
     Returns:
         List of GoogleDoc objects
     """
+    logger.debug("google_docs_fetch_started", date=str(target_date))
     access_token = None
     provider = _build_provider(config)
 
@@ -43,14 +46,16 @@ def fetch_google_docs(
             access_token = token.token
 
     if access_token is None:
-        access_token = config.get("access_token", os.environ.get("GOOGLE_ACCESS_TOKEN"))
+        access_token = _get_google_docs_token(config)
 
     if not access_token:
+        logger.warning("google_docs_no_token", message="No Google Docs access token configured")
         return []
 
     docs: list[GoogleDoc] = []
 
     try:
+        logger.debug("google_docs_querying_drive_api", date=str(target_date))
         headers = {"Authorization": f"Bearer {access_token}"}
 
         # Use cached client if cache config provided, otherwise regular httpx client
@@ -99,10 +104,22 @@ def fetch_google_docs(
                 )
                 docs.append(doc)
 
-    except (httpx.HTTPError, KeyError):
-        pass
+        logger.info("google_docs_fetched", doc_count=len(docs))
+
+    except (httpx.HTTPError, KeyError) as e:
+        # HTTP and key errors are caught and return empty list
+        # This ensures graceful degradation
+        logger.error("google_docs_fetch_failed", error=str(e), exc_info=True)
 
     return docs
+
+
+def _get_google_docs_token(config: dict[str, Any]) -> str | None:
+    """Retrieve Google Docs access token from token store or fall back to config/env."""
+    stored = _AUTH_MANAGER.get_token("google_docs")
+    if stored:
+        return stored.token
+    return config.get("access_token") or os.environ.get("GOOGLE_ACCESS_TOKEN")
 
 
 def _build_provider(config: dict[str, Any]) -> GoogleOAuthProvider | None:

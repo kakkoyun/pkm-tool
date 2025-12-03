@@ -4,7 +4,11 @@ import subprocess
 from datetime import date, datetime
 from typing import Any
 
+import structlog
+
 from pkm_tool.models import Event
+
+logger = structlog.get_logger(__name__)
 
 
 def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Event]:
@@ -20,13 +24,20 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
     Returns:
         List of Event objects
     """
+    logger.debug("apple_calendar_fetch_started", date=str(target_date))
+
     # Check if running on macOS
     try:
         result = subprocess.run(["uname"], capture_output=True, text=True, check=True, timeout=5)
         if result.stdout.strip() != "Darwin":
             # Not on macOS, return empty list
+            logger.warning(
+                "apple_calendar_not_macos",
+                message="Apple Calendar only available on macOS",
+            )
             return []
-    except (subprocess.SubprocessError, FileNotFoundError):
+    except (subprocess.SubprocessError, FileNotFoundError) as e:
+        logger.error("apple_calendar_platform_check_failed", error=str(e), exc_info=True)
         return []
 
     # Build AppleScript to fetch events
@@ -71,6 +82,7 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
     """
 
     try:
+        logger.debug("apple_calendar_executing_applescript")
         result = subprocess.run(
             ["osascript", "-e", apple_script],
             capture_output=True,
@@ -84,7 +96,9 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
         # This is a placeholder implementation
         # In a real implementation, you'd parse the AppleScript output
 
+        logger.info("apple_calendar_events_fetched", event_count=len(events))
         return events
-    except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired):
+    except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
         # If AppleScript fails, return empty list
+        logger.error("apple_calendar_fetch_failed", error=str(e), exc_info=True)
         return []

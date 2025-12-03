@@ -88,7 +88,7 @@ def fetch_whoop_recovery(
         logger.debug("whoop_recovery_not_found", date=str(target_date))
 
     except (httpx.HTTPError, KeyError, ValueError) as e:
-        # All exceptions are caught and return None
+        # HTTP, key, and value errors are caught and return None
         # This ensures graceful degradation
         logger.error("whoop_recovery_fetch_failed", error=str(e), exc_info=True)
 
@@ -195,7 +195,7 @@ def fetch_whoop_sleep(
         logger.info("whoop_sleep_fetched", cycle_count=len(sleep_cycles))
 
     except (httpx.HTTPError, KeyError, ValueError) as e:
-        # All exceptions are caught and return empty list
+        # HTTP, key, and value errors are caught and return empty list
         # This ensures graceful degradation
         logger.error("whoop_sleep_fetch_failed", error=str(e), exc_info=True)
 
@@ -286,7 +286,7 @@ def fetch_whoop_workouts(
         logger.info("whoop_workouts_fetched", workout_count=len(workouts))
 
     except (httpx.HTTPError, KeyError, ValueError) as e:
-        # All exceptions are caught and return empty list
+        # HTTP, key, and value errors are caught and return empty list
         # This ensures graceful degradation
         logger.error("whoop_workouts_fetch_failed", error=str(e), exc_info=True)
 

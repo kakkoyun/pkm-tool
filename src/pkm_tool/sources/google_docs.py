@@ -107,7 +107,7 @@ def fetch_google_docs(
         logger.info("google_docs_fetched", doc_count=len(docs))
 
     except (httpx.HTTPError, KeyError) as e:
-        # All exceptions are caught and return empty list
+        # HTTP and key errors are caught and return empty list
         # This ensures graceful degradation
         logger.error("google_docs_fetch_failed", error=str(e), exc_info=True)
 

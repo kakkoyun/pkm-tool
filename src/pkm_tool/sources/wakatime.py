@@ -88,7 +88,7 @@ def fetch_wakatime_activities(
         logger.info("wakatime_activities_fetched", activity_count=len(activities))
 
     except (httpx.HTTPError, KeyError) as e:
-        # All exceptions are caught and return empty list
+        # HTTP and key errors are caught and return empty list
         # This ensures graceful degradation
         logger.error("wakatime_fetch_failed", error=str(e), exc_info=True)
 

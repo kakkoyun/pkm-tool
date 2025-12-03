@@ -1,11 +1,13 @@
 # pkm-tool
 
 [![CI](https://github.com/kakkoyun/pkm-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/kakkoyun/pkm-tool/actions/workflows/ci.yml)
+[![Commitlint](https://github.com/kakkoyun/pkm-tool/actions/workflows/commitlint.yml/badge.svg)](https://github.com/kakkoyun/pkm-tool/actions/workflows/commitlint.yml)
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/kakkoyun/pkm-tool)](LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![codecov](https://codecov.io/gh/kakkoyun/pkm-tool/branch/main/graph/badge.svg)](https://codecov.io/gh/kakkoyun/pkm-tool)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white)](https://conventionalcommits.org)
 
 Personal Knowledge Management Tool to fetch and format data from several resources.
 
@@ -519,12 +521,39 @@ make all
 # Individual checks
 make format              # Format all code
 make lint                # Run all linters
+make lint/commits        # Check commit messages (requires Node.js)
 make typecheck/python    # Type check with ty
 make test                # Run tests
 
 # Auto-fix issues
 make fix/python          # Format + lint --fix
 ```
+
+#### Commit Message Validation
+
+This project enforces [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages:
+
+```bash
+# Valid commit messages
+git commit -m "feat(auth): add login form"
+git commit -m "fix(api): handle null values"
+git commit -m "docs: update README"
+
+# Invalid commit messages
+git commit -m "Added login form"     # Missing type and scope
+git commit -m "fix stuff"            # Too vague
+```
+
+**Automatic validation:**
+
+- Pre-commit hook validates commit messages locally
+- CI validates all commits in PRs
+- Use `make lint/commits` to check the last commit manually
+
+**Requirements:**
+
+- Node.js 20+ (for commitlint)
+- Run `make install` to install dependencies including npm packages
 
 ### Project Structure
 

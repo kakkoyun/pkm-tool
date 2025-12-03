@@ -4,7 +4,6 @@ from datetime import date
 from unittest.mock import MagicMock
 
 import httpx
-import pytest
 from github import GithubException
 
 from pkm_tool.sources.apple_calendar import fetch_calendar_events
@@ -44,7 +43,7 @@ class TestGitHubErrorHandling:
         config = {"token": "valid_token"}
 
         # Mock Auth and Github to raise rate limit error
-        mock_auth = mocker.patch("pkm_tool.sources.github.Auth")
+        mocker.patch("pkm_tool.sources.github.Auth")
         mock_github = mocker.patch("pkm_tool.sources.github.Github")
         mock_github.return_value.get_user.side_effect = GithubException(
             403, "API rate limit exceeded"
@@ -60,7 +59,7 @@ class TestGitHubErrorHandling:
         config = {"token": "valid_token"}
 
         # Mock Auth and Github to raise connection error
-        mock_auth = mocker.patch("pkm_tool.sources.github.Auth")
+        mocker.patch("pkm_tool.sources.github.Auth")
         mock_github = mocker.patch("pkm_tool.sources.github.Github")
         mock_github.return_value.get_user.side_effect = ConnectionError("Network unreachable")
 
@@ -86,7 +85,7 @@ class TestGitHubErrorHandling:
         config = {"token": "valid_token"}
 
         # Mock Auth and Github to raise unexpected error
-        mock_auth = mocker.patch("pkm_tool.sources.github.Auth")
+        mocker.patch("pkm_tool.sources.github.Auth")
         mock_github = mocker.patch("pkm_tool.sources.github.Github")
         mock_github.return_value.get_user.side_effect = RuntimeError("Unexpected error")
 

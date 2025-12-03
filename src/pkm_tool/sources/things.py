@@ -23,7 +23,7 @@ def fetch_things_tasks(target_date: date, config: dict[str, Any]) -> list[Things
         List of ThingsTask objects (empty list on error or non-macOS)
     """
     logger.debug("things_fetch_started", date=str(target_date))
-    
+
     # Check if running on macOS
     if platform.system() != "Darwin":
         logger.debug("things_not_macos", message="Things only available on macOS")

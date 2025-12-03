@@ -37,6 +37,11 @@ def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[Atl
         )
         return []
 
+    # Type narrowing - we know these are all non-None after the check above
+    assert base_url is not None
+    assert username is not None
+    assert api_token is not None
+
     logger.debug("atlassian_fetching_items", date=str(target_date), base_url=base_url)
     try:
         jira_items = _fetch_jira_via_library(target_date, base_url, username, api_token)
@@ -57,7 +62,7 @@ def _fetch_jira_via_library(
 ) -> list[AtlassianItem]:
     """
     Fetch Jira issues updated on target date using atlassian-python-api.
-    
+
     Raises:
         Exception: Any error during Jira API interaction
     """
@@ -90,9 +95,7 @@ def _fetch_jira_via_library(
                 url=f"{base_url}/browse/{issue['key']}",
                 key=issue["key"],
                 status=issue["fields"]["status"]["name"],
-                updated=datetime.fromisoformat(
-                    issue["fields"]["updated"].replace("Z", "+00:00")
-                ),
+                updated=datetime.fromisoformat(issue["fields"]["updated"].replace("Z", "+00:00")),
             )
             items.append(item)
         except (KeyError, ValueError):
@@ -108,7 +111,7 @@ def _fetch_confluence_via_library(
 ) -> list[AtlassianItem]:
     """
     Fetch Confluence pages updated on target date using atlassian-python-api.
-    
+
     Raises:
         Exception: Any error during Confluence API interaction
     """

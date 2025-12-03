@@ -33,10 +33,10 @@ github:
   # title: "💻 Code Changes"  # Custom section title
   # order: 2                   # Display order
   config:
-    # Tokens can be stored securely with `pkm auth login github`
-    # Alternatively, set token in config or use GITHUB_TOKEN env var:
-    # token: ghp_your_token_here
-    # username: your_github_username
+  # Tokens can be stored securely with `pkm auth login github`
+  # Alternatively, set token in config or use GITHUB_TOKEN env var:
+  # token: ghp_your_token_here
+  # username: your_github_username
 
 # Atlassian (Jira/Confluence)
 atlassian:
@@ -85,6 +85,6 @@ whoop:
   # title: "💪 Health Data"
   # order: 7
   config:
-    # Preferred: store tokens via `pkm auth login whoop`
-    # Alternatively, set in config or use WHOOP_ACCESS_TOKEN env var:
-    # access_token: your_whoop_access_token_here
+# Preferred: store tokens via `pkm auth login whoop`
+# Alternatively, set in config or use WHOOP_ACCESS_TOKEN env var:
+# access_token: your_whoop_access_token_here

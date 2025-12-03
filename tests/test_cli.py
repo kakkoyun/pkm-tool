@@ -425,7 +425,6 @@ def test_cli_aggregate_subcommand(
     assert "Daily Report" in result.output
 
 
-
 @pytest.mark.snapshot
 def test_cli_github_subcommand(
     cli_runner: CliRunner,

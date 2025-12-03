@@ -96,7 +96,7 @@ def fetch_wakatime_activities(
 
 
 def _get_wakatime_token(config: dict[str, Any]) -> str | None:
-    """Retrieve Wakatime API key from token store or fall back to config/env."""
+    """Retrieve Wakatime token from token store or fall back to config/env."""
     stored = _AUTH_MANAGER.get_token("wakatime")
     if stored:
         return stored.token

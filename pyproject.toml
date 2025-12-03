@@ -64,10 +64,6 @@ select = ["E", "F", "I", "N", "UP", "RUF"]
 
 [tool.ty]
 # Astral's ty type checker configuration
-# Ignore unresolved imports for third-party packages without type stubs
-
-[tool.ty.rules]
-unresolved-import = "ignore"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

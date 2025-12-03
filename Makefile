@@ -47,7 +47,7 @@ test/parallel: ## Run all tests in parallel (use for slow/large test suites >30s
 	uv run pytest -v -n auto --durations=10
 
 test/coverage: ## Run tests with coverage report
-	uv run pytest -v --durations=10 --cov --cov-report=term-missing --cov-report=html --junitxml=junit.xml -o junit_family=legacy
+	uv run pytest -v --durations=10 --cov --cov-report=term-missing --cov-report=html
 
 test/timing: ## Run tests with detailed timing information
 	uv run pytest -v --durations=0
@@ -258,7 +258,7 @@ clean/all: clean ## Deep clean (clean + remove virtual environment)
 .PHONY: all ci
 
 all: format check lint test ## Run full pipeline: format → lint → typecheck → test
-ci: check test/coverage ## Run CI pipeline: check → test (what GitHub Actions runs)
+ci: check test ## Run CI pipeline: check → test (what GitHub Actions runs)
 
 # ============================================================================
 # Section 9: Help

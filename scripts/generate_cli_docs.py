@@ -75,7 +75,7 @@ def format_help_as_markdown(help_text: str) -> str:
         for opt in options:
             # Parse option line (e.g., "-d, --date TEXT  Date to fetch data for...")
             # Split on multiple spaces (2 or more) to separate option from description
-            parts = re.split(r'\s{2,}', opt, maxsplit=1)
+            parts = re.split(r"\s{2,}", opt, maxsplit=1)
             if len(parts) >= 2:
                 opt_name = parts[0].strip()
                 opt_desc = parts[1].strip()
@@ -115,15 +115,9 @@ def update_readme(readme_path: Path, generated_docs: str) -> bool:
         return False
 
     # Replace content between markers
-    pattern = re.compile(
-        rf"({re.escape(start_marker)})(.*?)({re.escape(end_marker)})",
-        re.DOTALL
-    )
+    pattern = re.compile(rf"({re.escape(start_marker)})(.*?)({re.escape(end_marker)})", re.DOTALL)
 
-    new_content = pattern.sub(
-        rf"\1\n\n{generated_docs}\n{end_marker}",
-        content
-    )
+    new_content = pattern.sub(rf"\1\n\n{generated_docs}\n{end_marker}", content)
 
     # Write back to file
     readme_path.write_text(new_content)
@@ -137,10 +131,10 @@ def main_script() -> int:
     project_root = script_dir.parent
     readme_path = project_root / "README.md"
 
-    print(f"Extracting CLI help text...")
+    print("Extracting CLI help text...")
     help_text = extract_help_text()
 
-    print(f"Formatting as Markdown...")
+    print("Formatting as Markdown...")
     generated_docs = format_help_as_markdown(help_text)
 
     print(f"Updating {readme_path}...")

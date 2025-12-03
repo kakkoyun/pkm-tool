@@ -1,11 +1,13 @@
 """Data aggregation from all sources."""
 
 import time
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
 import structlog
 
-from pkm_tool.config import CacheConfig, load_config
+from pkm_tool.config import CacheConfig, SourceConfig, load_config
 from pkm_tool.models import AggregatedData
 from pkm_tool.sources.apple_calendar import fetch_calendar_events
 from pkm_tool.sources.atlassian import fetch_atlassian_items
@@ -20,6 +22,83 @@ from pkm_tool.sources.whoop import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _fetch_from_source(
+    source_name: str,
+    source_config: SourceConfig,
+    target_date: date,
+    data: AggregatedData,
+    fetch_func: Callable[..., Any],
+    is_weekend: bool,
+    exclude_weekends_override: bool | None,
+    result_setter: Callable[[AggregatedData, Any], None],
+    cache_config: CacheConfig | None = None,
+) -> None:
+    """
+    Generic helper to fetch data from a source with weekend exclusion, timing, and error handling.
+
+    This centralizes the repetitive pattern used for each source in aggregate_data.
+
+    Args:
+        source_name: Name of the source (e.g., "github", "wakatime")
+        source_config: SourceConfig for this source
+        target_date: Date to fetch data for
+        data: AggregatedData object to populate
+        fetch_func: Function to call to fetch data
+        is_weekend: Whether target_date is a weekend
+        exclude_weekends_override: Global override for weekend exclusion
+        result_setter: Function to set the result on the data object
+        cache_config: Optional cache config for HTTP-based sources
+    """
+    if not source_config.enabled:
+        logger.debug("source_disabled", source=source_name)
+        return
+
+    # Check weekend exclusion
+    skip_weekend = (
+        exclude_weekends_override
+        if exclude_weekends_override is not None
+        else source_config.exclude_weekends
+    )
+    if is_weekend and skip_weekend:
+        logger.info("source_skipped_weekend", source=source_name)
+        return
+
+    logger.info("fetching_source", source=source_name, enabled=True)
+    start_time = time.time()
+    try:
+        # Call fetch function with or without cache_config based on whether it's provided
+        if cache_config is not None:
+            result = fetch_func(target_date, source_config.config, cache_config)
+        else:
+            result = fetch_func(target_date, source_config.config)
+
+        duration = time.time() - start_time
+        result_setter(data, result)
+        # Get count - handle both list results and single object results
+        if isinstance(result, list):
+            count = len(result)
+        elif result is None:
+            count = 0
+        else:
+            count = 1
+        logger.info(
+            "source_fetch_completed",
+            source=source_name,
+            duration_seconds=f"{duration:.2f}",
+            items_count=count,
+        )
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.warning(
+            "source_fetch_failed",
+            source=source_name,
+            error=str(e),
+            duration_seconds=f"{duration:.2f}",
+            exc_info=True,
+        )
+        data.metadata[f"{source_name}_error"] = str(e)
 
 
 def aggregate_data(
@@ -51,217 +130,76 @@ def aggregate_data(
             ttl_hours=config.cache.ttl_hours,
         )
 
-    # Fetch from each source if enabled
-    if config.apple_calendar.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.apple_calendar.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="apple_calendar")
-        else:
-            logger.info("fetching_source", source="apple_calendar", enabled=True)
-            start_time = time.time()
-            try:
-                data.calendar_events = fetch_calendar_events(
-                    target_date, config.apple_calendar.config
-                )
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="apple_calendar",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=len(data.calendar_events),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="apple_calendar",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["apple_calendar_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="apple_calendar")
+    # Fetch from each source using the common helper
+    _fetch_from_source(
+        "apple_calendar",
+        config.apple_calendar,
+        target_date,
+        data,
+        fetch_calendar_events,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "calendar_events", result),
+    )
 
-    if config.github.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.github.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="github")
-        else:
-            logger.info("fetching_source", source="github", enabled=True)
-            start_time = time.time()
-            try:
-                data.github_activities = fetch_github_activities(target_date, config.github.config)
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="github",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=len(data.github_activities),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="github",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["github_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="github")
+    _fetch_from_source(
+        "github",
+        config.github,
+        target_date,
+        data,
+        fetch_github_activities,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "github_activities", result),
+    )
 
-    if config.atlassian.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.atlassian.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="atlassian")
-        else:
-            logger.info("fetching_source", source="atlassian", enabled=True)
-            start_time = time.time()
-            try:
-                data.atlassian_items = fetch_atlassian_items(target_date, config.atlassian.config)
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="atlassian",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=len(data.atlassian_items),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="atlassian",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["atlassian_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="atlassian")
+    _fetch_from_source(
+        "atlassian",
+        config.atlassian,
+        target_date,
+        data,
+        fetch_atlassian_items,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "atlassian_items", result),
+    )
 
-    if config.things.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.things.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="things")
-        else:
-            logger.info("fetching_source", source="things", enabled=True)
-            start_time = time.time()
-            try:
-                data.things_tasks = fetch_things_tasks(target_date, config.things.config)
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="things",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=len(data.things_tasks),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="things",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["things_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="things")
+    _fetch_from_source(
+        "things",
+        config.things,
+        target_date,
+        data,
+        fetch_things_tasks,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "things_tasks", result),
+    )
 
-    if config.wakatime.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.wakatime.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="wakatime")
-        else:
-            logger.info("fetching_source", source="wakatime", enabled=True)
-            start_time = time.time()
-            try:
-                data.wakatime_activities = fetch_wakatime_activities(
-                    target_date, config.wakatime.config, cache_config
-                )
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="wakatime",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=len(data.wakatime_activities),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="wakatime",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["wakatime_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="wakatime")
+    _fetch_from_source(
+        "wakatime",
+        config.wakatime,
+        target_date,
+        data,
+        fetch_wakatime_activities,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "wakatime_activities", result),
+        cache_config=cache_config,
+    )
 
-    if config.google_docs.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.google_docs.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="google_docs")
-        else:
-            logger.info("fetching_source", source="google_docs", enabled=True)
-            start_time = time.time()
-            try:
-                data.google_docs = fetch_google_docs(
-                    target_date, config.google_docs.config, cache_config
-                )
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="google_docs",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=len(data.google_docs),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="google_docs",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["google_docs_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="google_docs")
+    _fetch_from_source(
+        "google_docs",
+        config.google_docs,
+        target_date,
+        data,
+        fetch_google_docs,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "google_docs", result),
+        cache_config=cache_config,
+    )
 
+    # Whoop has multiple endpoints (recovery, sleep, workouts) - handle separately
     if config.whoop.enabled:
         # Check weekend exclusion
         skip_weekend = (

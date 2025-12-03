@@ -1,17 +1,15 @@
 """GitHub integration using PyGithub library."""
 
-import os
 from datetime import date
 from typing import Any
 
 import structlog
 from github import Auth, Github, GithubException
 
-from pkm_tool.auth import AuthManager
 from pkm_tool.models import GitHubActivity
+from pkm_tool.sources.common import get_source_token
 
 logger = structlog.get_logger(__name__)
-_AUTH_MANAGER = AuthManager()
 
 
 def fetch_github_activities(target_date: date, config: dict[str, Any]) -> list[GitHubActivity]:
@@ -179,7 +177,4 @@ def _map_event_to_activity(event: Any) -> GitHubActivity | None:
 
 def _get_github_token(config: dict[str, Any]) -> str | None:
     """Retrieve GitHub token from token store or fall back to config/env."""
-    stored = _AUTH_MANAGER.get_token("github")
-    if stored:
-        return stored.token
-    return config.get("token") or os.getenv("GITHUB_TOKEN")
+    return get_source_token("github", config, config_key="token", env_var="GITHUB_TOKEN")

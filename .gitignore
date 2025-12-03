@@ -216,3 +216,7 @@ __marimo__/
 
 # Workbench
 .workbench/
+
+# Node.js dependencies for commitlint
+node_modules/
+package-lock.json

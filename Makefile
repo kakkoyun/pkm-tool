@@ -23,6 +23,12 @@ MAKEFLAGS += --no-builtin-rules
 
 tools/install: ## Install dependencies with all extras
 	uv sync --all-extras
+	@if command -v npm >/dev/null 2>&1; then \
+		echo "Installing Node.js dependencies for commitlint..."; \
+		npm install --silent; \
+	else \
+		echo "npm not available, skipping Node.js dependencies installation."; \
+	fi
 
 tools/install/dev: tools/install tools/install-hooks ## Install with dev dependencies (alias for install)
 
@@ -151,6 +157,37 @@ lint/makefile: ## Check Makefile with checkmake
 		checkmake Makefile ; \
 	else \
 		echo "checkmake not available (install via pre-commit), skipping"; \
+	fi
+
+lint/commits: ## Check commit messages with commitlint
+	@echo "Validating commit messages with commitlint..."
+	@if [ -f node_modules/.bin/commitlint ]; then \
+		echo "Checking last commit message..."; \
+		node_modules/.bin/commitlint --config .commitlintrc.yaml --from HEAD~1 --to HEAD --verbose ; \
+	elif command -v npx >/dev/null 2>&1; then \
+		echo "Local commitlint not found. Using npx..."; \
+		npx --yes --package=@commitlint/cli@19.8.1 --package=@commitlint/config-conventional@19.8.1 -- commitlint --config .commitlintrc.yaml --from HEAD~1 --to HEAD --verbose ; \
+	else \
+		echo "Error: commitlint not available. Run 'make tools/install' or install Node.js."; \
+		exit 1; \
+	fi
+
+lint/commits/range: ## Check commit messages in a range (usage: make lint/commits/range FROM=<sha> TO=<sha>)
+	@echo "Validating commit messages with commitlint..."
+	@if [ -z "$(FROM)" ] || [ -z "$(TO)" ]; then \
+		echo "Error: FROM and TO must be specified"; \
+		echo "Usage: make lint/commits/range FROM=<sha> TO=<sha>"; \
+		exit 1; \
+	fi
+	@if [ -f node_modules/.bin/commitlint ]; then \
+		echo "Checking commits from $(FROM) to $(TO)..."; \
+		node_modules/.bin/commitlint --config .commitlintrc.yaml --from $(FROM) --to $(TO) --verbose ; \
+	elif command -v npx >/dev/null 2>&1; then \
+		echo "Local commitlint not found. Using npx..."; \
+		npx --yes --package=@commitlint/cli@19.8.1 --package=@commitlint/config-conventional@19.8.1 -- commitlint --config .commitlintrc.yaml --from $(FROM) --to $(TO) --verbose ; \
+	else \
+		echo "Error: commitlint not available. Run 'make tools/install' or install Node.js."; \
+		exit 1; \
 	fi
 
 check: lint format/python/check typecheck/python ## Run all Python checks without modifying files

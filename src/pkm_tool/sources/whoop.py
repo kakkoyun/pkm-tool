@@ -1,19 +1,16 @@
 """Whoop integration."""
 
-import os
 from datetime import date, datetime
 from typing import Any
 
 import httpx
 import structlog
 
-from pkm_tool.auth import AuthManager
-from pkm_tool.cache import get_cached_client
 from pkm_tool.config import CacheConfig
 from pkm_tool.models import WhoopRecovery, WhoopSleep, WhoopWorkout
+from pkm_tool.sources.common import create_http_client, get_source_token
 
 logger = structlog.get_logger(__name__)
-_AUTH_MANAGER = AuthManager()
 
 
 def fetch_whoop_recovery(
@@ -42,11 +39,8 @@ def fetch_whoop_recovery(
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        # Use cached client if cache config provided, otherwise regular httpx client
-        if cache_config:
-            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
-        else:
-            client = httpx.Client(headers=headers, timeout=30.0)
+        # Use common HTTP client creation
+        client = create_http_client(headers, cache_config=cache_config, timeout=30.0)
 
         with client:
             # Fetch recovery cycles for a date range around target date
@@ -123,11 +117,8 @@ def fetch_whoop_sleep(
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        # Use cached client if cache config provided, otherwise regular httpx client
-        if cache_config:
-            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
-        else:
-            client = httpx.Client(headers=headers, timeout=30.0)
+        # Use common HTTP client creation
+        client = create_http_client(headers, cache_config=cache_config, timeout=30.0)
 
         with client:
             # Fetch sleep cycles for date range
@@ -230,11 +221,8 @@ def fetch_whoop_workouts(
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
 
-        # Use cached client if cache config provided, otherwise regular httpx client
-        if cache_config:
-            client = get_cached_client(cache_config, headers=headers, timeout=30.0)
-        else:
-            client = httpx.Client(headers=headers, timeout=30.0)
+        # Use common HTTP client creation
+        client = create_http_client(headers, cache_config=cache_config, timeout=30.0)
 
         with client:
             # Fetch workouts for date range
@@ -295,7 +283,6 @@ def fetch_whoop_workouts(
 
 def _get_whoop_token(config: dict[str, Any]) -> str | None:
     """Retrieve Whoop access token from secure store or config/env fallback."""
-    stored = _AUTH_MANAGER.get_token("whoop")
-    if stored:
-        return stored.token
-    return config.get("access_token") or os.environ.get("WHOOP_ACCESS_TOKEN")
+    return get_source_token(
+        "whoop", config, config_key="access_token", env_var="WHOOP_ACCESS_TOKEN"
+    )

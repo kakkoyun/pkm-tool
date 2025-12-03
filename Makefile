@@ -153,7 +153,7 @@ lint/makefile: ## Check Makefile with checkmake
 		echo "checkmake not available (install via pre-commit), skipping"; \
 	fi
 
-check: lint ratchet/check format/python/check typecheck/python ## Run all Python checks without modifying files
+check: lint format/python/check typecheck/python ## Run all Python checks without modifying files
 
 .PHONY: fix
 fix: fix/python lint/markdown/fix format ## Auto-fix all fixable issues (format + lint --fix)

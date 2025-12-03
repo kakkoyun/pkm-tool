@@ -386,7 +386,7 @@ def _handle_non_pkm_header(
         # We were in a PKM section, now entering postamble
         _save_current_section(sections, current_section, current_content)
         sections["_postamble"] = line
-        return None, [], in_preamble, True
+        return None, [], False, True
 
     if in_preamble:
         # Still in preamble

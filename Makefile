@@ -113,7 +113,7 @@ lint/python/fix: ## Auto-fix Python linting issues
 lint/markdown: ## Lint check Markdown files with markdownlint
 	@echo "Linting Markdown files..."
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --config .config/markdownlint.json ; \
+		npx --yes markdownlint-cli **/*.md --config .config/markdownlint.json --ignore-path .config/markdownlintignore ; \
 	else \
 		echo "npx not available, using pre-commit mdformat instead"; \
 		pre-commit run mdformat --all-files ; \
@@ -122,7 +122,7 @@ lint/markdown: ## Lint check Markdown files with markdownlint
 lint/markdown/fix: ## Lint and fix Markdown files with markdownlint
 	@echo "Linting and fixing Markdown files..."
 	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --fix --config .config/markdownlint.json ; \
+		npx --yes markdownlint-cli **/*.md --fix --config .config/markdownlint.json --ignore-path .config/markdownlintignore ; \
 	else \
 		echo "npx not available, using pre-commit mdformat instead"; \
 		pre-commit run mdformat --all-files ; \

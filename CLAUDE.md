@@ -1122,6 +1122,7 @@ Pre-commit hooks run automatically on `git commit`:
 
 - **Setup**: `make install-hooks` or `make pre-commit/install`
 - **Manual run**: `make pre-commit`
-- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint, mdformat, checkmake, commitlint (commit-msg stage)
+- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint,
+  mdformat, checkmake, commitlint (commit-msg stage)
 
 Pre-commit hooks catch issues before commit, reducing CI failures.

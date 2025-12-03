@@ -13,7 +13,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from pkm_tool.aggregator import aggregate_data
-from pkm_tool.config import load_config
+from pkm_tool.config import CacheConfig, load_config
 from pkm_tool.formatters import format_as_json, format_as_markdown
 from pkm_tool.logging import get_logger
 from pkm_tool.models import AggregatedData
@@ -60,6 +60,9 @@ def _fetch_source_data(
     config = load_config(config_path)
     data = AggregatedData(date=target_date)
 
+    # Get cache config for HTTP-based sources
+    cache_config: CacheConfig | None = config.cache if config.cache.enabled else None
+
     if source == "calendar":
         data.calendar_events = fetch_calendar_events(target_date, config.apple_calendar.config)
     elif source == "github":
@@ -69,13 +72,15 @@ def _fetch_source_data(
     elif source == "things":
         data.things_tasks = fetch_things_tasks(target_date, config.things.config)
     elif source == "wakatime":
-        data.wakatime_activities = fetch_wakatime_activities(target_date, config.wakatime.config)
+        data.wakatime_activities = fetch_wakatime_activities(
+            target_date, config.wakatime.config, cache_config
+        )
     elif source == "google-docs":
-        data.google_docs = fetch_google_docs(target_date, config.google_docs.config)
+        data.google_docs = fetch_google_docs(target_date, config.google_docs.config, cache_config)
     elif source == "whoop":
-        data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config)
-        data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config)
-        data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config)
+        data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config, cache_config)
+        data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
+        data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config, cache_config)
     else:
         raise ValueError(f"Unknown source: {source}")
 
@@ -323,9 +328,13 @@ def create_mcp_server() -> Server:
     return server
 
 
-async def run_mcp_server() -> None:
-    """Run the MCP server using stdio transport."""
-    logger.info("starting_mcp_server")
+async def run_mcp_server(config_path: str | None = None) -> None:
+    """Run the MCP server using stdio transport.
+
+    Args:
+        config_path: Optional path to configuration file
+    """
+    logger.info("starting_mcp_server", config_path=config_path)
     server = create_mcp_server()
 
     async with stdio_server() as (read_stream, write_stream):

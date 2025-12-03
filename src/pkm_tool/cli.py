@@ -1219,8 +1219,8 @@ def mcp(
 
         from pkm_tool.mcp_server import run_mcp_server
 
-        # Run the MCP server
-        asyncio.run(run_mcp_server())
+        # Run the MCP server with config path
+        asyncio.run(run_mcp_server(config))
     except ImportError:
         logger.error("mcp_dependencies_missing")
         click.echo(

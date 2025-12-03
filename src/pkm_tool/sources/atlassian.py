@@ -12,7 +12,7 @@ from pkm_tool.auth import AuthManager
 from pkm_tool.models import AtlassianItem
 
 logger = structlog.get_logger(__name__)
-_AUTH_MANAGER = AuthManager()
+_AUTH_MANAGER = AuthManager()  # Note: Atlassian needs AuthManager for complex JSON token handling
 
 
 def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[AtlassianItem]:

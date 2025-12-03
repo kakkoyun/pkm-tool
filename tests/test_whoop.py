@@ -460,8 +460,10 @@ class TestGetWhoopToken:
         """Test getting token from config."""
         config = {"access_token": "config_token"}
 
-        with patch("pkm_tool.sources.whoop._AUTH_MANAGER") as mock_auth:
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
             mock_auth.get_token.return_value = None
+            mock_auth_class.return_value = mock_auth
 
             result = _get_whoop_token(config)
 
@@ -471,8 +473,10 @@ class TestGetWhoopToken:
         """Test getting token from environment variable."""
         monkeypatch.setenv("WHOOP_ACCESS_TOKEN", "env_token")
 
-        with patch("pkm_tool.sources.whoop._AUTH_MANAGER") as mock_auth:
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
             mock_auth.get_token.return_value = None
+            mock_auth_class.return_value = mock_auth
 
             result = _get_whoop_token({})
 
@@ -483,8 +487,10 @@ class TestGetWhoopToken:
         mock_token = MagicMock()
         mock_token.token = "stored_token"
 
-        with patch("pkm_tool.sources.whoop._AUTH_MANAGER") as mock_auth:
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
             mock_auth.get_token.return_value = mock_token
+            mock_auth_class.return_value = mock_auth
 
             result = _get_whoop_token({})
 
@@ -496,8 +502,10 @@ class TestGetWhoopToken:
         mock_token.token = "stored_token"
         config = {"access_token": "config_token"}
 
-        with patch("pkm_tool.sources.whoop._AUTH_MANAGER") as mock_auth:
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
             mock_auth.get_token.return_value = mock_token
+            mock_auth_class.return_value = mock_auth
 
             result = _get_whoop_token(config)
 

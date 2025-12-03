@@ -118,9 +118,7 @@ class TestCreateHttpClient:
             client = create_http_client(headers, cache_config=cache_config, timeout=20.0)
 
             assert client == mock_client
-            mock_get_cached.assert_called_once_with(
-                cache_config, headers=headers, timeout=20.0
-            )
+            mock_get_cached.assert_called_once_with(cache_config, headers=headers, timeout=20.0)
 
     def test_create_client_custom_timeout(self) -> None:
         """Test creating client with custom timeout."""

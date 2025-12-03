@@ -1,0 +1,9 @@
+{
+  "name": "pkm-tool-commitlint",
+  "private": true,
+  "description": "Commitlint dependencies for conventional commit validation",
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1"
+  }
+}

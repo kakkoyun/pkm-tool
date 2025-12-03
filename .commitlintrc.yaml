@@ -1,0 +1,46 @@
+# Commitlint configuration
+# Validates commit messages follow Conventional Commits specification
+# See: https://www.conventionalcommits.org/
+
+extends:
+  - '@commitlint/config-conventional'
+
+rules:
+  # Enforce valid types as documented in CLAUDE.md
+  type-enum:
+    - 2
+    - always
+    - - feat      # New feature (MINOR)
+      - fix       # Bug fix (PATCH)
+      - docs      # Documentation only
+      - style     # Code style (formatting, whitespace)
+      - refactor  # Code changes (neither fix nor feature)
+      - perf      # Performance improvements (PATCH)
+      - test      # Adding or updating tests
+      - build     # Build system or dependencies
+      - ci        # CI/CD configuration changes
+      - chore     # Maintenance tasks, tooling
+
+  # Subject must not be sentence-case, start-case, pascal-case, upper-case
+  subject-case:
+    - 2
+    - never
+    - [sentence-case, start-case, pascal-case, upper-case]
+
+  # Header (type + scope + subject) max length
+  header-max-length:
+    - 2
+    - always
+    - 100
+
+  # Body max line length
+  body-max-line-length:
+    - 2
+    - always
+    - 100
+
+  # Footer max line length
+  footer-max-line-length:
+    - 2
+    - always
+    - 100

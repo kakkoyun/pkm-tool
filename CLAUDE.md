@@ -125,6 +125,42 @@ Reviewed-by: Alice Smith
 - Structured commit history for navigation
 - Triggers for CI/CD processes
 
+#### Validation
+
+Commit messages are automatically validated using **commitlint**:
+
+**Local validation (pre-commit hook):**
+
+```bash
+# Install pre-commit hooks (includes commitlint)
+make tools/install-hooks
+
+# Commits are automatically validated when you run git commit
+git commit -m "feat(auth): add login"  # ✓ passes
+git commit -m "Added login"            # ✗ fails
+```
+
+**Manual validation:**
+
+```bash
+# Check last commit message
+make lint/commits
+
+# Check a range of commits
+make lint/commits/range FROM=abc123 TO=def456
+```
+
+**CI validation:**
+
+- GitHub Actions automatically validates all commits in PRs
+- See `.github/workflows/commitlint.yml` for CI configuration
+
+**Configuration:**
+
+- Commitlint config: `.commitlintrc.yaml`
+- Pre-commit hook: `.pre-commit-config.yaml`
+- Dependencies: `package.json` (Node.js packages)
+
 ### Git Workflow (Simple Features)
 
 Use standard git workflow for simple, isolated features:
@@ -490,6 +526,8 @@ make lint/yaml                 # Lint YAML files (yamllint)
 make lint/markdown             # Lint Markdown files (markdownlint)
 make lint/markdown/fix         # Lint and fix Markdown files
 make lint/makefile             # Lint Makefile (checkmake)
+make lint/commits              # Check last commit message with commitlint
+make lint/commits/range        # Check commit message range (FROM=<sha> TO=<sha>)
 
 make typecheck/python          # Type check with ty
 make check                     # Run all checks without modifying (lint + format/python/check + typecheck)
@@ -497,7 +535,8 @@ make fix/python                # Auto-fix all fixable issues (format + lint --fi
 
 # 4. Pre-commit Integration
 make pre-commit                # Run pre-commit on all files
-                               # Includes: ruff, ty, shellcheck, actionlint, yamllint, mdformat, checkmake
+                               # Includes: ruff, ty, shellcheck, actionlint, yamllint, mdformat,
+                               # checkmake, commitlint (on commit-msg hook)
 make pre-commit/install        # Alias for install-hooks
 
 # 5. GitHub Actions Pinning (Ratchet)
@@ -1022,11 +1061,13 @@ make test                          # Run tests
 - **ruff**: Fast Python linter and formatter (replaces black, flake8, isort)
 - **ty**: Astral's fast type checker (replaces mypy)
 - **pre-commit**: Git hook framework for code quality enforcement
+- **commitlint** (Node.js): Validates commit messages against Conventional Commits spec
 
 ### Build System
 
 - **uv**: Fast Python package installer and resolver
 - Python 3.14 required (set in `.python-version` as source of truth)
+- **Node.js 20+** (optional): Required for commitlint commit message validation
 
 ## Project Workflow Patterns
 
@@ -1057,12 +1098,21 @@ This workflow enables:
 
 The project uses GitHub Actions for continuous integration:
 
+**Main CI Workflow:**
+
 - **Workflow**: `.github/workflows/ci.yml`
 - **Triggers**: Push and pull requests to main/master
 - **Python version**: 3.14
 - **Commands**: Uses Makefile for consistency with local development
-- **Checks**: `make all` (format, lint, typecheck, test)
+- **Checks**: `make ci` (check, test with coverage)
 - **Coverage**: Uploads to Codecov (optional failure)
+
+**Commitlint Workflow:**
+
+- **Workflow**: `.github/workflows/commitlint.yml`
+- **Triggers**: Push and pull requests to main/master
+- **Purpose**: Validates all commit messages follow Conventional Commits spec
+- **Tool**: commitlint with @commitlint/config-conventional
 
 Local development and CI use identical commands via the Makefile, ensuring consistency.
 
@@ -1072,6 +1122,7 @@ Pre-commit hooks run automatically on `git commit`:
 
 - **Setup**: `make install-hooks` or `make pre-commit/install`
 - **Manual run**: `make pre-commit`
-- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint, mdformat, checkmake
+- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint,
+  mdformat, checkmake, commitlint (commit-msg stage)
 
 Pre-commit hooks catch issues before commit, reducing CI failures.

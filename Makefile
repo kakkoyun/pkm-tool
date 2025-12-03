@@ -47,7 +47,7 @@ test/parallel: ## Run all tests in parallel (use for slow/large test suites >30s
 	uv run pytest -v -n auto --durations=10
 
 test/coverage: ## Run tests with coverage report
-	uv run pytest --cov --cov-report=term-missing --cov-report=html
+	uv run pytest --cov --cov-report=term-missing --cov-report=html --junitxml=junit.xml -o junit_family=legacy
 
 test/timing: ## Run tests with detailed timing information
 	uv run pytest -v --durations=0

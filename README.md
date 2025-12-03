@@ -74,13 +74,11 @@ Usage: cli [OPTIONS] COMMAND [ARGS]...
 
   Fetches and formats data from various sources including: - Apple Calendar
   Agenda - GitHub - Atlassian (Jira/Confluence) - Things Logbook - Wakatime -
-  Google Docs
+  Google Docs - Whoop
 
-  Run without subcommand to aggregate all sources, or use subcommands to fetch
-  from individual sources:
+  Use subcommands to aggregate all sources or fetch from individual sources:
 
-  pkm --date yesterday                Aggregate all sources (backward compat)
-  pkm aggregate --date yesterday      Explicitly aggregate all sources
+  pkm aggregate --date yesterday      Aggregate all sources
   pkm calendar --date yesterday       Fetch Apple Calendar events only
   pkm github --date yesterday         Fetch GitHub activities only
   pkm atlassian --date yesterday      Fetch Atlassian (Jira/Confluence) items only
@@ -92,133 +90,25 @@ Usage: cli [OPTIONS] COMMAND [ARGS]...
   pkm mcp                             Run as MCP (Model Context Protocol) server
 
 Options:
-  -d, --date TEXT               Date to fetch data for (default: today). Format:
-                                YYYY-MM-DD or natural language.
-  -f, --format [markdown|json]  Output format (default: markdown)
-  -c, --config PATH             Path to configuration file
-  -v, --verbose                 Enable verbose (DEBUG) logging
-  --log-format [human|json]     Log output format (default: human)
-  --help                        Show this message and exit.
+  --help  Show this message and exit.
 
 Commands:
   aggregate    Aggregate data from all configured sources (default behavior).
-  auth         Manage authentication credentials.
   atlassian    Fetch Atlassian (Jira/Confluence) items only.
+  auth         Manage authentication credentials.
   calendar     Fetch Apple Calendar events only.
   github       Fetch GitHub activities only.
   google-docs  Fetch Google Docs only.
-  mcp          Run as MCP (Model Context Protocol) server.
-  server       Start FastAPI web server.
+  mcp          Run PKM Tool as an MCP (Model Context Protocol) server.
+  server       Start the PKM Tool web server.
   things       Fetch Things tasks only.
   wakatime     Fetch Wakatime coding activities only.
   whoop        Fetch Whoop health data only.
 ```
 
-### MCP Server Mode (NEW!)
-
-PKM Tool can run as an MCP (Model Context Protocol) server,
-allowing AI assistants like Claude to access your personal data securely:
-
-```bash
-# Run as MCP server (stdio mode)
-pkm mcp
-```
-
-**Integration with Claude Desktop:**
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "pkm-tool": {
-      "command": "pkm",
-      "args": ["mcp"],
-      "env": {}
-    }
-  }
-}
-```
-
-**Available MCP Tools:**
-
-- `fetch_aggregated_data` - Get data from all configured sources
-- `fetch_calendar_events` - Get Apple Calendar events
-- `fetch_github_activities` - Get GitHub activities
-- `fetch_atlassian_items` - Get Atlassian (Jira/Confluence) items
-- `fetch_things_tasks` - Get Things tasks
-- `fetch_wakatime_activities` - Get Wakatime coding activities
-- `fetch_google_docs` - Get Google Docs
-- `fetch_whoop_data` - Get Whoop health data
-
-Once configured, Claude can fetch and analyze your daily data on demand.
-
 ### Available Options
 
-- **`-d, --date TEXT`**: Date to fetch data for (default: today). Format: YYYY-MM-DD or natural language.
-- **`--from DATE`**: Start date for date range (requires `--to`). Format: YYYY-MM-DD or natural language.
-- **`--to DATE`**: End date for date range (requires `--from`). Format: YYYY-MM-DD or natural language.
-- **`-o, --output-dir PATH`**: Output directory for batch mode (date ranges). Overrides config setting.
-- **`--exclude-weekends`**: Skip weekends (Saturdays and Sundays) in date ranges and source fetching.
-- **`-f, --format [markdown|json]`**: Output format (default: markdown)
-- **`-c, --config PATH`**: Path to configuration file
-- **`-v, --verbose`**: Enable verbose (DEBUG) logging
-- **`--log-format [human|json]`**: Log output format (default: human)
 - **`--help`**: Show this message and exit.
-
-### Date Range Examples (Phase 2)
-
-Generate reports for multiple days at once:
-
-```bash
-# Generate reports for a week
-pkm --from 2025-11-17 --to 2025-11-23
-
-# Skip weekends globally
-pkm --from 2025-11-17 --to 2025-11-23 --exclude-weekends
-
-# Custom output directory
-pkm --from 2025-11-17 --to 2025-11-23 -o ~/Documents/daily-notes/
-
-# Date ranges work with all subcommands
-pkm github --from 2025-11-17 --to 2025-11-23
-pkm wakatime --from 2025-11-17 --to 2025-11-23 --exclude-weekends
-```
-
-**Smart File Updates**: When generating reports for existing files, the tool intelligently:
-
-- Preserves your manual notes (preamble and postamble)
-- Updates PKM sections with fresh data
-- Appends new PKM sections that weren't in the file
-- Allows seamless mixing of automated data with personal journaling
-
-### Authentication Management
-
-Credentials are stored in an encrypted SQLite database at `~/.pkm-tool/tokens.db`
-(encrypted with a machine-specific key). Manage them via the `auth` subcommands:
-
-```bash
-# Discover supported sources and auth types
-pkm auth list
-
-# Check which sources are authenticated
-pkm auth status
-
-# Store tokens and API keys securely (interactive prompts)
-pkm auth login github
-pkm auth login wakatime
-pkm auth login atlassian
-pkm auth login google-docs --config ~/.config/pkm-tool/config.yaml
-pkm auth login whoop
-
-# Remove or refresh credentials
-pkm auth logout github
-pkm auth refresh google-docs --config ~/.config/pkm-tool/config.yaml
-```
-
-Google Docs uses the OAuth2 device code flow. Add your Google client ID/secret to
-the config file (see below) and run `pkm auth login google-docs` to authorize the
-CLI without running a local server.
 
 <!-- CLI_USAGE_END -->
 
@@ -483,8 +373,7 @@ tests/
 ├── test_integration.py    # End-to-end integration tests (12 tests)
 ├── test_models.py         # Data model tests
 ├── test_config.py         # Configuration tests
-├── test_formatters.py     # Output formatter tests
-└── test_*_migration.py    # Source-specific integration tests
+└── test_formatters.py     # Output formatter tests
 ```
 
 #### Test Types

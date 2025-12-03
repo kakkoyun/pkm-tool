@@ -258,7 +258,7 @@ clean/all: clean ## Deep clean (clean + remove virtual environment)
 .PHONY: all ci
 
 all: format check lint test ## Run full pipeline: format → lint → typecheck → test
-ci: check test ## Run CI pipeline: check → test (what GitHub Actions runs)
+ci: check test/coverage ## Run CI pipeline: check → test (what GitHub Actions runs)
 
 # ============================================================================
 # Section 9: Help

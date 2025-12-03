@@ -4,7 +4,11 @@ import platform
 from datetime import date, datetime
 from typing import Any
 
+import structlog
+
 from pkm_tool.models import ThingsTask
+
+logger = structlog.get_logger(__name__)
 
 
 def fetch_things_tasks(target_date: date, config: dict[str, Any]) -> list[ThingsTask]:
@@ -24,8 +28,9 @@ def fetch_things_tasks(target_date: date, config: dict[str, Any]) -> list[Things
 
     try:
         return _fetch_things_via_library(target_date)
-    except Exception:
+    except Exception as e:
         # Graceful error handling - return empty list on any error
+        logger.warning("things_fetch_failed", error=str(e), exc_info=True)
         return []
 
 

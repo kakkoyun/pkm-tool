@@ -290,6 +290,7 @@ def _fetch_single_source(
     logger.warning("unknown_source_requested", source=source)
     raise HTTPException(status_code=400, detail=f"Unknown or disabled source: {source}")
 
+
 @app.get("/api/data", response_model=DataResponse, tags=["Data"])
 async def get_data(
     date_str: str | None = Query(

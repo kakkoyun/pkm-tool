@@ -26,7 +26,7 @@ def mock_aggregated_data() -> AggregatedData:
         WakatimeActivity(
             project="test-project",
             duration_seconds=3600,
-            languages=["Python"],
+            language="Python",
         )
     ]
     return data

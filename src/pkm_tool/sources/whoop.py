@@ -53,7 +53,9 @@ def _parse_sleep_record(record: dict[str, Any], target_date: date) -> WhoopSleep
         deep_sleep_minutes=_convert_millis_to_minutes_optional(
             stages.get("slow_wave_sleep_duration_milli")
         ),
-        rem_sleep_minutes=_convert_millis_to_minutes_optional(stages.get("rem_sleep_duration_milli")),
+        rem_sleep_minutes=_convert_millis_to_minutes_optional(
+            stages.get("rem_sleep_duration_milli")
+        ),
         awake_minutes=_convert_millis_to_minutes_optional(stages.get("awake_duration_milli")),
         disturbances=score.get("disturbance_count"),
         sleep_performance=score.get("sleep_performance_percentage"),

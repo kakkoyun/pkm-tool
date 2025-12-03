@@ -394,7 +394,6 @@ def test_cli_help(cli_runner: CliRunner) -> None:
     assert "wakatime" in result.output
     assert "google-docs" in result.output
     assert "aggregate" in result.output
-    assert "aggregate" in result.output
 
 
 # ===== Subcommand Tests =====

@@ -30,17 +30,18 @@ Thank you for your interest in contributing to PKM Tool! This guide will help yo
    cd pkm-tool
    ```
 
-2. Install dependencies:
+1. Install dependencies:
 
    ```bash
    make install
    ```
 
    This will:
+
    - Install Python dependencies using `uv`
    - Install Node.js dependencies for commitlint (if npm is available)
 
-3. Install pre-commit hooks:
+1. Install pre-commit hooks:
 
    ```bash
    make install-hooks
@@ -85,17 +86,17 @@ make check                     # Run all checks (what CI runs)
    git checkout -b fix/bug-description
    ```
 
-2. **Make your changes** following the [Code Standards](#code-standards)
+1. **Make your changes** following the [Code Standards](#code-standards)
 
-3. **Run quality checks**:
+1. **Run quality checks**:
 
    ```bash
    make all
    ```
 
-4. **Commit your changes** using [Conventional Commits](#commit-message-format)
+1. **Commit your changes** using [Conventional Commits](#commit-message-format)
 
-5. **Push and create a Pull Request**:
+1. **Push and create a Pull Request**:
 
    ```bash
    git push -u origin your-branch-name
@@ -105,12 +106,21 @@ make check                     # Run all checks (what CI runs)
 
 ### Code Quality Tools
 
-- **ruff** - Fast Python linter and formatter (replaces black, flake8, isort)
-- **ty** - Astral's type checker for strict type validation (replaces mypy)
-- **yamllint** - YAML file linting
-- **markdownlint** - Markdown file linting
-- **shellcheck** - Shell script linting
-- **actionlint** - GitHub Actions workflow linting
+All tools are accessed via **Makefile targets**. Never call tools directly.
+
+- **ruff** - Fast Python linter and formatter (via `make format` / `make lint`)
+- **ty** - Astral's type checker (via `make typecheck/python`)
+- **yamllint** - YAML file linting (via `make lint/yaml`)
+- **markdownlint** - Markdown file linting (via `make lint/markdown`)
+- **shellcheck** - Shell script linting (via `make lint/shell`)
+- **actionlint** - GitHub Actions workflow linting (via `make lint/actions`)
+
+**Why use Makefile?**
+
+- Ensures consistency across all environments
+- Provides proper flags and configuration
+- Makes it easy to update tool versions or configurations
+- Single source of truth for all commands
 
 ### Python Style Guide
 
@@ -243,14 +253,15 @@ Add tests for new features to maintain or improve coverage.
    make all
    ```
 
-2. **Update documentation** if needed:
+1. **Update documentation** if needed:
+
    - README.md for user-facing changes
    - CLAUDE.md for AI agent context
    - This CONTRIBUTING.md for development changes
 
-3. **Add tests** for new features
+1. **Add tests** for new features
 
-4. **Update CHANGELOG** (if applicable)
+1. **Update CHANGELOG** (if applicable)
 
 ### PR Guidelines
 
@@ -326,6 +337,7 @@ def fetch_*_activities(target_date: date, config: dict[str, Any]) -> list[Model]
 ```
 
 **Key characteristics:**
+
 - Return empty list on failure (never raise)
 - Graceful degradation
 - Platform detection (macOS-specific sources)
@@ -423,21 +435,66 @@ class Config(BaseModel):
 ### 6. Update Formatters
 
 In `src/pkm_tool/formatters.py`:
+
 - Add Markdown section for the new source
 - JSON formatter will automatically include it via Pydantic
 
 ### 7. Add CLI Subcommand
 
 In `src/pkm_tool/cli.py`:
+
 - Add a new subcommand for fetching only from the new source
 
 ### 8. Write Tests
 
 In `tests/test_models.py`:
+
 - Test model validation
 - Test defaults and field requirements
 
 Create `tests/fixtures/new_source_fixtures.py` if needed for mock data.
+
+## Maintaining the Makefile
+
+The Makefile is the **single source of truth** for all development commands. When adding new tools or workflows:
+
+### Adding New Targets
+
+1. **Choose the right section** (see Makefile comments for 9 organized sections)
+2. **Add documentation** with `##` comment for `make help`
+3. **Test the target** locally before committing
+4. **Update documentation** if the target is user-facing
+
+Example:
+
+```makefile
+# In appropriate section
+lint/newtool: ## Check code with newtool
+    @echo "Running newtool..."
+    uv run newtool check src tests
+```
+
+### Guidelines
+
+- **Never bypass Makefile** - All quality checks must go through `make` targets
+- **Use `.PHONY`** for targets that don't create files
+- **Check tool availability** before running (see existing targets for examples)
+- **Provide helpful output** using `@echo` for user feedback
+- **Keep targets composable** - allow combining multiple targets (e.g., `make format lint`)
+- **Update `make help`** - Ensure all targets have documentation
+
+### Testing Changes
+
+```bash
+# Test individual targets
+make lint/newtool
+
+# Test combined targets
+make all
+
+# Verify help output
+make help
+```
 
 ## Additional Resources
 
@@ -449,8 +506,9 @@ Create `tests/fixtures/new_source_fixtures.py` if needed for mock data.
 ## Questions?
 
 If you have questions or need help, please:
+
 1. Check existing documentation
-2. Search [GitHub Issues](https://github.com/kakkoyun/pkm-tool/issues)
-3. Open a new issue for discussion
+1. Search [GitHub Issues](https://github.com/kakkoyun/pkm-tool/issues)
+1. Open a new issue for discussion
 
 Thank you for contributing! 🎉

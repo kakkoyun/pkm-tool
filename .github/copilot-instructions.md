@@ -18,7 +18,7 @@ This file provides coding standards and patterns for GitHub Copilot when working
 - **Python Version**: 3.14+ with modern syntax
 - **Line Length**: 100 characters
 - **Type Hints**: Required for all functions
-  - Use `list[str]`, `dict[str, Any]`, `str | None` (Python 3.10+ syntax)
+  - Use `list[str]`, `dict[str, Any]`, `str | None` (modern Python syntax)
   - No `Optional[]` or `List[]` (use modern syntax)
 - **Import Order**: stdlib → third-party → local (enforced by ruff)
 - **Docstrings**: Optional but encouraged for complex functions
@@ -26,9 +26,14 @@ This file provides coding standards and patterns for GitHub Copilot when working
 
 ### Tools
 
-- **Formatter**: ruff format
-- **Linter**: ruff check
-- **Type Checker**: ty (Astral's type checker)
+All tools are accessed via **Makefile** or **pre-commit hooks**. Never call tools directly.
+
+- **Formatter**: `make format` (not `ruff format`)
+- **Linter**: `make lint` (not `ruff check`)
+- **Type Checker**: `make typecheck/python` (not `ty check`)
+- **All Checks**: `make all` or `make check`
+
+**Direct tool access is discouraged** - always use Makefile targets to ensure consistency.
 
 ### Commit Messages
 
@@ -87,6 +92,7 @@ def fetch_data(config: dict[str, Any]) -> list[Item]:
         logger.error("fetch_failed", error=str(e))
         return []
 
+
 # ❌ Bad: Raising exceptions
 def fetch_data(config: dict[str, Any]) -> list[Item]:
     response = requests.get(url)
@@ -119,8 +125,11 @@ def process_items(items: list[str]) -> dict[str, Any]:
     result: dict[str, list[str]] = {}
     return result
 
+
 # ❌ Bad: Old-style typing
 from typing import List, Dict, Optional
+
+
 def process_items(items: List[str]) -> Dict[str, Any]:
     pass
 ```
@@ -132,6 +141,7 @@ def process_items(items: List[str]) -> Dict[str, Any]:
 def fetch_data(target_date: date, config: dict[str, Any]) -> list[Item]:
     api_key = config.get("api_key") or os.getenv("API_KEY")
     return fetch_from_api(api_key, target_date)
+
 
 # ❌ Bad: Hard-coded values
 def fetch_data(target_date: date) -> list[Item]:
@@ -152,7 +162,7 @@ def fetch_data(target_date: date) -> list[Item]:
        description: str | None = None
    ```
 
-2. **Update AggregatedData** in `src/pkm_tool/models.py`:
+1. **Update AggregatedData** in `src/pkm_tool/models.py`:
 
    ```python
    class AggregatedData(BaseModel):
@@ -160,7 +170,7 @@ def fetch_data(target_date: date) -> list[Item]:
        new_source_items: list[NewSourceItem] = Field(default_factory=list)
    ```
 
-3. **Create source** in `src/pkm_tool/sources/new_source.py`:
+1. **Create source** in `src/pkm_tool/sources/new_source.py`:
 
    ```python
    def fetch_new_source_items(
@@ -174,10 +184,13 @@ def fetch_data(target_date: date) -> list[Item]:
            return []
    ```
 
-4. **Add to aggregator** in `src/pkm_tool/aggregator.py`
-5. **Add to config** in `src/pkm_tool/config.py`
-6. **Update formatters** in `src/pkm_tool/formatters.py`
-7. **Write tests** in `tests/test_models.py`
+1. **Add to aggregator** in `src/pkm_tool/aggregator.py`
+
+1. **Add to config** in `src/pkm_tool/config.py`
+
+1. **Update formatters** in `src/pkm_tool/formatters.py`
+
+1. **Write tests** in `tests/test_models.py`
 
 ### Testing
 
@@ -187,6 +200,7 @@ def test_fetch_items(mock_api):
     items = fetch_items(date.today(), {"api_key": "test"})
     assert len(items) > 0
     assert items[0].title is not None
+
 
 # Mock external APIs
 @pytest.fixture
@@ -216,13 +230,23 @@ src/pkm_tool/
 
 ## Quality Checks
 
-Run before committing:
+**Always use Makefile targets** - never call tools directly:
 
 ```bash
-make all              # Format, lint, typecheck, test
+make all              # Format, lint, typecheck, test (full pipeline)
+make check            # Run checks without modifying files
 make fix/python       # Auto-fix formatting and linting
 make test             # Run test suite
+make format           # Format all code
+make lint             # Run all linters
+make typecheck/python # Type check with ty
 ```
+
+**Maintaining the Makefile:**
+- Keep Makefile up-to-date when adding new tools or workflows
+- Add new targets for new quality checks
+- Document all targets in `make help`
+- Test targets locally before committing
 
 ## Dependencies
 

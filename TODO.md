@@ -31,5 +31,5 @@
 ## Plumbing
 
 - [ ] consistency: Make sure code is properly typed with ty everywhere!
-- [ ] cleanup: This tool never released, we don't have legacy or need to migrate clean the codebase and docs!
+- [x] cleanup: Remove legacy/migration code (this tool never released)
 - [ ] consistency: Make sure we have consistent patterns and conventions throughout the codebase!

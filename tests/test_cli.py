@@ -102,6 +102,7 @@ def test_cli_markdown_output_with_mocks(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -128,6 +129,7 @@ def test_cli_json_output_with_mocks(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -147,6 +149,7 @@ def test_cli_invalid_date(cli_runner: CliRunner, temp_config: Path) -> None:
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "not-a-date",
             "--format",
@@ -172,6 +175,7 @@ def test_cli_default_date(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--format",
             "markdown",
             "--config",
@@ -196,6 +200,7 @@ def test_cli_human_readable_date(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "Nov 21, 2025",
             "--format",
@@ -222,7 +227,7 @@ def test_cli_missing_config_file(
     # Set all potential API keys to empty to avoid timeouts
     result = cli_runner.invoke(
         cli,
-        ["--date", "2025-11-21", "--format", "markdown"],
+        ["aggregate", "--date", "2025-11-21", "--format", "markdown"],
         env={
             "GITHUB_TOKEN": "",
             "WAKATIME_API_KEY": "",
@@ -253,6 +258,7 @@ def test_cli_with_api_errors(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -280,6 +286,7 @@ def test_cli_format_option(
     result_md = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -295,6 +302,7 @@ def test_cli_format_option(
     result_json = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -325,6 +333,7 @@ def test_cli_markdown_output_all_sources(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -356,6 +365,7 @@ def test_cli_json_output_all_sources(
     result = cli_runner.invoke(
         cli,
         [
+            "aggregate",
             "--date",
             "2025-11-21",
             "--format",
@@ -376,9 +386,6 @@ def test_cli_help(cli_runner: CliRunner) -> None:
 
     assert result.exit_code == 0
     assert "Personal Knowledge Management Tool" in result.output
-    assert "--date" in result.output
-    assert "--format" in result.output
-    assert "--config" in result.output
     # Verify subcommands are listed
     assert "calendar" in result.output
     assert "github" in result.output
@@ -405,31 +412,6 @@ def test_cli_aggregate_subcommand(
         cli,
         [
             "aggregate",
-            "--date",
-            "2025-11-21",
-            "--format",
-            "markdown",
-            "--config",
-            str(temp_config),
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert "Daily Report" in result.output
-
-
-@pytest.mark.unit
-def test_cli_backward_compatibility(
-    cli_runner: CliRunner,
-    temp_config: Path,
-    mock_github_client: Mock,
-    mock_github_auth: Mock,
-    mock_wakatime_api_success: Mock,
-) -> None:
-    """Test that pkm without subcommand still works (backward compatibility)."""
-    result = cli_runner.invoke(
-        cli,
-        [
             "--date",
             "2025-11-21",
             "--format",

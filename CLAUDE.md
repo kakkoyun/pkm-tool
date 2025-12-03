@@ -606,11 +606,6 @@ uv run pkm github --format json --date yesterday
 uv run pkm wakatime --config ~/.config/pkm-tool/config.yaml --date 2025-11-21
 ```
 
-**Note**: The CLI supports dual syntax for backward compatibility:
-
-- **Preferred**: `pkm <subcommand> --date yesterday` (FLAGS after subcommand)
-- **Backward compat**: `pkm --date yesterday` (FLAGS before implicit aggregate subcommand)
-
 #### Server mode
 
 Run as a web server with REST API:
@@ -811,9 +806,8 @@ The tool follows a clean, modular architecture:
 - **CLI integration** (`pkm auth ...`):
   - `pkm auth list/status/login/logout/refresh` manages credentials with encrypted storage.
   - Google Docs login requires `client_id`/`client_secret` in config; other sources prompt for tokens.
-- **Backward compatibility**:
-  - When no stored credentials exist the sources fall back to values from config or environment variables.
-  - Legacy `use_gh_cli`/direct token configs still work, but encrypted storage is preferred.
+- **Fallback support**:
+  - When no stored credentials exist, sources fall back to values from config or environment variables.
 
 ### Source Architecture Pattern
 

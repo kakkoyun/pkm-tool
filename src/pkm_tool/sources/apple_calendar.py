@@ -22,7 +22,7 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
         config: Configuration dictionary
 
     Returns:
-        List of Event objects
+        List of Event objects (empty list on error or non-macOS)
     """
     logger.debug("apple_calendar_fetch_started", date=str(target_date))
 
@@ -31,7 +31,7 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
         result = subprocess.run(["uname"], capture_output=True, text=True, check=True, timeout=5)
         if result.stdout.strip() != "Darwin":
             # Not on macOS, return empty list
-            logger.warning(
+            logger.debug(
                 "apple_calendar_not_macos",
                 message="Apple Calendar only available on macOS",
             )
@@ -99,6 +99,6 @@ def fetch_calendar_events(target_date: date, config: dict[str, Any]) -> list[Eve
         logger.info("apple_calendar_events_fetched", event_count=len(events))
         return events
     except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-        # If AppleScript fails, return empty list
+        # Handle all errors at top level for consistent error reporting
         logger.error("apple_calendar_fetch_failed", error=str(e), exc_info=True)
         return []

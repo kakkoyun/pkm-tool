@@ -20,17 +20,22 @@ def fetch_things_tasks(target_date: date, config: dict[str, Any]) -> list[Things
         config: Configuration dictionary (currently unused, kept for interface compatibility)
 
     Returns:
-        List of ThingsTask objects
+        List of ThingsTask objects (empty list on error or non-macOS)
     """
+    logger.debug("things_fetch_started", date=str(target_date))
+    
     # Check if running on macOS
     if platform.system() != "Darwin":
+        logger.debug("things_not_macos", message="Things only available on macOS")
         return []
 
     try:
-        return _fetch_things_via_library(target_date)
+        tasks = _fetch_things_via_library(target_date)
+        logger.info("things_tasks_fetched", task_count=len(tasks))
+        return tasks
     except Exception as e:
-        # Graceful error handling - return empty list on any error
-        logger.warning("things_fetch_failed", error=str(e), exc_info=True)
+        # Handle all errors at top level for consistent error reporting
+        logger.error("things_fetch_failed", error=str(e), exc_info=True)
         return []
 
 

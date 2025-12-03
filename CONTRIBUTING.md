@@ -239,7 +239,7 @@ uv run pytest --snapshot-update
 ### Coverage Requirements
 
 - **Minimum coverage**: 80% (enforced by CI)
-- **Current coverage**: ~78% (see CI reports)
+- **Current coverage**: 88% (see CI reports)
 
 Add tests for new features to maintain or improve coverage.
 

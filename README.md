@@ -410,13 +410,13 @@ pkm-tool/
 │   ├── sources/            # Data source integrations
 │   ├── server/             # FastAPI web server
 │   └── mcp_server/         # MCP server
-├── tests/                  # Comprehensive test suite (78% coverage)
+├── tests/                  # Comprehensive test suite (88% coverage)
 └── .github/                # CI/CD workflows
 ```
 
 ### Testing
 
-The project has comprehensive test coverage (78%) with unit tests, integration tests, and snapshot tests.
+The project has comprehensive test coverage (88%) with unit tests, integration tests, and snapshot tests.
 
 ```bash
 # Run all tests

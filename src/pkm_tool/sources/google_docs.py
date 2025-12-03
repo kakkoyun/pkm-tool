@@ -115,8 +115,11 @@ def fetch_google_docs(
 
 
 def _get_google_docs_token(config: dict[str, Any]) -> str | None:
-    """Retrieve Google Docs access token from config or environment."""
-    return config.get("access_token", os.environ.get("GOOGLE_ACCESS_TOKEN"))
+    """Retrieve Google Docs access token from token store or fall back to config/env."""
+    stored = _AUTH_MANAGER.get_token("google_docs")
+    if stored:
+        return stored.token
+    return config.get("access_token") or os.environ.get("GOOGLE_ACCESS_TOKEN")
 
 
 def _build_provider(config: dict[str, Any]) -> GoogleOAuthProvider | None:

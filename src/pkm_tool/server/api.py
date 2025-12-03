@@ -284,7 +284,11 @@ def _fetch_single_source(
         data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config)
         data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config)
         data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config)
+        return
 
+    # Unknown or disabled source
+    logger.warning("unknown_source_requested", source=source)
+    raise HTTPException(status_code=400, detail=f"Unknown or disabled source: {source}")
 
 @app.get("/api/data", response_model=DataResponse, tags=["Data"])
 async def get_data(

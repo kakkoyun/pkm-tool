@@ -28,7 +28,8 @@ def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[Atl
     """
     base_url, username, api_token = _get_atlassian_credentials(config)
 
-    if not all([base_url, username, api_token]):
+    # Early return if any credentials are missing
+    if not base_url or not username or not api_token:
         logger.warning(
             "atlassian_credentials_missing",
             has_base_url=bool(base_url),
@@ -36,11 +37,6 @@ def fetch_atlassian_items(target_date: date, config: dict[str, Any]) -> list[Atl
             has_token=bool(api_token),
         )
         return []
-
-    # Type narrowing - we know these are all non-None after the check above
-    assert base_url is not None
-    assert username is not None
-    assert api_token is not None
 
     logger.debug("atlassian_fetching_items", date=str(target_date), base_url=base_url)
     try:
@@ -98,9 +94,13 @@ def _fetch_jira_via_library(
                 updated=datetime.fromisoformat(issue["fields"]["updated"].replace("Z", "+00:00")),
             )
             items.append(item)
-        except (KeyError, ValueError):
-            # Skip malformed issues
-            logger.debug("jira_issue_malformed", issue_key=issue.get("key", "unknown"))
+        except (KeyError, ValueError) as e:
+            # Skip malformed issues but log as warning for visibility
+            logger.warning(
+                "jira_issue_malformed",
+                issue_key=issue.get("key", "unknown"),
+                error=str(e),
+            )
             continue
 
     return items
@@ -144,9 +144,13 @@ def _fetch_confluence_via_library(
                 ),
             )
             items.append(item)
-        except (KeyError, ValueError):
-            # Skip malformed pages
-            logger.debug("confluence_page_malformed", page_id=page.get("id", "unknown"))
+        except (KeyError, ValueError) as e:
+            # Skip malformed pages but log as warning for visibility
+            logger.warning(
+                "confluence_page_malformed",
+                page_id=page.get("id", "unknown"),
+                error=str(e),
+            )
             continue
 
     return items

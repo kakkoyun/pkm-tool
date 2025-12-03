@@ -318,33 +318,12 @@ class TestThingsErrorHandling:
         # Mock platform.system to return Darwin
         mocker.patch("platform.system", return_value="Darwin")
 
-        # Mock the things module import to fail
-        # This simulates the things library not being installed
-        import sys
+        # Mock the things.todos function to raise ImportError
+        # This simulates the things library not being available
+        mocker.patch("things.todos", side_effect=ImportError("things not installed"))
 
-        original_modules = sys.modules.copy()
-        # Remove things from sys.modules if it exists
-        if "things" in sys.modules:
-            del sys.modules["things"]
-
-        # Mock __import__ to raise ImportError for things
-        import builtins
-
-        original_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "things":
-                raise ImportError("things not installed")
-            return original_import(name, *args, **kwargs)
-
-        mocker.patch.object(builtins, "__import__", side_effect=mock_import)
-
-        try:
-            result = fetch_things_tasks(target_date, config)
-            assert result == []
-        finally:
-            # Restore sys.modules
-            sys.modules.update(original_modules)
+        result = fetch_things_tasks(target_date, config)
+        assert result == []
 
 
 class TestGoogleDocsErrorHandling:
@@ -440,15 +419,13 @@ class TestWhoopErrorHandling:
 class TestErrorIsolation:
     """Test that errors in one source don't affect others."""
 
-    def test_all_sources_can_fail_independently(self, mocker):
+    def test_all_sources_can_fail_independently(self, mocker, tmp_path):
         """Test that all sources can fail without affecting aggregation."""
         from pkm_tool.aggregator import aggregate_data
 
         target_date = date(2025, 11, 21)
 
         # Create a config with all sources enabled
-        from pathlib import Path
-
         config_content = """
 github:
   enabled: true
@@ -483,8 +460,6 @@ whoop:
   config:
     access_token: test_token
 """
-        tmp_path = Path("/tmp/test_error_isolation")
-        tmp_path.mkdir(exist_ok=True)
         config_path = tmp_path / "config.yaml"
         config_path.write_text(config_content)
 

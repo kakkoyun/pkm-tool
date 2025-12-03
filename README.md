@@ -106,6 +106,45 @@ Commands:
   whoop        Fetch Whoop health data only.
 ```
 
+### MCP Server Mode (NEW!)
+
+PKM Tool can run as an MCP (Model Context Protocol) server,
+allowing AI assistants like Claude to access your personal data securely:
+
+```bash
+# Run as MCP server (stdio mode)
+pkm mcp
+```
+
+**Integration with Claude Desktop:**
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "pkm-tool": {
+      "command": "pkm",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+
+- `fetch_aggregated_data` - Get data from all configured sources
+- `fetch_calendar_events` - Get Apple Calendar events
+- `fetch_github_activities` - Get GitHub activities
+- `fetch_atlassian_items` - Get Atlassian (Jira/Confluence) items
+- `fetch_things_tasks` - Get Things tasks
+- `fetch_wakatime_activities` - Get Wakatime coding activities
+- `fetch_google_docs` - Get Google Docs
+- `fetch_whoop_data` - Get Whoop health data
+
+Once configured, Claude can fetch and analyze your daily data on demand.
+
 ### Available Options
 
 - **`--help`**: Show this message and exit.

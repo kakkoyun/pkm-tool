@@ -5,12 +5,14 @@ from datetime import date
 from typing import Any
 
 import httpx
+import structlog
 
 from pkm_tool.auth import AuthManager
 from pkm_tool.cache import get_cached_client
 from pkm_tool.config import CacheConfig
 from pkm_tool.models import WakatimeActivity
 
+logger = structlog.get_logger(__name__)
 _AUTH_MANAGER = AuthManager()
 
 
@@ -30,14 +32,17 @@ def fetch_wakatime_activities(
     Returns:
         List of WakatimeActivity objects (per project)
     """
-    api_key = _get_wakatime_api_key(config)
+    logger.debug("wakatime_fetch_started", date=str(target_date))
+    api_key = _get_wakatime_token(config)
 
     if not api_key:
+        logger.warning("wakatime_no_token", message="No Wakatime API key configured")
         return []
 
     activities: list[WakatimeActivity] = []
 
     try:
+        logger.debug("wakatime_fetching_summaries", date=str(target_date))
         headers = {"Authorization": f"Bearer {api_key}"}
 
         # Use cached client if cache config provided, otherwise regular httpx client
@@ -80,13 +85,18 @@ def fetch_wakatime_activities(
                         most_used_lang = max(language_map.items(), key=lambda x: x[1])[0]
                         activity.language = most_used_lang
 
-    except (httpx.HTTPError, KeyError):
-        pass
+        logger.info("wakatime_activities_fetched", activity_count=len(activities))
+
+    except (httpx.HTTPError, KeyError) as e:
+        # All exceptions are caught and return empty list
+        # This ensures graceful degradation
+        logger.error("wakatime_fetch_failed", error=str(e), exc_info=True)
 
     return activities
 
 
-def _get_wakatime_api_key(config: dict[str, Any]) -> str | None:
+def _get_wakatime_token(config: dict[str, Any]) -> str | None:
+    """Retrieve Wakatime API key from token store or fall back to config/env."""
     stored = _AUTH_MANAGER.get_token("wakatime")
     if stored:
         return stored.token

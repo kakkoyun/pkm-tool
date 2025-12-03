@@ -5,12 +5,14 @@ from datetime import date, datetime
 from typing import Any
 
 import httpx
+import structlog
 
 from pkm_tool.auth import AuthManager
 from pkm_tool.cache import get_cached_client
 from pkm_tool.config import CacheConfig
 from pkm_tool.models import WhoopRecovery, WhoopSleep, WhoopWorkout
 
+logger = structlog.get_logger(__name__)
 _AUTH_MANAGER = AuthManager()
 
 
@@ -30,9 +32,11 @@ def fetch_whoop_recovery(
     Returns:
         WhoopRecovery object or None if not found/error
     """
+    logger.debug("whoop_recovery_fetch_started", date=str(target_date))
     access_token = _get_whoop_token(config)
 
     if not access_token:
+        logger.warning("whoop_no_token", message="No Whoop access token configured")
         return None
 
     try:
@@ -78,10 +82,15 @@ def fetch_whoop_recovery(
                     spo2=score_data.get("spo2_percentage"),
                     skin_temp=score_data.get("skin_temp_celsius"),
                 )
+                logger.info("whoop_recovery_fetched", recovery_score=recovery.recovery_score)
                 return recovery
 
-    except (httpx.HTTPError, KeyError, ValueError):
-        pass
+        logger.debug("whoop_recovery_not_found", date=str(target_date))
+
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        # All exceptions are caught and return None
+        # This ensures graceful degradation
+        logger.error("whoop_recovery_fetch_failed", error=str(e), exc_info=True)
 
     return None
 
@@ -102,9 +111,11 @@ def fetch_whoop_sleep(
     Returns:
         List of WhoopSleep objects
     """
+    logger.debug("whoop_sleep_fetch_started", date=str(target_date))
     access_token = _get_whoop_token(config)
 
     if not access_token:
+        logger.warning("whoop_no_token", message="No Whoop access token configured")
         return []
 
     sleep_cycles: list[WhoopSleep] = []
@@ -181,8 +192,12 @@ def fetch_whoop_sleep(
                 )
                 sleep_cycles.append(sleep_cycle)
 
-    except (httpx.HTTPError, KeyError, ValueError):
-        pass
+        logger.info("whoop_sleep_fetched", cycle_count=len(sleep_cycles))
+
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        # All exceptions are caught and return empty list
+        # This ensures graceful degradation
+        logger.error("whoop_sleep_fetch_failed", error=str(e), exc_info=True)
 
     return sleep_cycles
 
@@ -203,9 +218,11 @@ def fetch_whoop_workouts(
     Returns:
         List of WhoopWorkout objects
     """
+    logger.debug("whoop_workouts_fetch_started", date=str(target_date))
     access_token = _get_whoop_token(config)
 
     if not access_token:
+        logger.warning("whoop_no_token", message="No Whoop access token configured")
         return []
 
     workouts: list[WhoopWorkout] = []
@@ -266,8 +283,12 @@ def fetch_whoop_workouts(
                 )
                 workouts.append(workout)
 
-    except (httpx.HTTPError, KeyError, ValueError):
-        pass
+        logger.info("whoop_workouts_fetched", workout_count=len(workouts))
+
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        # All exceptions are caught and return empty list
+        # This ensures graceful degradation
+        logger.error("whoop_workouts_fetch_failed", error=str(e), exc_info=True)
 
     return workouts
 

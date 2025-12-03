@@ -395,7 +395,7 @@ def _handle_non_pkm_header(
         # In postamble
         _append_to_section(sections, "_postamble", line)
 
-    return current_section, current_content, in_preamble, False
+    return current_section, current_content, in_preamble, in_preamble or True
 
 
 def parse_existing_file(file_path: Path) -> dict[str, str]:

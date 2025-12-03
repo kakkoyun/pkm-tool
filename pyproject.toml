@@ -73,7 +73,7 @@ markers = [
     "integration: Integration tests",
     "snapshot: Snapshot tests",
 ]
-addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=80 --cov-report=xml --cov-report=term"
+addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=80 --cov-report=xml --cov-report=term --junitxml=junit.xml"
 filterwarnings = [
     "ignore::ResourceWarning:unittest.mock",
 ]

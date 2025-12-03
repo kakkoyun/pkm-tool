@@ -73,8 +73,9 @@ def mock_things_database(tmp_path: Path) -> Path:
     """Create a mock Things SQLite database with test data."""
     db_path = tmp_path / "test_things.sqlite"
 
-    # Use context manager to ensure proper connection cleanup
-    with sqlite3.connect(str(db_path)) as conn:
+    # Create connection and ensure it's properly closed
+    conn = sqlite3.connect(str(db_path))
+    try:
         cursor = conn.cursor()
 
         # Create Things database schema (simplified)
@@ -148,7 +149,9 @@ def mock_things_database(tmp_path: Path) -> Path:
 
         cursor.close()
         conn.commit()
-        # Connection closed automatically by context manager
+    finally:
+        # Explicitly close the connection
+        conn.close()
 
     return db_path
 

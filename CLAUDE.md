@@ -1,11 +1,20 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 KEEP THIS FILE UP TO DATE! (Add the end of each plan)!
 WHEN USER WORKS WITH A NEW FLOW!
 
 MAKE SURE TO KEEP llm-tool.json UP TO DATE!
+
+## Documentation Structure
+
+This repository has multiple documentation files for different audiences:
+
+- **README.md** - User-facing documentation (installation, usage, configuration)
+- **CONTRIBUTING.md** - Developer guide (setup, workflow, testing, contributing)
+- **CLAUDE.md** - This file - Comprehensive technical context for AI agents
+- **.github/copilot-instructions.md** - GitHub Copilot coding standards and patterns
 
 ## Coding Standards and Principles
 
@@ -133,7 +142,7 @@ Commit messages are automatically validated using **commitlint**:
 
 ```bash
 # Install pre-commit hooks (includes commitlint)
-make tools/install-hooks
+make install-hooks
 
 # Commits are automatically validated when you run git commit
 git commit -m "feat(auth): add login"  # ✓ passes
@@ -498,7 +507,6 @@ Professional-grade development automation with 9 organized sections:
 ```bash
 # 1. Development Setup
 make install                   # Install with dev dependencies
-make install/dev               # Install with dev dependencies (alias)
 make install-hooks             # Install pre-commit hooks
 make update                    # Update dev tooling (pre-commit hooks, dependencies)
 

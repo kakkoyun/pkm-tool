@@ -381,11 +381,13 @@ Examples:
 
 ## Development
 
-### Setup
+Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development instructions.
+
+### Quick Start
 
 ```bash
 # Install with dev dependencies
-uv sync --all-extras
+make install
 
 # Install pre-commit hooks
 make install-hooks
@@ -394,167 +396,6 @@ make install-hooks
 make all
 ```
 
-### Testing
-
-The project has comprehensive test coverage (77%) with multiple testing strategies:
-
-#### Test Organization
-
-```text
-tests/
-├── __snapshots__/         # Auto-generated snapshot files
-│   └── test_cli.ambr      # CLI output snapshots
-├── fixtures/              # Reusable test fixtures
-│   ├── github_fixtures.py      # Mock GitHub API responses
-│   ├── wakatime_fixtures.py    # Mock Wakatime API responses
-│   ├── atlassian_fixtures.py   # Mock Atlassian API responses
-│   └── system_fixtures.py      # Mock system calls (subprocess, SQLite)
-├── conftest.py            # Shared pytest configuration
-├── test_cli.py            # CLI snapshot and unit tests (9 tests)
-├── test_integration.py    # End-to-end integration tests (12 tests)
-├── test_models.py         # Data model tests
-├── test_config.py         # Configuration tests
-└── test_formatters.py     # Output formatter tests
-```
-
-#### Test Types
-
-##### 1. Snapshot Tests
-
-Location: `tests/test_cli.py`
-
-Snapshot tests validate CLI output remains consistent across changes:
-
-```python
-@pytest.mark.snapshot
-def test_cli_markdown_output_with_mocks(snapshot: SnapshotAssertion):
-    result = cli_runner.invoke(main, ["--date", "2025-11-21", "--format", "markdown"])
-    assert result.output == snapshot  # Compared against saved snapshot
-```
-
-Snapshots are stored in `tests/__snapshots__/test_cli.ambr` and can be updated with:
-
-```bash
-pytest --snapshot-update
-```
-
-##### 2. Integration Tests
-
-Location: `tests/test_integration.py`
-
-End-to-end tests with mocked external APIs:
-
-- Full aggregation with all sources enabled
-- Selective source testing
-- Error handling and graceful degradation
-- Date parsing and filtering
-- Config file integration
-
-##### 3. Unit Tests
-
-Individual component tests with comprehensive mocking:
-
-- Models: Pydantic validation
-- Config: YAML loading and defaults
-- Formatters: Markdown/JSON output
-- Sources: Individual data source logic
-
-#### Running Tests
-
-```bash
-# Run all tests
-make test
-# or: uv run pytest
-
-# Run with coverage report
-make test/coverage
-# or: uv run pytest --cov --cov-report=html
-
-# Run specific test types
-pytest -m unit              # Unit tests only
-pytest -m integration       # Integration tests only
-pytest -m snapshot          # Snapshot tests only
-
-# Run specific test file
-pytest tests/test_cli.py
-
-# Run with verbose output
-pytest -v
-
-# Update snapshots after intentional changes
-pytest --snapshot-update
-```
-
-#### Test Coverage
-
-Current coverage: **77%**
-
-| Module            | Coverage | Notes                    |
-| ----------------- | -------- | ------------------------ |
-| models.py         | 100%     | Full Pydantic validation |
-| wakatime.py       | 100%     | Complete HTTP mocking    |
-| github.py         | 94%      | PyGithub mocked          |
-| atlassian.py      | 89%      | Jira/Confluence mocked   |
-| cli.py            | 87%      | Snapshot tested          |
-| apple_calendar.py | 85%      | Subprocess mocked        |
-| config.py         | 92%      | YAML loading tested      |
-| aggregator.py     | 77%      | Integration tested       |
-
-#### Mocking Strategy
-
-All external dependencies are mocked to ensure fast, reliable tests:
-
-- **GitHub**: PyGithub client mocked with `pytest-mock`
-- **Wakatime**: HTTP API mocked with `respx`
-- **Atlassian**: Jira/Confluence clients mocked
-- **Apple Calendar**: `subprocess.run()` mocked for osascript calls
-- **Things**: In-memory SQLite database with test data
-
-No actual API calls are made during testing.
-
-### Code Quality
-
-```bash
-# Run all quality checks
-make all
-
-# Individual checks
-make format              # Format all code
-make lint                # Run all linters
-make lint/commits        # Check commit messages (requires Node.js)
-make typecheck/python    # Type check with ty
-make test                # Run tests
-
-# Auto-fix issues
-make fix/python          # Format + lint --fix
-```
-
-#### Commit Message Validation
-
-This project enforces [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages:
-
-```bash
-# Valid commit messages
-git commit -m "feat(auth): add login form"
-git commit -m "fix(api): handle null values"
-git commit -m "docs: update README"
-
-# Invalid commit messages
-git commit -m "Added login form"     # Missing type and scope
-git commit -m "fix stuff"            # Too vague
-```
-
-**Automatic validation:**
-
-- Pre-commit hook validates commit messages locally
-- CI validates all commits in PRs
-- Use `make lint/commits` to check the last commit manually
-
-**Requirements:**
-
-- Node.js 20+ (for commitlint)
-- Run `make install` to install dependencies including npm packages
-
 ### Project Structure
 
 ```text
@@ -562,20 +403,30 @@ pkm-tool/
 ├── src/pkm_tool/
 │   ├── cli.py              # CLI entry point
 │   ├── config.py           # Configuration management
-│   ├── models.py           # Data models
+│   ├── models.py           # Pydantic data models
 │   ├── aggregator.py       # Data aggregation logic
 │   ├── formatters.py       # Output formatters
-│   └── sources/            # Data source integrations
-│       ├── apple_calendar.py
-│       ├── github.py
-│       ├── atlassian.py
-│       ├── things.py
-│       ├── wakatime.py
-│       └── google_docs.py
-├── tests/                  # Test files
-├── pyproject.toml         # Project configuration
-└── config.example.yaml    # Example configuration
+│   ├── auth/               # Authentication system
+│   ├── sources/            # Data source integrations
+│   ├── server/             # FastAPI web server
+│   └── mcp_server/         # MCP server
+├── tests/                  # Comprehensive test suite (78% coverage)
+└── .github/                # CI/CD workflows
 ```
+
+### Testing
+
+The project has comprehensive test coverage (78%) with unit tests, integration tests, and snapshot tests.
+
+```bash
+# Run all tests
+make test
+
+# Run with coverage report
+make test/coverage
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#testing) for detailed testing documentation.
 
 ## Data Sources
 

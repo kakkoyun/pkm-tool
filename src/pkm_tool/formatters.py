@@ -1,6 +1,7 @@
 """Output formatters for PKM tool."""
 
 import re
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
@@ -188,40 +189,34 @@ def _format_errors_content(data: AggregatedData) -> list[str]:
 
 def _has_source_data(data: AggregatedData, source_name: str) -> bool:
     """Check if a source has data to display."""
-    if source_name == "apple_calendar":
-        return bool(data.calendar_events)
-    if source_name == "github":
-        return bool(data.github_activities)
-    if source_name == "atlassian":
-        return bool(data.atlassian_items)
-    if source_name == "things":
-        return bool(data.things_tasks)
-    if source_name == "wakatime":
-        return bool(data.wakatime_activities)
-    if source_name == "google_docs":
-        return bool(data.google_docs)
-    if source_name == "whoop":
-        return bool(data.whoop_recovery or data.whoop_sleep or data.whoop_workouts)
-    return False
+    # Map source names to data checking functions
+    data_checkers: dict[str, Callable[[AggregatedData], bool]] = {
+        "apple_calendar": lambda d: bool(d.calendar_events),
+        "github": lambda d: bool(d.github_activities),
+        "atlassian": lambda d: bool(d.atlassian_items),
+        "things": lambda d: bool(d.things_tasks),
+        "wakatime": lambda d: bool(d.wakatime_activities),
+        "google_docs": lambda d: bool(d.google_docs),
+        "whoop": lambda d: bool(d.whoop_recovery or d.whoop_sleep or d.whoop_workouts),
+    }
+    checker = data_checkers.get(source_name)
+    return checker(data) if checker else False
 
 
 def _format_source_content(data: AggregatedData, source_name: str) -> list[str]:
     """Get formatted content for a source (without header)."""
-    if source_name == "apple_calendar":
-        return _format_calendar_events_content(data)
-    if source_name == "github":
-        return _format_github_activities_content(data)
-    if source_name == "atlassian":
-        return _format_atlassian_items_content(data)
-    if source_name == "things":
-        return _format_things_tasks_content(data)
-    if source_name == "wakatime":
-        return _format_wakatime_activities_content(data)
-    if source_name == "google_docs":
-        return _format_google_docs_content(data)
-    if source_name == "whoop":
-        return _format_whoop_data_content(data)
-    return []
+    # Map source names to formatting functions
+    content_formatters: dict[str, Callable[[AggregatedData], list[str]]] = {
+        "apple_calendar": _format_calendar_events_content,
+        "github": _format_github_activities_content,
+        "atlassian": _format_atlassian_items_content,
+        "things": _format_things_tasks_content,
+        "wakatime": _format_wakatime_activities_content,
+        "google_docs": _format_google_docs_content,
+        "whoop": _format_whoop_data_content,
+    }
+    formatter = content_formatters.get(source_name)
+    return formatter(data) if formatter else []
 
 
 def _has_errors(data: AggregatedData) -> bool:
@@ -328,25 +323,79 @@ def identify_section(header: str) -> str | None:
     cleaned = re.sub(r"[^\w\s-]", "", cleaned)
     cleaned = cleaned.strip().lower()
 
-    # Map header text to section identifiers
-    if "calendar" in cleaned and "event" in cleaned:
-        return "calendar_events"
-    if "github" in cleaned:
-        return "github_activities"
-    if any(word in cleaned for word in ["atlassian", "jira", "confluence"]):
-        return "atlassian_items"
-    if "things" in cleaned or ("completed" in cleaned and "task" in cleaned):
-        return "things_tasks"
-    if "wakatime" in cleaned or ("coding" in cleaned and "activity" in cleaned):
-        return "wakatime_activities"
-    if "google" in cleaned and "docs" in cleaned:
-        return "google_docs"
-    if "whoop" in cleaned or ("health" in cleaned and "data" in cleaned):
-        return "whoop_data"
-    if "error" in cleaned:
-        return "errors"
+    # Map keywords to section identifiers (order matters - check specific patterns first)
+    section_patterns: list[tuple[str, list[list[str]]]] = [
+        ("calendar_events", [["calendar", "event"]]),
+        ("github_activities", [["github"]]),
+        ("atlassian_items", [["atlassian"], ["jira"], ["confluence"]]),
+        ("things_tasks", [["things"], ["completed", "task"]]),
+        ("wakatime_activities", [["wakatime"], ["coding", "activity"]]),
+        ("google_docs", [["google", "docs"]]),
+        ("whoop_data", [["whoop"], ["health", "data"]]),
+        ("errors", [["error"]]),
+    ]
+
+    for section_id, patterns in section_patterns:
+        for pattern in patterns:
+            if all(word in cleaned for word in pattern):
+                return section_id
 
     return None
+
+
+def _append_to_section(sections: dict[str, str], key: str, line: str) -> None:
+    """Helper to append a line to a section, handling empty initial state."""
+    if sections[key]:
+        sections[key] += "\n" + line
+    else:
+        sections[key] = line
+
+
+def _save_current_section(
+    sections: dict[str, str], current_section: str | None, current_content: list[str]
+) -> None:
+    """Helper to save the current PKM section content."""
+    if current_section and current_content:
+        sections[current_section] = "\n".join(current_content)
+
+
+def _handle_pkm_header(
+    line: str,
+    section_id: str,
+    sections: dict[str, str],
+    current_section: str | None,
+    current_content: list[str],
+) -> tuple[str, list[str], bool, bool]:
+    """Handle a PKM section header, return new state."""
+    # Save previous PKM section if any
+    _save_current_section(sections, current_section, current_content)
+
+    # Start new PKM section
+    return section_id, [line], False, False
+
+
+def _handle_non_pkm_header(
+    line: str,
+    sections: dict[str, str],
+    current_section: str | None,
+    current_content: list[str],
+    in_preamble: bool,
+) -> tuple[str | None, list[str], bool, bool]:
+    """Handle a non-PKM header, return new state."""
+    if current_section:
+        # We were in a PKM section, now entering postamble
+        _save_current_section(sections, current_section, current_content)
+        sections["_postamble"] = line
+        return None, [], False, True
+
+    if in_preamble:
+        # Still in preamble
+        _append_to_section(sections, "_preamble", line)
+        return current_section, current_content, in_preamble, False
+
+    # In postamble
+    _append_to_section(sections, "_postamble", line)
+    return current_section, current_content, in_preamble, True
 
 
 def parse_existing_file(file_path: Path) -> dict[str, str]:
@@ -372,58 +421,38 @@ def parse_existing_file(file_path: Path) -> dict[str, str]:
     in_preamble = True
     in_postamble = False
 
-    for i, line in enumerate(lines):
-        # Check if this is a header line
+    for line in lines:
+        # Handle header lines
         if line.startswith("##"):
             section_id = identify_section(line)
 
             if section_id:
                 # This is a PKM section header
-                in_preamble = False
-                in_postamble = False
-
-                # Save previous PKM section if any
-                if current_section:
-                    sections[current_section] = "\n".join(current_content)
-                    current_content = []
-
-                # Start new PKM section
-                current_section = section_id
-                current_content = [line]
+                current_section, current_content, in_preamble, in_postamble = _handle_pkm_header(
+                    line, section_id, sections, current_section, current_content
+                )
             else:
                 # This is a non-PKM header
-                if current_section:
-                    # We were in a PKM section, now entering postamble
-                    sections[current_section] = "\n".join(current_content)
-                    current_section = None
-                    current_content = []
-                    in_postamble = True
-                    sections["_postamble"] = line
-                elif in_preamble:
-                    # Still in preamble
-                    if sections["_preamble"]:
-                        sections["_preamble"] += "\n" + line
-                    else:
-                        sections["_preamble"] = line
-                else:
-                    # In postamble
-                    sections["_postamble"] += "\n" + line
-        elif in_postamble:
-            # Content in postamble (after PKM sections)
-            sections["_postamble"] += "\n" + line
+                (
+                    current_section,
+                    current_content,
+                    in_preamble,
+                    in_postamble,
+                ) = _handle_non_pkm_header(
+                    line, sections, current_section, current_content, in_preamble
+                )
+            continue
+
+        # Handle content lines based on current state
+        if in_postamble:
+            _append_to_section(sections, "_postamble", line)
         elif current_section:
-            # We're inside a PKM section
             current_content.append(line)
         elif in_preamble:
-            # We're in the preamble (before any PKM sections)
-            if sections["_preamble"]:
-                sections["_preamble"] += "\n" + line
-            else:
-                sections["_preamble"] = line
+            _append_to_section(sections, "_preamble", line)
 
     # Save the last PKM section if any
-    if current_section and current_content:
-        sections[current_section] = "\n".join(current_content)
+    _save_current_section(sections, current_section, current_content)
 
     return sections
 

@@ -1,8 +1,9 @@
 """FastAPI application for PKM tool REST API."""
 
-from datetime import datetime
+from collections.abc import Callable
+from datetime import date, datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from dateutil import parser as date_parser
 from fastapi import FastAPI, HTTPException, Query
@@ -11,7 +12,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from pkm_tool.aggregator import aggregate_data
-from pkm_tool.config import Config, load_config
+from pkm_tool.config import CacheConfig, Config, load_config
 from pkm_tool.formatters import format_as_json, format_as_markdown
 from pkm_tool.logging import configure_logging, get_logger
 from pkm_tool.models import AggregatedData
@@ -217,6 +218,108 @@ async def get_config_info() -> dict[str, Any]:
     }
 
 
+def _parse_target_date(date_str: str | None) -> date:
+    """Parse date string or return today's date."""
+    if date_str is None:
+        return datetime.now().date()
+
+    try:
+        parsed_date = date_parser.parse(date_str)
+        return parsed_date.date()
+    except (ValueError, TypeError) as e:
+        logger.error("date_parsing_failed", error=str(e), input=date_str)
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {date_str}") from e
+
+
+def _fetch_single_source(
+    source: str,
+    target_date: date,
+    config: Config,
+    data: AggregatedData,
+    cache_config: CacheConfig | None = None,
+) -> None:
+    """Fetch data from a single source and update the data object."""
+    # Map source names to fetch functions and config attributes
+    # Tuple structure: (enabled: bool, fetch_func: Callable, setter: Callable, uses_cache: bool)
+    source_handlers: dict[
+        str,
+        tuple[
+            bool,
+            Callable[[date, dict[str, Any]], Any]
+            | Callable[[date, dict[str, Any], CacheConfig | None], Any],
+            Callable[[AggregatedData, Any], None],
+            bool,
+        ],
+    ] = {
+        "calendar": (
+            config.apple_calendar.enabled,
+            fetch_calendar_events,
+            lambda d, result: setattr(d, "calendar_events", result),
+            False,
+        ),
+        "github": (
+            config.github.enabled,
+            fetch_github_activities,
+            lambda d, result: setattr(d, "github_activities", result),
+            False,
+        ),
+        "atlassian": (
+            config.atlassian.enabled,
+            fetch_atlassian_items,
+            lambda d, result: setattr(d, "atlassian_items", result),
+            False,
+        ),
+        "things": (
+            config.things.enabled,
+            fetch_things_tasks,
+            lambda d, result: setattr(d, "things_tasks", result),
+            False,
+        ),
+        "wakatime": (
+            config.wakatime.enabled,
+            fetch_wakatime_activities,
+            lambda d, result: setattr(d, "wakatime_activities", result),
+            True,
+        ),
+        "google-docs": (
+            config.google_docs.enabled,
+            fetch_google_docs,
+            lambda d, result: setattr(d, "google_docs", result),
+            True,
+        ),
+    }
+
+    # Handle regular sources
+    if source in source_handlers:
+        enabled, fetch_func, setter, uses_cache = source_handlers[source]
+        if enabled:
+            # Get config for the source
+            config_attr = source.replace("-", "_")
+            source_config = getattr(config, config_attr).config
+            # Call fetch function with or without cache_config based on whether it uses cache
+            if uses_cache:
+                result = cast(
+                    Callable[[date, dict[str, Any], CacheConfig | None], Any], fetch_func
+                )(target_date, source_config, cache_config)
+            else:
+                result = cast(Callable[[date, dict[str, Any]], Any], fetch_func)(
+                    target_date, source_config
+                )
+            setter(data, result)
+        return
+
+    # Handle whoop separately (multiple endpoints)
+    if source == "whoop" and config.whoop.enabled:
+        data.whoop_recovery = fetch_whoop_recovery(target_date, config.whoop.config, cache_config)
+        data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
+        data.whoop_workouts = fetch_whoop_workouts(target_date, config.whoop.config, cache_config)
+        return
+
+    # Unknown or disabled source
+    logger.warning("unknown_source_requested", source=source)
+    raise HTTPException(status_code=400, detail=f"Unknown or disabled source: {source}")
+
+
 @app.get("/api/data", response_model=DataResponse, tags=["Data"])
 async def get_data(
     date_str: str | None = Query(
@@ -241,60 +344,23 @@ async def get_data(
     logger.info("api_data_request", date=date_str, format=output_format, sources=sources)
 
     # Parse date
-    if date_str is None:
-        target_date = datetime.now().date()
-    else:
-        try:
-            parsed_date = date_parser.parse(date_str)
-            target_date = parsed_date.date()
-        except (ValueError, TypeError) as e:
-            logger.error("date_parsing_failed", error=str(e), input=date_str)
-            raise HTTPException(status_code=400, detail=f"Invalid date format: {date_str}")
+    target_date = _parse_target_date(date_str)
 
     # Load config
     config = get_config()
 
-    # Parse sources if provided
-    selected_sources = None
-    if sources:
-        selected_sources = [s.strip() for s in sources.split(",")]
-
     # Fetch data
     try:
-        if selected_sources:
+        if sources:
             # Fetch specific sources
+            selected_sources = [s.strip() for s in sources.split(",")]
             data = AggregatedData(date=target_date)
-
+            # Get cache config for HTTP-based sources
+            cache_config: CacheConfig | None = config.cache if config.cache.enabled else None
             for source in selected_sources:
-                if source == "calendar" and config.apple_calendar.enabled:
-                    data.calendar_events = fetch_calendar_events(
-                        target_date, config.apple_calendar.config
-                    )
-                elif source == "github" and config.github.enabled:
-                    data.github_activities = fetch_github_activities(
-                        target_date, config.github.config
-                    )
-                elif source == "atlassian" and config.atlassian.enabled:
-                    data.atlassian_items = fetch_atlassian_items(
-                        target_date, config.atlassian.config
-                    )
-                elif source == "things" and config.things.enabled:
-                    data.things_tasks = fetch_things_tasks(target_date, config.things.config)
-                elif source == "wakatime" and config.wakatime.enabled:
-                    data.wakatime_activities = fetch_wakatime_activities(
-                        target_date, config.wakatime.config
-                    )
-                elif source == "google-docs" and config.google_docs.enabled:
-                    data.google_docs = fetch_google_docs(target_date, config.google_docs.config)
-                elif source == "whoop" and config.whoop.enabled:
-                    recovery = fetch_whoop_recovery(target_date, config.whoop.config)
-                    sleep = fetch_whoop_sleep(target_date, config.whoop.config)
-                    workouts = fetch_whoop_workouts(target_date, config.whoop.config)
-                    data.whoop_recovery = recovery
-                    data.whoop_sleep = sleep
-                    data.whoop_workouts = workouts
+                _fetch_single_source(source, target_date, config, data, cache_config)
         else:
-            # Aggregate all sources - pass None to let it reload config from disk
+            # Aggregate all sources
             data = aggregate_data(target_date, config_path=None)
 
         # Format output
@@ -306,13 +372,13 @@ async def get_data(
                 data=formatted_data,
                 raw_data=data.model_dump(),
             )
-        else:
-            formatted_data = format_as_markdown(data, config)
-            return DataResponse(date=str(target_date), format="markdown", data=formatted_data)
+
+        formatted_data = format_as_markdown(data, config)
+        return DataResponse(date=str(target_date), format="markdown", data=formatted_data)
 
     except Exception as e:
         logger.error("data_fetch_failed", error=str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error fetching data: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Error fetching data: {e!s}") from e
 
 
 @app.exception_handler(Exception)

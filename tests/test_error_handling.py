@@ -484,13 +484,15 @@ whoop:
             "pkm_tool.aggregator.fetch_google_docs", side_effect=Exception("Google Docs failed")
         )
         mocker.patch(
-            "pkm_tool.aggregator.fetch_whoop_recovery", side_effect=Exception("Whoop recovery failed")
+            "pkm_tool.aggregator.fetch_whoop_recovery",
+            side_effect=Exception("Whoop recovery failed"),
         )
         mocker.patch(
             "pkm_tool.aggregator.fetch_whoop_sleep", side_effect=Exception("Whoop sleep failed")
         )
         mocker.patch(
-            "pkm_tool.aggregator.fetch_whoop_workouts", side_effect=Exception("Whoop workouts failed")
+            "pkm_tool.aggregator.fetch_whoop_workouts",
+            side_effect=Exception("Whoop workouts failed"),
         )
 
         # Should not raise - all errors should be caught

@@ -21,16 +21,24 @@ def fetch_github_activities(target_date: date, config: dict[str, Any]) -> list[G
         config: Configuration dictionary with optional 'token'
 
     Returns:
-        List of GitHubActivity objects
+        List of GitHubActivity objects (empty list on error)
     """
     logger.debug("github_fetch_started", date=str(target_date), using_pygithub=True)
     try:
         activities = _fetch_github_via_pygithub(target_date, config)
         logger.info("github_activities_fetched", activity_count=len(activities))
         return activities
+    except GithubException as e:
+        # GitHub API-specific errors (auth, rate limit, etc.)
+        logger.error(
+            "github_fetch_failed",
+            error=str(e),
+            status=getattr(e, "status", None),
+            exc_info=True,
+        )
+        return []
     except Exception as e:
-        # All exceptions are caught and return empty list
-        # This ensures graceful degradation
+        # Unexpected errors (network, parsing, etc.)
         logger.error("github_fetch_failed", error=str(e), exc_info=True)
         return []
 
@@ -47,7 +55,8 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
         List of GitHubActivity objects
 
     Raises:
-        Exception: Any error during GitHub API interaction
+        GithubException: GitHub API errors (auth, rate limit, etc.)
+        Exception: Other errors during GitHub API interaction
     """
     g = None
     try:
@@ -91,10 +100,6 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
         )
         return activities
 
-    except GithubException as e:
-        # GitHub API errors (auth, rate limit, etc.)
-        logger.error("github_api_error", error=str(e), status=getattr(e, "status", None))
-        return []
     finally:
         # Clean up connection
         if g is not None:

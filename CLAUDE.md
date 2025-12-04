@@ -1,11 +1,20 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 KEEP THIS FILE UP TO DATE! (Add the end of each plan)!
 WHEN USER WORKS WITH A NEW FLOW!
 
 MAKE SURE TO KEEP llm-tool.json UP TO DATE!
+
+## Documentation Structure
+
+This repository has multiple documentation files for different audiences:
+
+- **README.md** - User-facing documentation (installation, usage, configuration)
+- **CONTRIBUTING.md** - Developer guide (setup, workflow, testing, contributing)
+- **CLAUDE.md** - This file - Comprehensive technical context for AI agents
+- **.github/copilot-instructions.md** - GitHub Copilot coding standards and patterns
 
 ## Coding Standards and Principles
 
@@ -19,6 +28,8 @@ MAKE SURE TO KEEP llm-tool.json UP TO DATE!
 - NEVER CALL SOMETHING DONE without VALIDATING!
 - Never write code to JUST make the tests pass, write the tests first!
 - Use conventional commits for all commits (see Version Control Workflow below)
+- **ALWAYS use Makefile targets** - Never call tools like ruff, ty, pytest directly
+- **Keep Makefile up-to-date** - Add new targets when introducing new tools or workflows
 
 ## Version Control Workflow
 
@@ -133,7 +144,7 @@ Commit messages are automatically validated using **commitlint**:
 
 ```bash
 # Install pre-commit hooks (includes commitlint)
-make tools/install-hooks
+make install-hooks
 
 # Commits are automatically validated when you run git commit
 git commit -m "feat(auth): add login"  # ✓ passes
@@ -491,14 +502,19 @@ gh pr create --title "HOTFIX: Critical production bug"
 
 ## Quick Commands
 
-### Makefile (Preferred)
+### Makefile (REQUIRED - Single Source of Truth)
+
+#### CRITICAL REQUIREMENT
+
+ALWAYS use Makefile targets. NEVER call tools directly (ruff, ty, pytest, etc.)
+
+The Makefile is the single source of truth for all development commands. Direct tool access is forbidden.
 
 Professional-grade development automation with 9 organized sections:
 
 ```bash
 # 1. Development Setup
 make install                   # Install with dev dependencies
-make install/dev               # Install with dev dependencies (alias)
 make install-hooks             # Install pre-commit hooks
 make update                    # Update dev tooling (pre-commit hooks, dependencies)
 
@@ -714,24 +730,38 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Direct uv commands (reference)
+### Direct uv commands (reference only - prefer Makefile)
+
+#### Important Note
+
+Always prefer Makefile targets over direct tool access.
+
+These commands are provided for reference, but you should use `make` targets instead:
 
 ```bash
 # Development setup
-uv sync --all-extras           # Install with dev dependencies
+make install                   # Instead of: uv sync --all-extras
 
 # Testing
-uv run pytest                  # Run all tests
-uv run pytest -v               # Verbose test output
-uv run pytest tests/test_*.py  # Run specific test file
-uv run pytest --cov            # With coverage
+make test                      # Instead of: uv run pytest
+make test/coverage             # Instead of: uv run pytest --cov
 
 # Code quality
-uv run ty src                  # Type checking (Astral's ty)
-uv run ruff check src tests    # Linting
-uv run ruff format src tests   # Auto-formatting
-uv run ruff check --fix src tests # Auto-fix lint issues
+make typecheck/python          # Instead of: uv run ty src
+make lint                      # Instead of: uv run ruff check src tests
+make format                    # Instead of: uv run ruff format src tests
+make fix/python                # Instead of: uv run ruff check --fix src tests
+
+# Combined
+make all                       # Full pipeline
+make check                     # Check without modifications
 ```
+
+**When to use direct commands:**
+
+- Only when debugging Makefile issues
+- Never in normal development workflow
+- Never in documentation examples
 
 ## Project Structure
 

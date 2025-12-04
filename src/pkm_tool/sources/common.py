@@ -1,4 +1,64 @@
-"""Common utilities for data sources."""
+"""Common utilities for data sources.
+
+Error Handling Pattern
+----------------------
+
+All data sources follow a consistent error handling pattern:
+
+1. **Handle errors once** - Errors are caught and handled at the top-level function only.
+   Internal helper functions should raise exceptions rather than catching them.
+
+2. **Consistent logging levels**:
+   - Use `logger.error()` for actual failures (with exc_info=True for tracebacks)
+   - Use `logger.warning()` for missing configuration/authentication
+   - Use `logger.debug()` for normal flow information
+   - Use `logger.info()` for successful operations
+
+3. **Graceful degradation** - All fetch functions return empty results on error:
+   - Return empty list `[]` for list-returning functions
+   - Return `None` for single-object functions
+   - Never raise exceptions to the caller (aggregator)
+
+4. **Error isolation** - Errors in one source do not affect other sources.
+   The aggregator catches exceptions from each source and stores error messages
+   in the metadata dictionary.
+
+Example Pattern:
+    ```python
+    def fetch_source_data(target_date: date, config: dict[str, Any]) -> list[Model]:
+        logger.debug("source_fetch_started", date=str(target_date))
+
+        # Check for required configuration
+        token = get_source_token("source_name", config)
+        if not token:
+            logger.warning("source_no_token", message="No token configured")
+            return []
+
+        try:
+            # Call internal implementation that may raise
+            results = _fetch_source_internal(target_date, token)
+            logger.info("source_fetch_completed", count=len(results))
+            return results
+        except SpecificError as e:
+            # Handle specific errors with more context
+            logger.error("source_fetch_failed", error=str(e), exc_info=True)
+            return []
+        except Exception as e:
+            # Catch-all for unexpected errors
+            logger.error("source_fetch_failed", error=str(e), exc_info=True)
+            return []
+    ```
+
+Testing:
+    Error handling is comprehensively tested in tests/test_error_handling.py:
+    - Authentication failures
+    - Network errors
+    - API rate limits
+    - Malformed responses
+    - Missing configuration
+    - Platform compatibility
+    - Error isolation (one source failure doesn't affect others)
+"""
 
 import os
 from typing import Any

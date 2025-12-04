@@ -219,15 +219,21 @@ make test
 # Run with coverage report
 make test/coverage
 
-# Run specific test file
-uv run pytest tests/test_cli.py
+# Run specific test types
+make test  # Will run all tests with markers
 
-# Run with verbose output
-uv run pytest -v
+# Run with verbose output (included by default in make test)
+make test
 
 # Update snapshots after intentional changes
-uv run pytest --snapshot-update
+# Note: No Makefile target exists for this. Use directly when needed:
+# uv run pytest --snapshot-update
 ```
+
+**Note on direct tool usage:** According to project policy, prefer Makefile targets
+for all standard workflows. For advanced scenarios not covered by Makefile targets
+(like updating snapshots), you may invoke tools directly, but avoid documenting
+these as primary workflows.
 
 ### Writing Tests
 

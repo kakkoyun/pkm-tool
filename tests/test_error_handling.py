@@ -185,7 +185,7 @@ class TestAtlassianErrorHandling:
 
         result = fetch_atlassian_items(target_date, config)
 
-        # Should handle Jira error and still try Confluence (but fail at top level)
+        # Should handle Jira error at top level and return empty list without attempting Confluence
         assert result == []
 
     def test_atlassian_handles_confluence_api_error(self, mocker):
@@ -484,7 +484,13 @@ whoop:
             "pkm_tool.aggregator.fetch_google_docs", side_effect=Exception("Google Docs failed")
         )
         mocker.patch(
-            "pkm_tool.aggregator.fetch_whoop_recovery", side_effect=Exception("Whoop failed")
+            "pkm_tool.aggregator.fetch_whoop_recovery", side_effect=Exception("Whoop recovery failed")
+        )
+        mocker.patch(
+            "pkm_tool.aggregator.fetch_whoop_sleep", side_effect=Exception("Whoop sleep failed")
+        )
+        mocker.patch(
+            "pkm_tool.aggregator.fetch_whoop_workouts", side_effect=Exception("Whoop workouts failed")
         )
 
         # Should not raise - all errors should be caught

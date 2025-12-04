@@ -219,11 +219,11 @@ make test
 # Run with coverage report
 make test/coverage
 
-# Run specific test types
-make test  # Will run all tests with markers
+# Run tests in parallel (for large test suites)
+make test/parallel
 
-# Run with verbose output (included by default in make test)
-make test
+# Show timing for all tests
+make test/timing
 
 # Update snapshots after intentional changes
 # Note: No Makefile target exists for this. Use directly when needed:

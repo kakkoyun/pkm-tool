@@ -65,3 +65,18 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+      - id: skylos
+        name: skylos report (gate)
+        entry: uv run skylos
+        language: system
+        pass_filenames: false
+        require_serial: true
+        args: ["--json", "--output", "skylos_report.json", "--quality", "--danger", "--gate", "."]
+      - id: complexipy
+        name: complexipy complexity gate
+        entry: uv run complexipy
+        language: system
+        types: [python]
+        pass_filenames: false
+        require_serial: true
+        args: [".", "--max-complexity-allowed", "25", "--failed", "--output-json"]

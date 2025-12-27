@@ -67,7 +67,7 @@ test/slow: ## Show only slow tests (>1s)
 
 .PHONY: format lint check format/python format/python/check format/yaml format/markdown format/shell typecheck/python
 .PHONY: lint/python lint/python/fix lint/shell lint/actions lint/yaml lint/makefile
-.PHONY: lint/markdown lint/markdown/fix
+.PHONY: lint/markdown lint/markdown/fix lint/skylos lint/complexipy
 
 format: format/python format/yaml format/markdown format/shell ## Format all code (Python, YAML, Markdown, Shell)
 
@@ -102,7 +102,7 @@ format/shell: ## Format shell scripts with shfmt
 
 # TODO: Add lint/makefile after fixing or allowlisting Makefile issues
 
-lint: lint/python lint/shell lint/actions lint/yaml lint/markdown ## Run all linters
+lint: lint/python lint/shell lint/actions lint/yaml lint/markdown lint/skylos lint/complexipy ## Run all linters
 
 lint/python: ## Run Python linter (ruff)
 	uv run ruff check src tests
@@ -158,6 +158,12 @@ lint/makefile: ## Check Makefile with checkmake
 	else \
 		echo "checkmake not available (install via pre-commit), skipping"; \
 	fi
+
+lint/skylos: ## Run Skylos gate (dead code, quality, danger)
+	uv run skylos . --json --output skylos_report.json --quality --danger --gate
+
+lint/complexipy: ## Run complexipy complexity gate
+	uv run complexipy . --max-complexity-allowed 25 --failed --output-json
 
 lint/commits: ## Check commit messages with commitlint
 	@echo "Validating commit messages with commitlint..."
@@ -281,7 +287,8 @@ yamlfmt: ## Install yamlfmt if not present
 	fi
 
 clean: ## Remove caches and build artifacts
-	rm -rf .pytest_cache .ruff_cache .mypy_cache dist build htmlcov .coverage
+	rm -rf .pytest_cache .ruff_cache .mypy_cache dist build htmlcov .coverage skylos_report.json complexipy_report.json complexipy-snapshot.json
+	rm -f complexipy_results_*.json || true
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null
 

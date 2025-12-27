@@ -220,3 +220,10 @@ __marimo__/
 # Node.js dependencies for commitlint
 node_modules/
 package-lock.json
+
+# Static analysis reports
+skylos_report.json
+complexipy_report.json
+complexipy-snapshot.json
+complexipy_results_*.json
+.complexipy_cache/

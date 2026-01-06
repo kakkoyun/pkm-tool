@@ -121,11 +121,10 @@ class TokenStore:
         conn = self._connect()
         try:
             conn.row_factory = sqlite3.Row
-            query = (
+            rows = conn.execute(
                 "SELECT source, token, refresh_token, expires_at, token_type "
                 "FROM tokens ORDER BY source"
-            )
-            rows = conn.execute(query).fetchall()
+            ).fetchall()
 
             tokens: list[StoredToken] = []
             for row in rows:

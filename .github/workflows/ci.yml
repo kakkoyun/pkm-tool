@@ -4,21 +4,42 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+permissions:
+  contents: read
 jobs:
   ci:
     runs-on: ubuntu-latest
     name: Run CI checks
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6
+
       - uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # ratchet:astral-sh/setup-uv@v7
-      # - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # ratchet:actions/setup-go@v6
+
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # ratchet:actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - run: uv python install
+
       - run: make tools/install
-      - run: make ci
+
+      # make ci: ## Run CI pipeline: pre-commit → test/coverage
+      #   pre-commit run --all-files
+      #   $(MAKE) test/coverage
+
+      # Pre-commit is source of truth for static analysis
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # ratchet:pre-commit/action@v3.0.1
+        with:
+          extra_args: --all-files
+
+      # Tests run separately
+      - run: make test/coverage
+
       - uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # ratchet:codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
       - if: ${{ !cancelled() }}
         uses: codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f # ratchet:codecov/test-results-action@v1
         with:

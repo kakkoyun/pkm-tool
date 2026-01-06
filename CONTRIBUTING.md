@@ -467,9 +467,9 @@ The Makefile is the **single source of truth** for all development commands. Whe
 ### Adding New Targets
 
 1. **Choose the right section** (see Makefile comments for 9 organized sections)
-2. **Add documentation** with `##` comment for `make help`
-3. **Test the target** locally before committing
-4. **Update documentation** if the target is user-facing
+1. **Add documentation** with `##` comment for `make help`
+1. **Test the target** locally before committing
+1. **Update documentation** if the target is user-facing
 
 Example:
 

@@ -4,6 +4,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^tests/__snapshots__/
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
@@ -20,6 +21,15 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+  # Shell scripts - shfmt formatting
+  - repo: local
+    hooks:
+      - id: shfmt
+        name: shfmt shell formatter
+        entry: shfmt
+        language: system
+        types: [shell]
+        args: [-i, "2", -ci, -w]
   # GitHub Actions - actionlint
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.9
@@ -44,11 +54,21 @@ repos:
         additional_dependencies:
           - mdformat-gfm
           - mdformat-black
+  # Markdown - markdownlint linting
+  - repo: local
+    hooks:
+      - id: markdownlint
+        name: markdownlint linter
+        entry: npx
+        language: system
+        types: [markdown]
+        args: [--yes, markdownlint-cli, --config, .config/markdownlint.json, --ignore-path, .config/markdownlintignore]
   # Makefile - checkmake
   - repo: https://github.com/mrtazz/checkmake
     rev: 0.2.2
     hooks:
       - id: checkmake
+        args: [--config=.config/checkmake.ini]
   # Conventional Commits - commitlint
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v9.23.0

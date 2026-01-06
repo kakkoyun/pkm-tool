@@ -106,67 +106,73 @@ def _format_google_docs_content(data: AggregatedData) -> list[str]:
     return lines
 
 
+def _format_duration(minutes: int) -> str:
+    """Format minutes as 'Xh Ym' string."""
+    hours = minutes // 60
+    mins = minutes % 60
+    if hours > 0:
+        return f"{hours}h {mins}m"
+    return f"{mins}m"
+
+
+def _format_sleep_stages(sleep) -> str | None:
+    """Format sleep stages as a comma-separated string."""
+    stages = []
+    if sleep.deep_sleep_minutes:
+        stages.append(f"Deep: {_format_duration(sleep.deep_sleep_minutes)}")
+    if sleep.light_sleep_minutes:
+        stages.append(f"Light: {_format_duration(sleep.light_sleep_minutes)}")
+    if sleep.rem_sleep_minutes:
+        stages.append(f"REM: {_format_duration(sleep.rem_sleep_minutes)}")
+    return ", ".join(stages) if stages else None
+
+
+def _format_sleep_entry(sleep) -> list[str]:
+    """Format a single sleep entry."""
+    lines: list[str] = []
+    start_str = sleep.start.strftime("%H:%M")
+    end_str = sleep.end.strftime("%H:%M")
+    duration = _format_duration(sleep.duration_minutes)
+    efficiency = f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
+    lines.append(f"- {start_str} - {end_str} ({duration}){efficiency}")
+
+    stages = _format_sleep_stages(sleep)
+    if stages:
+        lines.append(f"  - {stages}")
+    return lines
+
+
+def _format_workout_entry(workout) -> str:
+    """Format a single workout entry."""
+    time_str = workout.start.strftime("%H:%M")
+    duration = _format_duration(workout.duration_minutes)
+    strain = f"Strain: {workout.strain:.1f}"
+    hr = f", Avg HR: {workout.average_heart_rate} bpm" if workout.average_heart_rate else ""
+    return f"- **{time_str}** {workout.sport_name} ({duration}) - {strain}{hr}"
+
+
 def _format_whoop_data_content(data: AggregatedData) -> list[str]:
     """Format Whoop health data content (without header)."""
     lines: list[str] = []
 
-    # Recovery
     if data.whoop_recovery:
-        recovery = data.whoop_recovery
+        r = data.whoop_recovery
         lines.append(
-            f"**Recovery:** {recovery.recovery_score:.0f}% "
-            f"(HRV: {recovery.hrv:.0f}ms, Resting HR: {recovery.resting_heart_rate} bpm)"
+            f"**Recovery:** {r.recovery_score:.0f}% "
+            f"(HRV: {r.hrv:.0f}ms, Resting HR: {r.resting_heart_rate} bpm)"
         )
         lines.append("")
 
-    # Sleep
     if data.whoop_sleep:
         lines.append("**Sleep:**")
         for sleep in sorted(data.whoop_sleep, key=lambda s: s.start):
-            start_str = sleep.start.strftime("%H:%M")
-            end_str = sleep.end.strftime("%H:%M")
-            hours = sleep.duration_minutes // 60
-            mins = sleep.duration_minutes % 60
-            efficiency_str = (
-                f" - {sleep.sleep_efficiency:.0f}% efficiency" if sleep.sleep_efficiency else ""
-            )
-            lines.append(f"- {start_str} - {end_str} ({hours}h {mins}m){efficiency_str}")
-
-            # Sleep stages
-            stages = []
-            if sleep.deep_sleep_minutes:
-                deep_h = sleep.deep_sleep_minutes // 60
-                deep_m = sleep.deep_sleep_minutes % 60
-                stages.append(f"Deep: {deep_h}h {deep_m}m")
-            if sleep.light_sleep_minutes:
-                light_h = sleep.light_sleep_minutes // 60
-                light_m = sleep.light_sleep_minutes % 60
-                stages.append(f"Light: {light_h}h {light_m}m")
-            if sleep.rem_sleep_minutes:
-                rem_h = sleep.rem_sleep_minutes // 60
-                rem_m = sleep.rem_sleep_minutes % 60
-                stages.append(f"REM: {rem_h}h {rem_m}m")
-            if stages:
-                lines.append(f"  - {', '.join(stages)}")
+            lines.extend(_format_sleep_entry(sleep))
         lines.append("")
 
-    # Workouts
     if data.whoop_workouts:
         lines.append("**Workouts:**")
         for workout in sorted(data.whoop_workouts, key=lambda w: w.start):
-            time_str = workout.start.strftime("%H:%M")
-            hours = workout.duration_minutes // 60
-            mins = workout.duration_minutes % 60
-            duration_str = f"{hours}h {mins}m" if hours > 0 else f"{mins}m"
-
-            strain_str = f"Strain: {workout.strain:.1f}"
-            hr_str = (
-                f", Avg HR: {workout.average_heart_rate} bpm" if workout.average_heart_rate else ""
-            )
-
-            lines.append(
-                f"- **{time_str}** {workout.sport_name} ({duration_str}) - {strain_str}{hr_str}"
-            )
+            lines.append(_format_workout_entry(workout))
 
     return lines
 
@@ -501,6 +507,45 @@ def _format_errors_section(data: AggregatedData) -> str:
     return "\n".join(lines).rstrip()
 
 
+# Reverse mapping: data field name -> source name
+DATA_FIELD_TO_SOURCE: dict[str, str] = {v: k for k, v in SOURCE_TO_DATA_FIELD.items()}
+
+DEFAULT_SOURCE_ORDER: list[str] = [
+    "apple_calendar",
+    "github",
+    "atlassian",
+    "things",
+    "wakatime",
+    "google_docs",
+    "whoop",
+]
+
+
+def _find_existing_section(source_name: str, existing: dict[str, str]) -> str | None:
+    """Find the old section name in existing content for a given source."""
+    for data_field, src in DATA_FIELD_TO_SOURCE.items():
+        if src == source_name and data_field in existing:
+            return data_field
+    return None
+
+
+def _add_preamble(existing: dict[str, str], lines: list[str]) -> None:
+    """Add preamble (manual content before PKM sections) to lines."""
+    preamble = existing.get("_preamble", "").rstrip()
+    if preamble:
+        lines.append(preamble)
+        lines.append("")
+
+
+def _add_postamble(existing: dict[str, str], lines: list[str]) -> None:
+    """Add postamble (manual content after PKM sections) to lines."""
+    postamble = existing.get("_postamble", "").strip()
+    if postamble:
+        if lines and lines[-1]:
+            lines.append("")
+        lines.append(postamble)
+
+
 def merge_sections(
     existing: dict[str, str],
     new_data: AggregatedData,
@@ -525,79 +570,33 @@ def merge_sections(
         Merged markdown content
     """
     lines: list[str] = []
+    _add_preamble(existing, lines)
 
-    # Start with preamble (manual content before PKM sections)
-    if existing.get("_preamble"):
-        preamble = existing["_preamble"].rstrip()
-        if preamble:
-            lines.append(preamble)
-            lines.append("")
-
-    # Get source order from config
-    if config:
-        source_order = config.get_ordered_sources()
-    else:
-        source_order = [
-            "apple_calendar",
-            "github",
-            "atlassian",
-            "things",
-            "wakatime",
-            "google_docs",
-            "whoop",
-        ]
-
-    # Track which sources have been added
+    source_order = config.get_ordered_sources() if config else DEFAULT_SOURCE_ORDER
     added_sources: set[str] = set()
 
-    # Map from data field names to source names (used by identify_section)
-    section_to_source = {
-        "calendar_events": "apple_calendar",
-        "github_activities": "github",
-        "atlassian_items": "atlassian",
-        "things_tasks": "things",
-        "wakatime_activities": "wakatime",
-        "google_docs": "google_docs",
-        "whoop_data": "whoop",
-    }
-
-    # First, add sections that existed in the original file (to maintain order)
+    # Add sections that existed in the original file (maintains order)
     for source_name in source_order:
-        # Check if this source was in the existing file (using old section names)
-        old_section_name = None
-        for old_name, new_name in section_to_source.items():
-            if new_name == source_name and old_name in existing:
-                old_section_name = old_name
-                break
-
-        if old_section_name and old_section_name not in ["_preamble", "_postamble"]:
-            # Replace with fresh data
-            section_content = _format_section(new_data, source_name, config)
-            if section_content:
-                lines.append(section_content)
+        old_section = _find_existing_section(source_name, existing)
+        if old_section and old_section not in ["_preamble", "_postamble"]:
+            content = _format_section(new_data, source_name, config)
+            if content:
+                lines.append(content)
                 added_sources.add(source_name)
 
-    # Then add new sections that weren't in the original file
+    # Add new sections that weren't in the original file
     for source_name in source_order:
         if source_name not in added_sources:
-            section_content = _format_section(new_data, source_name, config)
-            if section_content:
-                lines.append(section_content)
+            content = _format_section(new_data, source_name, config)
+            if content:
+                lines.append(content)
 
     # Errors always last
-    errors_content = _format_errors_section(new_data)
-    if errors_content:
-        lines.append(errors_content)
+    errors = _format_errors_section(new_data)
+    if errors:
+        lines.append(errors)
 
-    # End with postamble (manual content after PKM sections)
-    if existing.get("_postamble"):
-        postamble = existing["_postamble"].strip()
-        if postamble:
-            # Ensure blank line before postamble
-            if lines and lines[-1]:
-                lines.append("")
-            lines.append(postamble)
-
+    _add_postamble(existing, lines)
     return "\n".join(lines)
 
 

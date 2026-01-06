@@ -69,7 +69,7 @@ test/slow: ## Show only slow tests (>1s)
 .PHONY: lint/python lint/python/fix lint/shell lint/actions lint/yaml lint/makefile
 .PHONY: lint/markdown lint/markdown/fix lint/skylos lint/complexipy
 
-format: format/python format/yaml format/markdown format/shell ## Format all code (Python, YAML, Markdown, Shell)
+format: format/python format/markdown format/shell format/yaml ## Format all code (Python, Markdown, Shell, YAML)
 
 format/python: ## Format Python code with ruff
 	uv run ruff format src tests
@@ -83,87 +83,52 @@ format/yaml: ## Format YAML files with yamlfmt
 		yamlfmt -conf .config/yamlfmt.yaml .; \
 	else \
 		echo "yamlfmt not available (install: go install github.com/google/yamlfmt/cmd/yamlfmt@latest)"; \
-		echo "Using yamllint for checking only..."; \
-		uv run yamllint -f colored -c .config/yamllint.yaml . ; \
 	fi
 
 format/markdown: ## Format Markdown files with mdformat
-	@echo "Formatting Markdown files..."
-	@pre-commit run mdformat --all-files
+	uv run mdformat .
 
 format/shell: ## Format shell scripts with shfmt
-	@echo "Formatting shell scripts..."
 	@if command -v shfmt >/dev/null 2>&1; then \
-		echo "Running shfmt on shell scripts..."; \
-		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec shfmt -i 2 -ci -w {} + ; \
-	else \
-		echo "shfmt not available (install: go install mvdan.cc/sh/v3/cmd/shfmt@latest), skipping"; \
+		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec shfmt -i 2 -ci -w {} + 2>/dev/null || true; \
 	fi
 
-# TODO: Add lint/makefile after fixing or allowlisting Makefile issues
+lint: lint/python lint/shell lint/actions lint/yaml lint/markdown lint/makefile typecheck/python lint/skylos lint/complexipy ## Run all linters
 
-lint: lint/python lint/shell lint/actions lint/yaml lint/markdown lint/skylos lint/complexipy ## Run all linters
-
-lint/python: ## Run Python linter (ruff)
-	uv run ruff check src tests
+lint/python: ## Run Python linter (via pre-commit)
+	pre-commit run ruff --all-files
 
 lint/python/fix: ## Auto-fix Python linting issues
 	uv run ruff check --fix src tests
 
-lint/markdown: ## Lint check Markdown files with markdownlint
-	@echo "Linting Markdown files..."
-	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --config .config/markdownlint.json --ignore-path .config/markdownlintignore ; \
-	else \
-		echo "npx not available, using pre-commit mdformat instead"; \
-		pre-commit run mdformat --all-files ; \
-	fi
+lint/markdown: ## Lint Markdown files (via pre-commit)
+	pre-commit run markdownlint --all-files
 
-lint/markdown/fix: ## Lint and fix Markdown files with markdownlint
-	@echo "Linting and fixing Markdown files..."
-	@if command -v npx >/dev/null 2>&1; then \
-		npx --yes markdownlint-cli **/*.md --fix --config .config/markdownlint.json --ignore-path .config/markdownlintignore ; \
-	else \
-		echo "npx not available, using pre-commit mdformat instead"; \
-		pre-commit run mdformat --all-files ; \
-	fi
+lint/markdown/fix: ## Format and lint Markdown files
+	uv run mdformat .
+	pre-commit run markdownlint --all-files
 
-typecheck/python: ## Type check with ty
-	uv run ty check
+typecheck/python: ## Type check with ty (via pre-commit)
+	pre-commit run ty --all-files
 
-lint/shell: ## Check shell scripts with shellcheck
-	@if command -v shellcheck >/dev/null 2>&1 || uv run shellcheck --version >/dev/null 2>&1; then \
-		echo "Running shellcheck on shell scripts..."; \
-		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec uv run shellcheck {} + ; \
-	else \
-		echo "shellcheck not available, skipping"; \
-	fi
+lint/shell: ## Check shell scripts (via pre-commit)
+	pre-commit run shellcheck --all-files
 
-lint/actions: ## Check GitHub Actions workflows with actionlint
-	@if command -v actionlint >/dev/null 2>&1 || uv run actionlint --version >/dev/null 2>&1; then \
-		echo "Running actionlint on GitHub Actions workflows..."; \
-		uv run actionlint ; \
-	else \
-		echo "actionlint not available, skipping"; \
-	fi
+lint/actions: ## Check GitHub Actions (via pre-commit)
+	pre-commit run actionlint --all-files
+	pre-commit run check-github-workflows --all-files
 
-lint/yaml: ## Check YAML files with yamllint
-	@echo "Running yamllint on YAML files..."
-	@uv run yamllint -f colored -c .config/yamllint.yaml .
+lint/yaml: ## Check YAML files (via pre-commit)
+	pre-commit run yamllint --all-files
 
-lint/makefile: ## Check Makefile with checkmake
-	@if command -v checkmake >/dev/null 2>&1; then \
-		echo "Running checkmake on Makefile..."; \
-		checkmake Makefile ; \
-	else \
-		echo "checkmake not available (install via pre-commit), skipping"; \
-	fi
+lint/makefile: ## Check Makefile (via pre-commit)
+	pre-commit run checkmake --all-files
 
-lint/skylos: ## Run Skylos gate (dead code, quality, danger)
-	uv run skylos . --json --output skylos_report.json --quality --danger --gate
+lint/skylos: ## Run Skylos quality gate (via pre-commit)
+	pre-commit run skylos --all-files
 
-lint/complexipy: ## Run complexipy complexity gate
-	uv run complexipy . --max-complexity-allowed 25 --failed --output-json
+lint/complexipy: ## Run complexity gate (via pre-commit)
+	pre-commit run complexipy --all-files
 
 lint/commits: ## Check commit messages with commitlint
 	@echo "Validating commit messages with commitlint..."
@@ -196,13 +161,16 @@ lint/commits/range: ## Check commit messages in a range (usage: make lint/commit
 		exit 1; \
 	fi
 
-check: lint format/python/check typecheck/python ## Run all Python checks without modifying files
+check: ## Run all checks via pre-commit (no modifications)
+	pre-commit run --all-files
 
 .PHONY: fix
-fix: fix/python lint/markdown/fix format ## Auto-fix all fixable issues (format + lint --fix)
+fix: fix/python format/markdown format/shell ## Auto-fix all fixable issues (format + lint)
 
 .PHONY: fix/python
-fix/python: format/python lint/python/fix ## Auto-fix all fixable issues (format + lint --fix)
+fix/python: ## Auto-fix Python issues (format + lint --fix)
+	uv run ruff check --fix src tests
+	uv run ruff format src tests
 
 # ============================================================================
 # Section 4: Pre-commit Integration
@@ -210,7 +178,7 @@ fix/python: format/python lint/python/fix ## Auto-fix all fixable issues (format
 
 .PHONY: pre-commit pre-commit/install
 
-pre-commit: ## Run pre-commit on all files (ruff, ty, shellcheck, actionlint, yamllint, mdformat, checkmake)
+pre-commit: ## Run pre-commit on all files (source of truth for static analysis)
 	pre-commit run --all-files
 
 pre-commit/install: install-hooks ## Alias for install-hooks
@@ -301,8 +269,13 @@ clean/all: clean ## Deep clean (clean + remove virtual environment)
 
 .PHONY: all ci
 
-all: format check lint test ## Run full pipeline: format → lint → typecheck → test
-ci: check test/coverage ## Run CI pipeline: check → test (what GitHub Actions runs)
+all: ## Run full pipeline: pre-commit → test
+	pre-commit run --all-files
+	$(MAKE) test
+
+ci: ## Run CI pipeline: pre-commit → test/coverage
+	pre-commit run --all-files
+	$(MAKE) test/coverage
 
 # ============================================================================
 # Section 9: Help
@@ -356,10 +329,13 @@ help: ## Display this help message
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Common Workflows:"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "  Development:      make install → make install-hooks → make all"
+	@echo "  Development:      make tools/install → make tools/install-hooks → make all"
 	@echo "  Before commit:    make all (or rely on pre-commit hooks)"
 	@echo "  CI simulation:    make ci"
-	@echo "  Quick check:      make check"
+	@echo "  Quick check:      make check (runs pre-commit)"
+	@echo ""
+	@echo "Note: Pre-commit is the source of truth for static analysis."
+	@echo "      Makefile targets wrap pre-commit commands for convenience."
 	@echo ""
 
 # Set default target

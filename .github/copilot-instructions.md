@@ -243,6 +243,7 @@ make typecheck/python # Type check with ty
 ```
 
 **Maintaining the Makefile:**
+
 - Keep Makefile up-to-date when adding new tools or workflows
 - Add new targets for new quality checks
 - Document all targets in `make help`

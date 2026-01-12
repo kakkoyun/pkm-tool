@@ -5,7 +5,7 @@ from typing import Any
 
 import structlog
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 logger = structlog.get_logger(__name__)
 
@@ -24,6 +24,40 @@ DEFAULT_SOURCE_TITLES: dict[str, str] = {
 # Errors title (always last, in folded format)
 ERRORS_TITLE: str = "⚠️ Errors"
 
+# OAuth configuration defaults for sources requiring OAuth2 authentication.
+# These are used as fallbacks when not explicitly configured in config.yaml.
+#
+# Example Whoop OAuth configuration in config.yaml:
+# whoop:
+#   enabled: true
+#   config:
+#     client_id: "your-client-id"
+#     client_secret: "your-client-secret"
+#     callback_port: 8642  # Optional, default 8642
+#     scopes:  # Optional, defaults shown below
+#       - read:recovery
+#       - read:sleep
+#       - read:workout
+#       - offline
+#
+# Example Google Docs OAuth configuration in config.yaml:
+# google_docs:
+#   enabled: true
+#   config:
+#     client_id: "your-client-id"
+#     client_secret: "your-client-secret"
+#     scopes:  # Optional, default shown below
+#       - https://www.googleapis.com/auth/drive.readonly
+
+WHOOP_DEFAULT_CONFIG: dict[str, Any] = {
+    "callback_port": 8642,
+    "scopes": ["read:recovery", "read:sleep", "read:workout", "offline"],
+}
+
+GOOGLE_DOCS_DEFAULT_CONFIG: dict[str, Any] = {
+    "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+}
+
 
 class SourceConfig(BaseModel):
     """Configuration for a data source."""
@@ -33,6 +67,18 @@ class SourceConfig(BaseModel):
     title: str | None = None  # Custom section title, uses default if None
     order: int | None = None  # Custom order, uses config definition order if None
     config: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("config", mode="before")
+    @classmethod
+    def config_none_to_empty_dict(cls, v: Any) -> dict[str, Any]:
+        """Convert None to empty dict for YAML compatibility.
+
+        YAML parses `config:` followed by only comments as None, not {}.
+        This validator ensures those cases don't cause validation errors.
+        """
+        if v is None:
+            return {}
+        return v
 
 
 class CacheConfig(BaseModel):
@@ -45,6 +91,9 @@ class CacheConfig(BaseModel):
 
 class Config(BaseModel):
     """Main configuration for PKM tool."""
+
+    # Browser settings
+    preferred_browser: str | None = None  # None = system default
 
     # Output settings
     output_filename_template: str = "{date} ({day_abbr}).{format}"
@@ -105,11 +154,21 @@ def load_config(config_path: str | None = None) -> Config:
         Config object
     """
     if config_path is None:
-        # Try default locations
+        # Try default locations (in order of preference)
+        # 1. Current directory (project-specific config)
+        # 2. Home directory (user config)
+        # 3. XDG config directory (system standard)
         default_paths = [
-            Path.home() / ".config" / "pkm-tool" / "config.yaml",
-            Path.home() / ".pkm-tool.yaml",
+            # Project-level config (current directory)
+            Path.cwd() / ".pkm.yaml",
+            Path.cwd() / ".pkm.yml",
             Path.cwd() / "pkm-tool.yaml",
+            # User-level config (home directory)
+            Path.home() / ".pkm.yaml",
+            Path.home() / ".pkm.yml",
+            Path.home() / ".pkm-tool.yaml",
+            # XDG config directory
+            Path.home() / ".config" / "pkm-tool" / "config.yaml",
         ]
         logger.debug("searching_for_config_file", paths=[str(p) for p in default_paths])
         for path in default_paths:

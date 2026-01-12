@@ -1,7 +1,6 @@
 """Comprehensive tests for error handling and fault injection across all sources."""
 
 from datetime import date
-from unittest.mock import MagicMock
 
 import httpx
 from github import GithubException
@@ -232,12 +231,16 @@ class TestAppleCalendarErrorHandling:
 
     def test_apple_calendar_handles_non_macos(self, mocker):
         """Test that non-macOS platform is handled gracefully."""
+        from pkm_tool.sources import apple_calendar
+
         target_date = date(2025, 11, 21)
         config = {}
 
-        # Mock uname to return Linux
-        mock_run = mocker.patch("subprocess.run")
-        mock_run.return_value.stdout = "Linux\n"
+        # Clear cache to ensure fresh execution
+        apple_calendar._clear_cache()
+
+        # Mock platform.system() to return Linux
+        mocker.patch("pkm_tool.sources.apple_calendar.platform.system", return_value="Linux")
 
         result = fetch_calendar_events(target_date, config)
 
@@ -245,17 +248,21 @@ class TestAppleCalendarErrorHandling:
 
     def test_apple_calendar_handles_applescript_error(self, mocker):
         """Test that AppleScript errors are handled gracefully."""
-        import subprocess
+        from pkm_tool.sources import apple_calendar
 
         target_date = date(2025, 11, 21)
         config = {}
 
-        # Mock uname to return Darwin
-        mock_run = mocker.patch("subprocess.run")
-        mock_run.side_effect = [
-            MagicMock(stdout="Darwin\n"),  # First call for platform check
-            subprocess.CalledProcessError(1, "osascript", stderr="AppleScript error"),
-        ]
+        # Clear cache to ensure fresh execution
+        apple_calendar._clear_cache()
+
+        # Mock platform.system() to return Darwin (macOS)
+        mocker.patch("pkm_tool.sources.apple_calendar.platform.system", return_value="Darwin")
+
+        # Mock subprocess.run to return non-zero exit code
+        mock_run = mocker.patch("pkm_tool.sources.apple_calendar.subprocess.run")
+        mock_run.return_value.returncode = 1
+        mock_run.return_value.stderr = "AppleScript error"
 
         result = fetch_calendar_events(target_date, config)
 
@@ -263,17 +270,22 @@ class TestAppleCalendarErrorHandling:
 
     def test_apple_calendar_handles_timeout(self, mocker):
         """Test that AppleScript timeout is handled gracefully."""
+        import subprocess
+
+        from pkm_tool.sources import apple_calendar
+
         target_date = date(2025, 11, 21)
         config = {}
 
-        # Mock uname to return Darwin, then timeout
-        import subprocess
+        # Clear cache to ensure fresh execution
+        apple_calendar._clear_cache()
 
-        mock_run = mocker.patch("subprocess.run")
-        mock_run.side_effect = [
-            MagicMock(stdout="Darwin\n"),  # First call for platform check
-            subprocess.TimeoutExpired("osascript", 30),  # Second call times out
-        ]
+        # Mock platform.system() to return Darwin (macOS)
+        mocker.patch("pkm_tool.sources.apple_calendar.platform.system", return_value="Darwin")
+
+        # Mock subprocess.run to timeout
+        mock_run = mocker.patch("pkm_tool.sources.apple_calendar.subprocess.run")
+        mock_run.side_effect = subprocess.TimeoutExpired("osascript", 30)
 
         result = fetch_calendar_events(target_date, config)
 

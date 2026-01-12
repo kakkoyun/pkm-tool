@@ -227,3 +227,9 @@ complexipy_report.json
 complexipy-snapshot.json
 complexipy_results_*.json
 .complexipy_cache/
+
+# PKM Tool
+.pkm.yaml
+.pkm.yml
+.pkm-cache/
+.pkm-tool.yaml

@@ -14,7 +14,9 @@ from dateutil import parser as date_parser
 
 from pkm_tool.aggregator import aggregate_data
 from pkm_tool.auth import AuthManager
+from pkm_tool.auth.browser import open_browser
 from pkm_tool.auth.oauth import GoogleOAuthProvider
+from pkm_tool.auth.preflight import AuthState, PreflightChecker, SourceAuthStatus
 from pkm_tool.config import Config, load_config
 from pkm_tool.formatters import (
     format_as_json,
@@ -173,12 +175,45 @@ def common_options(func: Callable) -> Callable:
     return wrapper
 
 
+def _parse_relative_date(date_input: str) -> date | None:
+    """
+    Parse relative date strings like 'yesterday', 'today', 'tomorrow'.
+
+    Args:
+        date_input: Relative date string (case-insensitive)
+
+    Returns:
+        Parsed date object or None if not a recognized relative date
+    """
+    from datetime import timedelta
+
+    today = datetime.now().date()
+    normalized = date_input.lower().strip()
+
+    # Mapping of relative date keywords to timedelta offsets
+    relative_dates = {
+        "today": timedelta(days=0),
+        "yesterday": timedelta(days=-1),
+        "tomorrow": timedelta(days=1),
+    }
+
+    if normalized in relative_dates:
+        return today + relative_dates[normalized]
+
+    return None
+
+
 def _parse_date(date_input: str | None, logger: Any) -> date:
     """
     Parse date string into date object.
 
+    Supports:
+    - None: returns today's date
+    - Relative dates: 'yesterday', 'today', 'tomorrow' (case-insensitive)
+    - Absolute dates: YYYY-MM-DD, natural language via dateutil
+
     Args:
-        date_input: Date string (YYYY-MM-DD or natural language) or None for today
+        date_input: Date string or None for today
         logger: Logger instance for logging
 
     Returns:
@@ -192,6 +227,13 @@ def _parse_date(date_input: str | None, logger: Any) -> date:
         logger.debug("using_today_as_target_date", date=str(target_date))
         return target_date
 
+    # Try relative date parsing first (yesterday, today, tomorrow)
+    relative_result = _parse_relative_date(date_input)
+    if relative_result is not None:
+        logger.debug("parsed_relative_date", input=date_input, parsed=str(relative_result))
+        return relative_result
+
+    # Fall back to dateutil for absolute dates
     try:
         parsed_date = date_parser.parse(date_input)
         target_date = parsed_date.date()
@@ -444,6 +486,324 @@ def _validate_date_options(
         raise click.ClickException("Both --from and --to must be provided for date ranges.")
 
 
+def _display_auth_status(statuses: list[SourceAuthStatus]) -> None:
+    """Display authentication status for all sources."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+
+    console.print("\n[bold]Pre-flight Authentication Check[/bold]")
+    console.print("-" * 40)
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Status", style="bold", width=3)
+    table.add_column("Source", width=15)
+    table.add_column("Message")
+
+    state_symbols = {
+        AuthState.VALID: ("[green]OK[/green]", "green"),
+        AuthState.EXPIRED: ("[yellow]![/yellow]", "yellow"),
+        AuthState.MISSING: ("[red]X[/red]", "red"),
+        AuthState.NOT_REQUIRED: ("[dim]-[/dim]", "dim"),
+        AuthState.INVALID_CONFIG: ("[red]X[/red]", "red"),
+        AuthState.DISABLED: ("[dim]-[/dim]", "dim"),
+    }
+
+    for status in statuses:
+        symbol, style = state_symbols.get(status.state, ("?", ""))
+        table.add_row(
+            symbol,
+            f"[{style}]{status.display_name}[/{style}]",
+            f"[{style}]{status.message}[/{style}]",
+        )
+
+    console.print(table)
+
+
+def _display_failed_sources(statuses: list[SourceAuthStatus]) -> None:
+    """Display sources that failed authentication."""
+    from rich.console import Console
+
+    console = Console()
+    console.print("\n[yellow]Some sources still need configuration:[/yellow]")
+    for status in statuses:
+        console.print(f"  - [bold]{status.display_name}[/bold]: {status.message}")
+
+
+def _attempt_auth_for_source(
+    status: SourceAuthStatus,
+    config: Config,
+    auth_manager: AuthManager,
+    config_path: str | None,
+    checker: PreflightChecker,
+    auto_oauth: bool,
+) -> SourceAuthStatus:
+    """Attempt to authenticate a single source.
+
+    Args:
+        status: Source authentication status
+        config: Application configuration
+        auth_manager: Auth manager instance
+        config_path: Path to config file
+        checker: Preflight checker instance
+        auto_oauth: If True, skip confirmation for OAuth sources
+
+    Returns:
+        Updated source authentication status
+    """
+    from rich.console import Console
+
+    console = Console()
+    source_key = _get_auth_source_key(status.source)
+    is_oauth_source = status.source in ("google_docs", "whoop")
+
+    try:
+        if is_oauth_source and auto_oauth:
+            # OAuth with auto-launch: skip confirmation, go directly to browser
+            source_config = getattr(config, status.source, None)
+            if source_config:
+                return checker._resolve_oauth_source(
+                    status.source,
+                    source_config,
+                    status,
+                    interactive=True,
+                    skip_confirmation=True,
+                )
+            return status
+        # Traditional flow: use existing auth mechanisms
+        if source_key is None:
+            console.print(f"[red]Unknown source: {status.source}[/red]")
+            return status
+        _perform_auth_login(source_key, config_path, auth_manager)
+        source_config = getattr(config, status.source, None)
+        if source_config:
+            return checker.check_source(status.source, source_config)
+        return status
+    except (click.ClickException, click.Abort):
+        console.print(f"[red]Authentication failed for {status.display_name}[/red]")
+        return status
+
+
+def _resolve_missing_auth(
+    statuses: list[SourceAuthStatus],
+    config: Config,
+    auth_manager: AuthManager,
+    config_path: str | None,
+    *,
+    interactive: bool = True,
+    auto_oauth: bool = False,
+) -> list[SourceAuthStatus]:
+    """Attempt to resolve missing/expired authentication interactively.
+
+    Args:
+        statuses: List of source auth statuses
+        config: Application configuration
+        auth_manager: Auth manager instance
+        config_path: Path to config file (needed for OAuth)
+        interactive: Whether to prompt for login
+        auto_oauth: If True, skip confirmation for OAuth sources (auto-launch browser)
+
+    Returns:
+        Updated list of statuses after resolution attempts
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    if not interactive:
+        return statuses
+
+    updated: list[SourceAuthStatus] = []
+    checker = PreflightChecker(auth_manager, preferred_browser=config.preferred_browser)
+
+    for status in statuses:
+        if status.state not in (AuthState.MISSING, AuthState.EXPIRED):
+            updated.append(status)
+            continue
+
+        source_key = _get_auth_source_key(status.source)
+        if source_key is None:
+            updated.append(status)
+            continue
+
+        console.print(f"\n[yellow]{status.display_name}[/yellow]: {status.message}")
+
+        # For OAuth sources with auto_oauth, skip the confirmation prompt
+        is_oauth_source = status.source in ("google_docs", "whoop")
+        should_confirm = not (is_oauth_source and auto_oauth)
+
+        if should_confirm:
+            if not click.confirm(f"Would you like to authenticate {status.display_name} now?"):
+                updated.append(status)
+                continue
+
+        # Attempt authentication using helper
+        new_status = _attempt_auth_for_source(
+            status, config, auth_manager, config_path, checker, auto_oauth
+        )
+        updated.append(new_status)
+
+    return updated
+
+
+def _get_auth_source_key(source_name: str) -> str | None:
+    """Map internal source name to AUTH_SOURCES key."""
+    mapping = {
+        "github": "github",
+        "wakatime": "wakatime",
+        "atlassian": "atlassian",
+        "google_docs": "google-docs",
+        "whoop": "whoop",
+    }
+    return mapping.get(source_name)
+
+
+def _try_gh_cli_token() -> str | None:
+    """Try to get token from gh CLI if installed and authenticated.
+
+    Returns the token string if gh CLI is available and authenticated,
+    None otherwise (not installed, not authenticated, or error).
+    """
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def _perform_auth_login(source: str, config_path: str | None, auth_manager: AuthManager) -> None:
+    """Perform authentication login for a source.
+
+    This is a simplified version of auth_login for use in preflight resolution.
+    """
+    meta = AUTH_SOURCES.get(source)
+    if meta is None:
+        raise click.ClickException(f"Unknown source: {source}")
+
+    store_key = meta["store_key"]
+    cfg = load_config(config_path)
+
+    if source == "atlassian":
+        atlas_cfg = cfg.atlassian.config
+        base_url = click.prompt(
+            "Atlassian base URL", default=atlas_cfg.get("base_url", "https://example.atlassian.net")
+        )
+        username = click.prompt(
+            "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
+        )
+        api_token = click.prompt("Atlassian API token", hide_input=True)
+        payload = json.dumps({"base_url": base_url, "username": username, "api_token": api_token})
+        auth_manager.store_api_token(store_key, payload, token_type="atlassian_json")
+        click.echo("Stored Atlassian credentials securely.")
+        return
+
+    # Special handling for GitHub (gh CLI integration + browser fallback)
+    if source == "github":
+        token = _try_gh_cli_token()
+        if token:
+            click.echo("✅ Found authenticated GitHub CLI, using its token")
+            auth_manager.store_api_token(store_key, token, token_type="pat")
+            return
+
+        # Open browser to PAT creation page
+        pat_url = (
+            "https://github.com/settings/tokens/new?scopes=repo,read:user&description=pkm-tool"
+        )
+        click.echo("\nOpening browser to create a Personal Access Token...")
+        click.echo(f"→ {pat_url}\n")
+
+        if not open_browser(pat_url, cfg.preferred_browser):
+            click.echo("⚠️  Could not open browser automatically.")
+
+        click.echo("Create a token with 'repo' and 'read:user' scopes, then paste it below.")
+        token = click.prompt("GitHub token", hide_input=True)
+        auth_manager.store_api_token(store_key, token, token_type="pat")
+        click.echo("✅ GitHub token stored")
+        return
+
+    if meta["type"] == "api_token":
+        prompt_label = f"{meta['display']} token"
+        token = click.prompt(prompt_label, hide_input=True)
+        token_type = meta.get("token_type", "api_token")
+        auth_manager.store_api_token(store_key, token, token_type=token_type)
+        click.echo(f"Stored {meta['display']} credentials securely.")
+        return
+
+    if source == "google-docs":
+        provider = _build_google_provider(config_path)
+        token_response = provider.obtain_token_interactive()
+        if token_response is None:
+            raise click.ClickException("Google authentication failed.")
+        auth_manager.save_oauth_token(store_key, token_response)
+        click.echo("Google Docs credentials stored.")
+        return
+
+    raise click.ClickException(f"Unsupported source: {source}")
+
+
+def _run_preflight_check(
+    cfg: Config,
+    config_path: str | None,
+    non_interactive: bool,
+    auto_oauth: bool,
+    logger: Any,
+) -> None:
+    """Run pre-flight authentication check and handle resolution.
+
+    Args:
+        cfg: Loaded configuration
+        config_path: Path to config file (for OAuth flows)
+        non_interactive: If True, fail instead of prompting
+        auto_oauth: If True, automatically launch browser OAuth without confirmation
+        logger: Logger instance
+
+    Raises:
+        SystemExit: If non-interactive and auth is missing, or user declines to proceed
+    """
+    from rich.console import Console
+
+    console = Console()
+
+    checker = PreflightChecker(preferred_browser=cfg.preferred_browser)
+    statuses = checker.check_all_sources(cfg)
+
+    # Display auth status summary
+    _display_auth_status(statuses)
+
+    # Handle missing/expired auth
+    needs_auth = checker.needs_resolution(statuses)
+    if needs_auth:
+        if non_interactive:
+            console.print(
+                "[red]Missing authentication. "
+                "Use 'pkm auth login' or remove --non-interactive.[/red]"
+            )
+            raise SystemExit(1)
+
+        # Auto-prompt login for each source
+        auth_manager = _get_auth_manager()
+        statuses = _resolve_missing_auth(
+            statuses, cfg, auth_manager, config_path, interactive=True, auto_oauth=auto_oauth
+        )
+
+    # Check if any still failed
+    still_failed = [s for s in statuses if s.state in (AuthState.MISSING, AuthState.INVALID_CONFIG)]
+    if still_failed:
+        _display_failed_sources(still_failed)
+        if not click.confirm("Proceed with available sources?", default=True):
+            raise SystemExit(1)
+
+
 @click.group()
 @click.pass_context
 def cli(ctx: click.Context) -> None:
@@ -478,6 +838,14 @@ def cli(ctx: click.Context) -> None:
 
 @cli.command()
 @common_options
+@click.option("--no-preflight", is_flag=True, help="Skip authentication pre-check")
+@click.option("--non-interactive", is_flag=True, help="Fail instead of prompting for auth")
+@click.option(
+    "--no-auto-oauth",
+    is_flag=True,
+    default=False,
+    help="Disable automatic browser OAuth (ask for confirmation instead)",
+)
 def aggregate(
     date: str | None,
     from_date: str | None,
@@ -488,6 +856,9 @@ def aggregate(
     config: str | None,
     verbose: bool,
     log_format: str,
+    no_preflight: bool,
+    non_interactive: bool,
+    no_auto_oauth: bool,
 ) -> None:
     """Aggregate data from all configured sources (default behavior)."""
     configure_logging(verbose=verbose, log_format=log_format)
@@ -502,6 +873,9 @@ def aggregate(
         output_format=format,
         config_path=config,
         verbose=verbose,
+        no_preflight=no_preflight,
+        non_interactive=non_interactive,
+        no_auto_oauth=no_auto_oauth,
     )
 
     # Validate date options
@@ -509,6 +883,11 @@ def aggregate(
 
     # Load config for output settings
     cfg = load_config(config)
+
+    # Pre-flight authentication check (unless skipped)
+    if not no_preflight:
+        # Auto-OAuth is DEFAULT (True), disabled by --no-auto-oauth flag
+        _run_preflight_check(cfg, config, non_interactive, not no_auto_oauth, logger)
 
     # Check if batch mode (date range) or single-day mode
     if from_date and to_date:
@@ -1066,6 +1445,38 @@ def whoop(
             raise click.Abort()
 
         _format_and_output(data, format, logger, cfg)
+
+
+@cli.command("preflight")
+@click.option("--config", "-c", type=click.Path(exists=True), help="Path to config file")
+def preflight_cmd(config: str | None) -> None:
+    """Check authentication status for all data sources."""
+    from rich.console import Console
+
+    console = Console()
+    cfg = load_config(config)
+
+    checker = PreflightChecker(preferred_browser=cfg.preferred_browser)
+    statuses = checker.check_all_sources(cfg)
+
+    # Display status table
+    _display_auth_status(statuses)
+
+    # Summary
+    summary = checker.get_summary(statuses)
+    valid = summary.get("valid", 0) + summary.get("not_required", 0)
+    missing = summary.get("missing", 0) + summary.get("expired", 0)
+    disabled = summary.get("disabled", 0)
+
+    console.print()
+    if missing > 0:
+        console.print(f"[yellow]{valid} sources ready, {missing} need authentication[/yellow]")
+        console.print("\nRun [bold]pkm auth login <source>[/bold] to authenticate.")
+    else:
+        console.print(f"[green]All {valid} sources ready![/green]")
+
+    if disabled > 0:
+        console.print(f"[dim]({disabled} sources disabled)[/dim]")
 
 
 @cli.command()

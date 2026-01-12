@@ -1,6 +1,9 @@
 """Wakatime integration."""
 
+import configparser
+import os
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,6 +14,45 @@ from pkm_tool.models import WakatimeActivity
 from pkm_tool.sources.common import create_http_client, get_source_token
 
 logger = structlog.get_logger(__name__)
+
+
+def _read_wakatime_cfg() -> str | None:
+    """
+    Read Wakatime API key from ~/.wakatime.cfg file.
+
+    The .wakatime.cfg file is an INI format file with the following structure:
+        [settings]
+        api_key = waka_31e55b72-24d9-4572-aadd-2840000530e8
+
+    Returns:
+        API key string if found and valid, None otherwise.
+    """
+    cfg_path = Path.home() / ".wakatime.cfg"
+
+    if not cfg_path.exists():
+        logger.debug("wakatime_cfg_not_found", path=str(cfg_path))
+        return None
+
+    try:
+        parser = configparser.ConfigParser()
+        parser.read(cfg_path)
+
+        if "settings" not in parser:
+            logger.debug("wakatime_cfg_no_settings_section", path=str(cfg_path))
+            return None
+
+        api_key = parser.get("settings", "api_key", fallback=None)
+        if api_key:
+            logger.debug("wakatime_cfg_key_found", path=str(cfg_path))
+            return api_key
+
+        logger.debug("wakatime_cfg_no_api_key", path=str(cfg_path))
+        return None
+
+    except (configparser.Error, OSError) as e:
+        # Handle malformed INI files or OS-level read errors
+        logger.warning("wakatime_cfg_read_error", path=str(cfg_path), error=str(e))
+        return None
 
 
 def fetch_wakatime_activities(
@@ -90,5 +132,27 @@ def fetch_wakatime_activities(
 
 
 def _get_wakatime_token(config: dict[str, Any]) -> str | None:
-    """Retrieve Wakatime token from token store or fall back to config/env."""
-    return get_source_token("wakatime", config, config_key="api_key", env_var="WAKATIME_API_KEY")
+    """
+    Retrieve Wakatime token with the following priority:
+
+    1. Token store (encrypted SQLite)
+    2. Config file (config.yaml api_key field)
+    3. .wakatime.cfg file (~/.wakatime.cfg)
+    4. Environment variable (WAKATIME_API_KEY)
+
+    Returns:
+        API key string if found, None otherwise.
+    """
+    # Priority 1 & 2: Token store and config (via get_source_token)
+    # Note: get_source_token checks token store first, then config
+    token = get_source_token("wakatime", config, config_key="api_key", env_var=None)
+    if token:
+        return token
+
+    # Priority 3: .wakatime.cfg file
+    token = _read_wakatime_cfg()
+    if token:
+        return token
+
+    # Priority 4: Environment variable
+    return os.environ.get("WAKATIME_API_KEY")

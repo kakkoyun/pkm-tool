@@ -604,13 +604,27 @@ The tool provides a main command with subcommands for each datasource.
 #### Single-day reports (to stdout)
 
 ```bash
+# Basic usage - auto-launches OAuth browser for missing credentials (DEFAULT)
 uv run pkm                           # Today's report, all sources (Markdown)
 uv run pkm --date yesterday          # Specific date, all sources
 uv run pkm --format json             # JSON output, all sources
 uv run pkm --config /path/config.yaml --date 2025-11-21  # Custom config
 uv run pkm aggregate --date yesterday # Explicit aggregate subcommand (preferred)
+
+# Authentication options
+uv run pkm --date yesterday --no-auto-oauth  # Disable auto-OAuth (ask for confirmation)
+uv run pkm --date yesterday --non-interactive  # Fail on missing credentials (CI/headless)
+uv run pkm --date yesterday --no-preflight  # Skip auth checks entirely
+
+# Other modes
 uv run pkm mcp                       # Run as MCP server (Model Context Protocol)
 ```
+
+**Supported date formats**:
+
+- **Relative dates**: `yesterday`, `today`, `tomorrow` (case-insensitive)
+- **ISO format**: `2025-11-21`, `2025-11-21T14:30:00`
+- **Natural language**: `Nov 21, 2025`, `November 21st`, `21 Nov 2025`
 
 #### Date range reports (Phase 2 - to files)
 
@@ -831,10 +845,10 @@ The tool follows a clean, modular architecture:
 - **Per-source configuration**: Each source can be enabled/disabled independently
 - **Weekend exclusion**: Global and per-source configuration (Phase 2)
 - **Output settings**: Filename template and directory (Phase 2)
-- **Default config locations**:
-  - `~/.config/pkm-tool/config.yaml` (preferred)
-  - `~/.pkm-tool.yaml`
-  - `./pkm-tool.yaml` (project directory)
+- **Default config locations** (checked in order):
+  - `./.pkm.yaml`, `./.pkm.yml`, `./pkm-tool.yaml` (project directory)
+  - `~/.pkm.yaml`, `~/.pkm.yml`, `~/.pkm-tool.yaml` (home directory)
+  - `~/.config/pkm-tool/config.yaml` (XDG config)
 - **SourceConfig pattern**: Consistent structure across all sources
   - `enabled: bool` - Enable/disable source
   - `exclude_weekends: bool` - Skip source on weekends (Phase 2)
@@ -875,6 +889,11 @@ The tool follows a clean, modular architecture:
 - **CLI integration** (`pkm auth ...`):
   - `pkm auth list/status/login/logout/refresh` manages credentials with encrypted storage.
   - Google Docs login requires `client_id`/`client_secret` in config; other sources prompt for tokens.
+- **Auto-OAuth behavior** (default):
+  - When running `pkm aggregate`, browser OAuth is automatically launched for missing OAuth credentials (Google Docs, Whoop).
+  - No confirmation prompts - browser opens immediately for OAuth flow.
+  - Use `--no-auto-oauth` flag to restore confirmation prompts.
+  - Use `--non-interactive` flag to fail fast in CI/headless environments.
 - **Fallback support**:
   - When no stored credentials exist, sources fall back to values from config or environment variables.
 
@@ -906,7 +925,10 @@ def fetch_*_activities(target_date: date, config: dict[str, Any]) -> list[Model]
 
 #### GitHub Source (`sources/github.py`)
 
-- **Dual authentication**: gh CLI (preferred) or Personal Access Token
+- **Smart authentication flow**:
+  1. If `gh` CLI is installed and authenticated → auto-extract token via `gh auth token`
+  1. Otherwise → open browser to GitHub PAT creation page with pre-filled scopes
+  1. Fallback → prompt for manual token entry
 - **Event types**: PushEvent, PullRequestEvent, IssuesEvent, PullRequestReviewEvent
 - **Date filtering**: Fetches recent events, filters by target date
 - **Username detection**: Auto-detect from gh CLI if not configured

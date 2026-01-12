@@ -40,6 +40,33 @@ class AuthManager:
         logger.info("auth_token_deleted", source=source)
         self.token_store.delete_token(source)
 
+    def validate_token(self, source: str) -> tuple[bool, str]:
+        """
+        Validate if a token exists and is not expired.
+
+        Args:
+            source: The source name (e.g., "github", "whoop")
+
+        Returns:
+            Tuple of (is_valid, message) where is_valid is True if token
+            exists and hasn't expired, and message provides details.
+        """
+        stored = self.token_store.get_token(source)
+
+        if stored is None:
+            return (False, "No token stored")
+
+        if stored.expires_at is None:
+            return (True, "Token valid (no expiration)")
+
+        if self._needs_refresh(stored):
+            return (False, f"Token expired at {stored.expires_at.isoformat()}")
+
+        # Token is valid with expiration - calculate time remaining
+        now = datetime.now(UTC)
+        remaining = stored.expires_at - now
+        return (True, f"Token valid (expires in {self._format_duration(remaining)})")
+
     def store_api_token(
         self, source: str, token: str, *, token_type: str = "api_key"
     ) -> StoredToken:
@@ -133,3 +160,24 @@ class AuthManager:
         margin = timedelta(seconds=self.refresh_margin_seconds)
         now = datetime.now(UTC)
         return stored.expires_at <= now + margin
+
+    def _format_duration(self, delta: timedelta) -> str:
+        """Format a timedelta into a human-readable string (e.g., '2 hours', '3 days')."""
+        total_seconds = int(delta.total_seconds())
+
+        if total_seconds < 0:
+            return "expired"
+
+        if total_seconds < 60:
+            return f"{total_seconds} seconds" if total_seconds != 1 else "1 second"
+
+        minutes = total_seconds // 60
+        if minutes < 60:
+            return f"{minutes} minutes" if minutes != 1 else "1 minute"
+
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours} hours" if hours != 1 else "1 hour"
+
+        days = hours // 24
+        return f"{days} days" if days != 1 else "1 day"

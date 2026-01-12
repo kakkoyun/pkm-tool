@@ -1,5 +1,23 @@
 # Example configuration for PKM Tool
-# Copy this to ~/.config/pkm-tool/config.yaml or ~/.pkm-tool.yaml
+# Copy this to .pkm.yaml (project) or ~/.pkm.yaml (user) or ~/.config/pkm-tool/config.yaml
+
+# =============================================================================
+# SECURITY NOTE
+# =============================================================================
+# User access tokens (OAuth tokens, API keys) are stored SECURELY in:
+#   ~/.pkm-tool/tokens.db (AES-256 encrypted SQLite database)
+#
+# Use `pkm auth login <source>` to authenticate securely.
+# NEVER store access_token or refresh_token values in this config file.
+#
+# OAuth client_id and client_secret ARE safe to store here - they are
+# application credentials (not user secrets) required by the OAuth2 spec.
+# =============================================================================
+
+# Browser preference for OAuth authentication flows
+# Supported values: "firefox", "chrome", "safari", "opera", "edge", or a path
+# Set to null/omit to use system default browser
+# preferred_browser: firefox
 
 # Output settings (Phase 2)
 output_filename_template: "{date} ({day_abbr}).{format}" # Default template
@@ -64,6 +82,8 @@ wakatime:
   # title: "⏱️ Coding Time"
   # order: 5
   config:
+    # API key priority: token store > config > ~/.wakatime.cfg > WAKATIME_API_KEY env
+    # If you have Wakatime CLI installed, the key is auto-discovered from ~/.wakatime.cfg
     api_key: waka_your_api_key_here
 
 # Google Docs

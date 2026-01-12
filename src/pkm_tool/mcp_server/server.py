@@ -33,10 +33,51 @@ from pkm_tool.sources.whoop import (
 logger = get_logger(__name__)
 
 
+def _parse_relative_date(date_input: str) -> date | None:
+    """
+    Parse relative date strings like 'yesterday', 'today', 'tomorrow'.
+
+    Args:
+        date_input: Relative date string (case-insensitive)
+
+    Returns:
+        Parsed date object or None if not a recognized relative date
+    """
+    from datetime import timedelta
+
+    today = datetime.now().date()
+    normalized = date_input.lower().strip()
+
+    relative_dates = {
+        "today": timedelta(days=0),
+        "yesterday": timedelta(days=-1),
+        "tomorrow": timedelta(days=1),
+    }
+
+    if normalized in relative_dates:
+        return today + relative_dates[normalized]
+
+    return None
+
+
 def _parse_date_string(date_str: str | None) -> date:
-    """Parse date string to date object."""
+    """
+    Parse date string to date object.
+
+    Supports:
+    - None: returns today's date
+    - Relative dates: 'yesterday', 'today', 'tomorrow' (case-insensitive)
+    - Absolute dates: YYYY-MM-DD, natural language via dateutil
+    """
     if date_str is None:
         return datetime.now().date()
+
+    # Try relative date parsing first
+    relative_result = _parse_relative_date(date_str)
+    if relative_result is not None:
+        return relative_result
+
+    # Fall back to dateutil for absolute dates
     try:
         parsed = date_parser.parse(date_str)
         return parsed.date()

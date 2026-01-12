@@ -8,7 +8,13 @@ import pytest
 from click.testing import CliRunner
 from syrupy.assertion import SnapshotAssertion
 
-from pkm_tool.cli import _generate_date_range, _validate_date_options, cli
+from pkm_tool.cli import (
+    _generate_date_range,
+    _parse_date,
+    _parse_relative_date,
+    _validate_date_options,
+    cli,
+)
 from pkm_tool.logging import configure_logging, get_logger
 
 
@@ -109,6 +115,7 @@ def test_cli_markdown_output_with_mocks(
             "markdown",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
 
@@ -136,6 +143,7 @@ def test_cli_json_output_with_mocks(
             "json",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
 
@@ -180,6 +188,7 @@ def test_cli_default_date(
             "markdown",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
 
@@ -207,12 +216,78 @@ def test_cli_human_readable_date(
             "markdown",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
 
     assert result.exit_code == 0
     assert "Daily Report" in result.output
     assert "2025-11-21" in result.output
+
+
+@pytest.mark.unit
+def test_parse_relative_date_yesterday() -> None:
+    """Test parsing 'yesterday' returns correct date."""
+    from datetime import timedelta
+
+    today = date.today()
+    expected = today - timedelta(days=1)
+    assert _parse_relative_date("yesterday") == expected
+    assert _parse_relative_date("YESTERDAY") == expected  # Case insensitive
+    assert _parse_relative_date("  Yesterday  ") == expected  # Whitespace trimming
+
+
+@pytest.mark.unit
+def test_parse_relative_date_today() -> None:
+    """Test parsing 'today' returns current date."""
+    today = date.today()
+    assert _parse_relative_date("today") == today
+    assert _parse_relative_date("TODAY") == today
+
+
+@pytest.mark.unit
+def test_parse_relative_date_tomorrow() -> None:
+    """Test parsing 'tomorrow' returns correct date."""
+    from datetime import timedelta
+
+    today = date.today()
+    expected = today + timedelta(days=1)
+    assert _parse_relative_date("tomorrow") == expected
+
+
+@pytest.mark.unit
+def test_parse_relative_date_unknown() -> None:
+    """Test parsing unknown relative date returns None."""
+    assert _parse_relative_date("last week") is None
+    assert _parse_relative_date("2025-01-01") is None
+    assert _parse_relative_date("random string") is None
+
+
+@pytest.mark.unit
+def test_parse_date_relative_yesterday() -> None:
+    """Test _parse_date handles 'yesterday' correctly."""
+    from datetime import timedelta
+
+    logger = get_logger("test")
+    today = date.today()
+    expected = today - timedelta(days=1)
+    assert _parse_date("yesterday", logger) == expected
+
+
+@pytest.mark.unit
+def test_parse_date_relative_today() -> None:
+    """Test _parse_date handles 'today' correctly."""
+    logger = get_logger("test")
+    today = date.today()
+    assert _parse_date("today", logger) == today
+
+
+@pytest.mark.unit
+def test_parse_date_absolute() -> None:
+    """Test _parse_date handles absolute dates correctly."""
+    logger = get_logger("test")
+    assert _parse_date("2025-11-21", logger) == date(2025, 11, 21)
+    assert _parse_date("Nov 21, 2025", logger) == date(2025, 11, 21)
 
 
 @pytest.mark.unit
@@ -227,7 +302,7 @@ def test_cli_missing_config_file(
     # Set all potential API keys to empty to avoid timeouts
     result = cli_runner.invoke(
         cli,
-        ["aggregate", "--date", "2025-11-21", "--format", "markdown"],
+        ["aggregate", "--date", "2025-11-21", "--format", "markdown", "--no-preflight"],
         env={
             "GITHUB_TOKEN": "",
             "WAKATIME_API_KEY": "",
@@ -265,6 +340,7 @@ def test_cli_with_api_errors(
             "markdown",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
 
@@ -293,6 +369,7 @@ def test_cli_format_option(
             "markdown",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
     assert result_md.exit_code == 0
@@ -309,6 +386,7 @@ def test_cli_format_option(
             "json",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
     assert result_json.exit_code == 0
@@ -340,6 +418,7 @@ def test_cli_markdown_output_all_sources(
             "markdown",
             "--config",
             str(full_sources_config),
+            "--no-preflight",
         ],
     )
 
@@ -372,6 +451,7 @@ def test_cli_json_output_all_sources(
             "json",
             "--config",
             str(full_sources_config),
+            "--no-preflight",
         ],
     )
 
@@ -394,6 +474,7 @@ def test_cli_help(cli_runner: CliRunner) -> None:
     assert "wakatime" in result.output
     assert "google-docs" in result.output
     assert "aggregate" in result.output
+    assert "preflight" in result.output
 
 
 # ===== Subcommand Tests =====
@@ -418,6 +499,7 @@ def test_cli_aggregate_subcommand(
             "markdown",
             "--config",
             str(temp_config),
+            "--no-preflight",
         ],
     )
 
@@ -562,6 +644,34 @@ def test_cli_aggregate_subcommand_help(cli_runner: CliRunner) -> None:
 
     assert result.exit_code == 0
     assert "Aggregate data from all configured sources" in result.output
+    # Verify preflight options are available
+    assert "--no-preflight" in result.output
+    assert "--non-interactive" in result.output
+
+
+@pytest.mark.unit
+def test_cli_preflight_help(cli_runner: CliRunner) -> None:
+    """Test preflight subcommand help."""
+    result = cli_runner.invoke(cli, ["preflight", "--help"])
+    assert result.exit_code == 0
+    assert "Check authentication status" in result.output
+
+
+@pytest.mark.unit
+def test_cli_preflight_command(cli_runner: CliRunner, temp_config: Path) -> None:
+    """Test preflight command runs successfully."""
+    result = cli_runner.invoke(
+        cli,
+        [
+            "preflight",
+            "--config",
+            str(temp_config),
+        ],
+    )
+    # Should succeed and show status table
+    assert result.exit_code == 0
+    # Should show some status output (either ready or missing messages)
+    assert "Pre-flight Authentication Check" in result.output or "sources ready" in result.output
 
 
 @pytest.mark.unit

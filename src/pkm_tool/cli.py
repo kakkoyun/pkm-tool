@@ -107,7 +107,13 @@ def _build_google_provider(config_path: str | None) -> GoogleOAuthProvider:
     ]
     if isinstance(scopes, str):
         scopes = [scopes]
-    return GoogleOAuthProvider(client_id, client_secret=client_secret, scopes=scopes)
+
+    # Note: Google OAuth uses device code flow (no browser opening), so no preferred_browser needed
+    return GoogleOAuthProvider(
+        client_id,
+        client_secret=client_secret,
+        scopes=scopes,
+    )
 
 
 def _build_atlassian_provider(config_path: str | None) -> "AtlassianOAuthProvider":
@@ -140,7 +146,9 @@ def _build_atlassian_provider(config_path: str | None) -> "AtlassianOAuthProvide
     # Optional configuration
     scopes = atlassian_cfg.get("scopes")
     callback_port = atlassian_cfg.get("callback_port", 8643)
-    preferred_browser = atlassian_cfg.get("preferred_browser")
+
+    # Get preferred browser: per-source preference or global fallback
+    preferred_browser = cfg.atlassian.preferred_browser or cfg.preferred_browser
 
     return AtlassianOAuthProvider(
         client_id,

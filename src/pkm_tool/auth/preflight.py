@@ -843,6 +843,7 @@ class PreflightChecker:
         preferred_browser = self._get_preferred_browser_for_source(source_config)
 
         if source_name == "google_docs":
+            # Note: Google OAuth uses device code flow (no browser opening), so no preferred_browser needed
             return GoogleOAuthProvider(
                 client_id,
                 client_secret=client_secret,

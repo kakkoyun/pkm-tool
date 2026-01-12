@@ -149,9 +149,7 @@ class AtlassianOAuthProvider:
 
         # Verify state matches
         if result.state != state:
-            logger.error(
-                "atlassian_oauth_state_mismatch", expected=state, received=result.state
-            )
+            logger.error("atlassian_oauth_state_mismatch", expected=state, received=result.state)
             print("\n❌ Invalid state parameter (possible CSRF attack)")
             return None
 

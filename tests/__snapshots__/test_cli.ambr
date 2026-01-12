@@ -296,6 +296,7 @@
   
   **Sleep:**
   - 22:06 - 06:22 (0m) - 91% efficiency
+    - Performance: 90%
   
   
   
@@ -326,6 +327,7 @@
   
   **Sleep:**
   - 22:06 - 06:22 (0m) - 91% efficiency
+    - Performance: 90%
   
   
   
@@ -340,7 +342,7 @@
   **Total Time:** 3.00 hours
   
   - pkm-tool (Python): 2.00h
-  - awesome-app (Python): 1.00h
+  - pkm-tool-backend (Python): 1.00h
   
   
   '''
@@ -360,7 +362,7 @@
         "language": "Python"
       },
       {
-        "project": "awesome-app",
+        "project": "pkm-tool-backend",
         "duration_seconds": 3600,
         "language": "Python"
       }
@@ -389,6 +391,7 @@
   
   **Sleep:**
   - 22:06 - 06:22 (0m) - 91% efficiency
+    - Performance: 90%
   
   
   

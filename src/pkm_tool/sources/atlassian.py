@@ -163,8 +163,10 @@ def _get_atlassian_credentials(config: dict[str, Any]) -> tuple[str | None, str 
             data = json.loads(stored.token)
             return data.get("base_url"), data.get("username"), data.get("api_token")
         except json.JSONDecodeError:
+            # Token is corrupted - log error and fall through to config/env fallback
             logger.error("atlassian_token_decode_failed")
 
+    # Fallback to config and environment variables
     base_url = config.get("base_url", os.environ.get("ATLASSIAN_BASE_URL"))
     username = config.get("username", os.environ.get("ATLASSIAN_USERNAME"))
     api_token = config.get("api_token", os.environ.get("ATLASSIAN_API_TOKEN"))

@@ -81,6 +81,7 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
         # Filter and map events to GitHubActivity
         activities = []
         event_count = 0
+        filtered_by_actor = 0
         for event in events:
             event_count += 1
             # Filter by target date
@@ -88,14 +89,19 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
                 continue
 
             # Map event to GitHubActivity based on type
-            activity = _map_event_to_activity(event)
+            # Pass authenticated username to verify actor
+            activity = _map_event_to_activity(event, user.login)
             if activity:
                 activities.append(activity)
+            elif hasattr(event, "actor") and event.actor.login != user.login:
+                # Event was filtered due to actor mismatch
+                filtered_by_actor += 1
 
         logger.debug(
             "github_events_processed",
             total_events=event_count,
             matched_events=len(activities),
+            filtered_by_actor=filtered_by_actor,
             date=str(target_date),
         )
         return activities
@@ -106,16 +112,22 @@ def _fetch_github_via_pygithub(target_date: date, config: dict[str, Any]) -> lis
             g.close()
 
 
-def _map_event_to_activity(event: Any) -> GitHubActivity | None:
+def _map_event_to_activity(event: Any, authenticated_user: str) -> GitHubActivity | None:
     """
     Map a GitHub event to a GitHubActivity model.
 
     Args:
         event: PyGithub Event object
+        authenticated_user: Username of the authenticated user
 
     Returns:
-        GitHubActivity object or None if event type is not supported
+        GitHubActivity object or None if event type is not supported or actor doesn't match
     """
+    # Only include events where the authenticated user is the actor
+    # The /events endpoint returns events from followed users and watched repos
+    if hasattr(event, "actor") and event.actor.login != authenticated_user:
+        return None
+
     event_type = event.type
     created_at = event.created_at
     repo_name = event.repo.name
@@ -135,8 +147,14 @@ def _map_event_to_activity(event: Any) -> GitHubActivity | None:
 
         elif event_type == "PullRequestEvent":
             # Map PullRequestEvent to pr activity
-            pr = event.payload.get("pull_request", {})
+            # Only include PR actions that represent actual work by the user
+            # Filter out passive events like being assigned or mentioned
             action = event.payload.get("action", "unknown")
+            if action not in {"opened", "closed", "reopened", "synchronize"}:
+                # Skip passive actions like "assigned", "review_requested", etc.
+                return None
+
+            pr = event.payload.get("pull_request", {})
             return GitHubActivity(
                 type="pr",
                 title=pr.get("title", "Untitled PR"),
@@ -148,8 +166,13 @@ def _map_event_to_activity(event: Any) -> GitHubActivity | None:
 
         elif event_type == "IssuesEvent":
             # Map IssuesEvent to issue activity
-            issue = event.payload.get("issue", {})
+            # Only include issue actions that represent actual work by the user
             action = event.payload.get("action", "unknown")
+            if action not in {"opened", "closed", "reopened"}:
+                # Skip passive actions like "assigned", "labeled", etc.
+                return None
+
+            issue = event.payload.get("issue", {})
             return GitHubActivity(
                 type="issue",
                 title=issue.get("title", "Untitled Issue"),

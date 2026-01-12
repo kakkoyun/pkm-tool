@@ -49,18 +49,18 @@ All commits MUST follow the [Conventional Commits v1.0.0](https://www.convention
 
 #### Types
 
-| Type       | Description                            | Semantic Version |
+| Type | Description | Semantic Version |
 | ---------- | -------------------------------------- | ---------------- |
-| `feat`     | New feature                            | MINOR            |
-| `fix`      | Bug fix                                | PATCH            |
-| `docs`     | Documentation only                     | -                |
-| `style`    | Code style (formatting, whitespace)    | -                |
-| `refactor` | Code changes (neither fix nor feature) | -                |
-| `perf`     | Performance improvements               | PATCH            |
-| `test`     | Adding or updating tests               | -                |
-| `build`    | Build system or dependencies           | -                |
-| `ci`       | CI/CD configuration changes            | -                |
-| `chore`    | Maintenance tasks, tooling             | -                |
+| `feat` | New feature | MINOR |
+| `fix` | Bug fix | PATCH |
+| `docs` | Documentation only | - |
+| `style` | Code style (formatting, whitespace) | - |
+| `refactor` | Code changes (neither fix nor feature) | - |
+| `perf` | Performance improvements | PATCH |
+| `test` | Adding or updating tests | - |
+| `build` | Build system or dependencies | - |
+| `ci` | CI/CD configuration changes | - |
+| `chore` | Maintenance tasks, tooling | - |
 
 #### Scope
 
@@ -235,15 +235,15 @@ git config rerere.enabled true
 
 #### Basic Commands
 
-| Command                   | Git Equivalent                                      | Description                   |
+| Command | Git Equivalent | Description |
 | ------------------------- | --------------------------------------------------- | ----------------------------- |
-| `gt create -am "message"` | `git branch` + `git checkout` + `git commit`        | Create branch with commit     |
-| `gt modify -a`            | `git commit --fixup` + `git rebase -i --autosquash` | Amend current branch          |
-| `gt sync`                 | `git checkout main` + `git pull` + `git merge main` | Sync all branches with remote |
-| `gt restack`              | `git rebase` (manual)                               | Update stack after changes    |
-| `gt log short` / `gt ls`  | Multiple `git log` commands                         | View stack structure          |
-| `gt submit`               | `gh pr create`                                      | Create PR for current branch  |
-| `gt submit --stack`       | Multiple `gh pr create`                             | Create PRs for entire stack   |
+| `gt create -am "message"` | `git branch` + `git checkout` + `git commit` | Create branch with commit |
+| `gt modify -a` | `git commit --fixup` + `git rebase -i --autosquash` | Amend current branch |
+| `gt sync` | `git checkout main` + `git pull` + `git merge main` | Sync all branches with remote |
+| `gt restack` | `git rebase` (manual) | Update stack after changes |
+| `gt log short` / `gt ls` | Multiple `git log` commands | View stack structure |
+| `gt submit` | `gh pr create` | Create PR for current branch |
+| `gt submit --stack` | Multiple `gh pr create` | Create PRs for entire stack |
 
 #### Creating a Stack
 
@@ -1084,16 +1084,16 @@ make test                          # Run tests
 
 ### Authentication Methods
 
-| Source         | Method      | Config Key          | Environment Variable |
+| Source | Method | Config Key | Environment Variable |
 | -------------- | ----------- | ------------------- | -------------------- |
-| GitHub         | gh CLI      | `use_gh_cli: true`  | N/A                  |
-| GitHub         | Token       | `token: ...`        | `GITHUB_TOKEN`       |
-| Wakatime       | API Key     | `api_key: ...`      | `WAKATIME_API_KEY`   |
-| Atlassian      | API Token   | `api_token: ...`    | N/A                  |
-| Google Docs    | OAuth2      | `access_token: ...` | N/A                  |
-| Whoop          | OAuth2      | `access_token: ...` | `WHOOP_ACCESS_TOKEN` |
-| Apple Calendar | AppleScript | N/A                 | N/A (macOS only)     |
-| Things         | SQLite      | N/A                 | N/A (macOS only)     |
+| GitHub | gh CLI | `use_gh_cli: true` | N/A |
+| GitHub | Token | `token: ...` | `GITHUB_TOKEN` |
+| Wakatime | API Key | `api_key: ...` | `WAKATIME_API_KEY` |
+| Atlassian | API Token | `api_token: ...` | N/A |
+| Google Docs | OAuth2 | `access_token: ...` | N/A |
+| Whoop | OAuth2 | `access_token: ...` | `WHOOP_ACCESS_TOKEN` |
+| Apple Calendar | AppleScript | N/A | N/A (macOS only) |
+| Things | SQLite | N/A | N/A (macOS only) |
 
 ## Dependencies
 

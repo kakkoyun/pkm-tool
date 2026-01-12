@@ -15,6 +15,9 @@ def mock_github_push_event() -> Mock:
     event.repo = Mock()
     event.repo.name = "testuser/test-repo"
     event.payload = {"size": 3}
+    # Add actor property for filtering
+    event.actor = Mock()
+    event.actor.login = "testuser"
     return event
 
 
@@ -33,6 +36,9 @@ def mock_github_pr_event() -> Mock:
             "html_url": "https://github.com/testuser/awesome-project/pull/42",
         },
     }
+    # Add actor property for filtering
+    event.actor = Mock()
+    event.actor.login = "testuser"
     return event
 
 
@@ -51,6 +57,9 @@ def mock_github_issue_event() -> Mock:
             "html_url": "https://github.com/testuser/bug-tracker/issues/123",
         },
     }
+    # Add actor property for filtering
+    event.actor = Mock()
+    event.actor.login = "testuser"
     return event
 
 
@@ -68,6 +77,9 @@ def mock_github_review_event() -> Mock:
             "html_url": "https://github.com/testuser/code-review/pull/5",
         }
     }
+    # Add actor property for filtering
+    event.actor = Mock()
+    event.actor.login = "testuser"
     return event
 
 

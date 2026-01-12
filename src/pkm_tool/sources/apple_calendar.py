@@ -181,8 +181,11 @@ def _build_applescript(target_date: date) -> str:
     Returns:
         AppleScript code as a string.
     """
-    # AppleScript expects dates like "January 15, 2025"
-    date_str = target_date.strftime("%B %d, %Y")
+    # Extract date components for explicit AppleScript date construction
+    # This avoids locale-dependent string parsing issues
+    year = target_date.year
+    month = target_date.month
+    day = target_date.day
 
     # AppleScript with efficient string building using text item delimiters
     # and proper date comparison for events starting on target date
@@ -190,8 +193,14 @@ def _build_applescript(target_date: date) -> str:
 
     return f'''
 tell application "Calendar"
-    set targetDateString to "{date_str}"
-    set targetDate to date targetDateString
+    -- Build target date explicitly to avoid locale parsing issues
+    set targetDate to current date
+    set year of targetDate to {year}
+    set month of targetDate to {month}
+    set day of targetDate to {day}
+    set hours of targetDate to 0
+    set minutes of targetDate to 0
+    set seconds of targetDate to 0
     set nextDay to targetDate + (1 * days)
     set fieldSep to "{FIELD_SEPARATOR}"
 

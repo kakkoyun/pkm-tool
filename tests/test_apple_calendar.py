@@ -334,11 +334,14 @@ class TestBuildApplescript:
     """Tests for AppleScript generation."""
 
     def test_build_applescript_contains_date(self) -> None:
-        """Test that generated script contains the formatted date."""
+        """Test that generated script contains the date components."""
         target_date = date(2025, 1, 15)
         script = _build_applescript(target_date)
 
-        assert "January 15, 2025" in script
+        # Check for explicit date component construction
+        assert "set year of targetDate to 2025" in script
+        assert "set month of targetDate to 1" in script
+        assert "set day of targetDate to 15" in script
 
     def test_build_applescript_contains_separators(self) -> None:
         """Test that generated script contains the field and record separators."""
@@ -358,8 +361,15 @@ class TestBuildApplescript:
         script1 = _build_applescript(date(2025, 1, 15))
         script2 = _build_applescript(date(2025, 6, 20))
 
-        assert "January 15, 2025" in script1
-        assert "June 20, 2025" in script2
+        # Check date components for first date
+        assert "set year of targetDate to 2025" in script1
+        assert "set month of targetDate to 1" in script1
+        assert "set day of targetDate to 15" in script1
+
+        # Check date components for second date
+        assert "set year of targetDate to 2025" in script2
+        assert "set month of targetDate to 6" in script2
+        assert "set day of targetDate to 20" in script2
 
 
 class TestFetchCalendarEvents:

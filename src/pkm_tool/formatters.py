@@ -139,6 +139,19 @@ def _format_sleep_entry(sleep) -> list[str]:
     stages = _format_sleep_stages(sleep)
     if stages:
         lines.append(f"  - {stages}")
+
+    # Add supplemental metrics if available
+    extras = []
+    if sleep.awake_minutes:
+        extras.append(f"Awake: {_format_duration(sleep.awake_minutes)}")
+    if sleep.disturbances:
+        extras.append(f"Disturbances: {sleep.disturbances}")
+    if sleep.sleep_performance:
+        extras.append(f"Performance: {sleep.sleep_performance:.0f}%")
+
+    if extras:
+        lines.append(f"  - {', '.join(extras)}")
+
     return lines
 
 
@@ -147,8 +160,19 @@ def _format_workout_entry(workout) -> str:
     time_str = workout.start.strftime("%H:%M")
     duration = _format_duration(workout.duration_minutes)
     strain = f"Strain: {workout.strain:.1f}"
-    hr = f", Avg HR: {workout.average_heart_rate} bpm" if workout.average_heart_rate else ""
-    return f"- **{time_str}** {workout.sport_name} ({duration}) - {strain}{hr}"
+
+    # Build heart rate information
+    hr_parts = []
+    if workout.average_heart_rate:
+        hr_parts.append(f"Avg HR: {workout.average_heart_rate}")
+    if workout.max_heart_rate:
+        hr_parts.append(f"Max HR: {workout.max_heart_rate}")
+    hr = f", {'/'.join(hr_parts)} bpm" if hr_parts else ""
+
+    # Add calories if available
+    cal = f", {workout.calories} cal" if workout.calories else ""
+
+    return f"- **{time_str}** {workout.sport_name} ({duration}) - {strain}{hr}{cal}"
 
 
 def _format_whoop_data_content(data: AggregatedData) -> list[str]:
@@ -157,10 +181,24 @@ def _format_whoop_data_content(data: AggregatedData) -> list[str]:
 
     if data.whoop_recovery:
         r = data.whoop_recovery
-        lines.append(
+        # Base recovery metrics
+        base = (
             f"**Recovery:** {r.recovery_score:.0f}% "
-            f"(HRV: {r.hrv:.0f}ms, Resting HR: {r.resting_heart_rate} bpm)"
+            f"(HRV: {r.hrv:.0f}ms, Resting HR: {r.resting_heart_rate} bpm"
         )
+
+        # Add optional metrics if available
+        extras = []
+        if r.spo2:
+            extras.append(f"SpO2: {r.spo2:.1f}%")
+        if r.skin_temp:
+            extras.append(f"Skin: {r.skin_temp:.1f}°C")
+
+        if extras:
+            base += f", {', '.join(extras)}"
+        base += ")"
+
+        lines.append(base)
         lines.append("")
 
     if data.whoop_sleep:

@@ -13,7 +13,7 @@ def wakatime_api_response_data() -> dict:
             {
                 "projects": [
                     {"name": "pkm-tool", "total_seconds": 7200},
-                    {"name": "awesome-app", "total_seconds": 3600},
+                    {"name": "pkm-tool-backend", "total_seconds": 3600},
                 ],
                 "languages": [
                     {"name": "Python", "total_seconds": 9000},

@@ -7,10 +7,13 @@ import time
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
 from dateutil import parser as date_parser
+
+if TYPE_CHECKING:
+    from pkm_tool.auth.oauth.atlassian import AtlassianOAuthProvider
 
 from pkm_tool.aggregator import aggregate_data
 from pkm_tool.auth import AuthManager
@@ -105,6 +108,47 @@ def _build_google_provider(config_path: str | None) -> GoogleOAuthProvider:
     if isinstance(scopes, str):
         scopes = [scopes]
     return GoogleOAuthProvider(client_id, client_secret=client_secret, scopes=scopes)
+
+
+def _build_atlassian_provider(config_path: str | None) -> "AtlassianOAuthProvider":
+    """Build Atlassian OAuth provider from config.
+
+    Args:
+        config_path: Path to config file
+
+    Returns:
+        Configured AtlassianOAuthProvider
+
+    Raises:
+        click.ClickException: If required OAuth config is missing
+    """
+    from pkm_tool.auth.oauth.atlassian import AtlassianOAuthProvider
+
+    cfg = load_config(config_path)
+    atlassian_cfg = cfg.atlassian.config
+    client_id = atlassian_cfg.get("client_id")
+    if not client_id:
+        raise click.ClickException(
+            "Atlassian client_id missing. Add it under atlassian.config.client_id."
+        )
+    client_secret = atlassian_cfg.get("client_secret")
+    if not client_secret:
+        raise click.ClickException(
+            "Atlassian client_secret missing. Add it under atlassian.config.client_secret."
+        )
+
+    # Optional configuration
+    scopes = atlassian_cfg.get("scopes")
+    callback_port = atlassian_cfg.get("callback_port", 8643)
+    preferred_browser = atlassian_cfg.get("preferred_browser")
+
+    return AtlassianOAuthProvider(
+        client_id,
+        client_secret,
+        scopes=scopes,
+        callback_port=callback_port,
+        preferred_browser=preferred_browser,
+    )
 
 
 # Common options decorator for all subcommands
@@ -630,7 +674,7 @@ def _resolve_missing_auth(
         console.print(f"\n[yellow]{status.display_name}[/yellow]: {status.message}")
 
         # For OAuth sources with auto_oauth, skip the confirmation prompt
-        is_oauth_source = status.source in ("google_docs", "whoop")
+        is_oauth_source = status.source in ("google_docs", "whoop", "atlassian")
         should_confirm = not (is_oauth_source and auto_oauth)
 
         if should_confirm:
@@ -695,16 +739,37 @@ def _perform_auth_login(source: str, config_path: str | None, auth_manager: Auth
 
     if source == "atlassian":
         atlas_cfg = cfg.atlassian.config
-        base_url = click.prompt(
-            "Atlassian base URL", default=atlas_cfg.get("base_url", "https://example.atlassian.net")
-        )
-        username = click.prompt(
-            "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
-        )
-        api_token = click.prompt("Atlassian API token", hide_input=True)
-        payload = json.dumps({"base_url": base_url, "username": username, "api_token": api_token})
-        auth_manager.store_api_token(store_key, payload, token_type="atlassian_json")
-        click.echo("Stored Atlassian credentials securely.")
+        # Check if OAuth is configured (client_id + client_secret present)
+        has_oauth_config = bool(atlas_cfg.get("client_id") and atlas_cfg.get("client_secret"))
+
+        if has_oauth_config:
+            # Use OAuth flow
+            try:
+                provider = _build_atlassian_provider(config_path)
+                token_response = provider.obtain_token_interactive()
+                if token_response is None:
+                    raise click.ClickException("Atlassian OAuth authentication failed.")
+                auth_manager.save_oauth_token(store_key, token_response)
+                click.echo("✅ Atlassian OAuth credentials stored.")
+            except click.ClickException:
+                raise
+            except Exception as e:
+                raise click.ClickException(f"Atlassian OAuth failed: {e}") from e
+        else:
+            # Fall back to API token flow (legacy)
+            base_url = click.prompt(
+                "Atlassian base URL",
+                default=atlas_cfg.get("base_url", "https://example.atlassian.net"),
+            )
+            username = click.prompt(
+                "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
+            )
+            api_token = click.prompt("Atlassian API token", hide_input=True)
+            payload = json.dumps(
+                {"base_url": base_url, "username": username, "api_token": api_token}
+            )
+            auth_manager.store_api_token(store_key, payload, token_type="atlassian_json")
+            click.echo("✅ Stored Atlassian API credentials securely.")
         return
 
     # Special handling for GitHub (gh CLI integration + browser fallback)
@@ -1220,16 +1285,37 @@ def auth_login(source: str, config: str | None) -> None:
     if source == "atlassian":
         cfg = load_config(config)
         atlas_cfg = cfg.atlassian.config
-        base_url = click.prompt(
-            "Atlassian base URL", default=atlas_cfg.get("base_url", "https://example.atlassian.net")
-        )
-        username = click.prompt(
-            "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
-        )
-        api_token = click.prompt("Atlassian API token", hide_input=True)
-        payload = json.dumps({"base_url": base_url, "username": username, "api_token": api_token})
-        manager.store_api_token(store_key, payload, token_type="atlassian_json")
-        click.echo("Stored Atlassian credentials securely.")
+        # Check if OAuth is configured (client_id + client_secret present)
+        has_oauth_config = bool(atlas_cfg.get("client_id") and atlas_cfg.get("client_secret"))
+
+        if has_oauth_config:
+            # Use OAuth flow
+            try:
+                provider = _build_atlassian_provider(config)
+                token_response = provider.obtain_token_interactive()
+                if token_response is None:
+                    raise click.ClickException("Atlassian OAuth authentication failed.")
+                manager.save_oauth_token(store_key, token_response)
+                click.echo("✅ Atlassian OAuth credentials stored.")
+            except click.ClickException:
+                raise
+            except Exception as e:
+                raise click.ClickException(f"Atlassian OAuth failed: {e}") from e
+        else:
+            # Fall back to API token flow (legacy)
+            base_url = click.prompt(
+                "Atlassian base URL",
+                default=atlas_cfg.get("base_url", "https://example.atlassian.net"),
+            )
+            username = click.prompt(
+                "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
+            )
+            api_token = click.prompt("Atlassian API token", hide_input=True)
+            payload = json.dumps(
+                {"base_url": base_url, "username": username, "api_token": api_token}
+            )
+            manager.store_api_token(store_key, payload, token_type="atlassian_json")
+            click.echo("✅ Stored Atlassian API credentials securely.")
         return
 
     if meta["type"] == "api_token":

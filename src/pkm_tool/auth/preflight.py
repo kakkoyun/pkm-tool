@@ -581,9 +581,7 @@ class PreflightChecker:
 
         return updated_statuses
 
-    def _get_preferred_browser_for_source(
-        self, source_config: SourceConfig
-    ) -> str | None:
+    def _get_preferred_browser_for_source(self, source_config: SourceConfig) -> str | None:
         """Get browser preference for source with fallback to global.
 
         Priority:
@@ -609,7 +607,6 @@ class PreflightChecker:
         Attempts to refresh existing token first, then falls back to interactive
         flow if configured and allowed.
         """
-        config_dict = source_config.config or {}
         display_name = status.display_name
 
         logger.debug(

@@ -751,11 +751,17 @@ class PreflightChecker:
     ) -> SourceAuthStatus | None:
         """Resolve basic auth source authentication (Atlassian).
 
-        Prompts user for all required fields and stores them as JSON.
+        For Atlassian, offers guided OAuth setup (recommended) or API token fallback.
+        For other sources, prompts for all required fields and stores them as JSON.
         """
         if not interactive:
             return None
 
+        # Special handling for Atlassian: offer OAuth setup
+        if source_name == "atlassian":
+            return self._resolve_atlassian_with_oauth_guidance(source_config)
+
+        # Generic basic auth handling for other sources
         display_name = info.get("display", source_name)
         required_fields = info.get("required_fields", [])
 
@@ -789,6 +795,119 @@ class PreflightChecker:
         click.echo(f"{display_name} credentials stored securely")
 
         return self.check_source(source_name, source_config)
+
+    def _resolve_atlassian_with_oauth_guidance(
+        self, source_config: SourceConfig
+    ) -> SourceAuthStatus | None:
+        """Guide user through Atlassian OAuth app setup and authentication.
+
+        Flow:
+        1. Explain OAuth benefits
+        2. Open browser to OAuth app creation page
+        3. Prompt for client_id and client_secret
+        4. Launch OAuth flow
+        5. Offer API token fallback if user declines
+        """
+        click.echo("\n" + "=" * 60)
+        click.echo("🔐 Atlassian Authentication Required")
+        click.echo("=" * 60)
+        click.echo(
+            "\nAtlassian recommends OAuth 2.0 for secure, modern authentication."
+            "\nBenefits:"
+            "\n  ✓ More secure (tokens auto-expire)"
+            "\n  ✓ Better user experience (browser-based)"
+            "\n  ✓ Automatic token refresh"
+            "\n  ✓ No need to manage API tokens manually\n"
+        )
+
+        # Offer OAuth setup
+        if click.confirm("Set up OAuth authentication? (Recommended)", default=True):
+            return self._guide_atlassian_oauth_setup(source_config)
+
+        # Fallback to API token
+        click.echo("\nFalling back to API token authentication...")
+        return self._prompt_atlassian_api_token(source_config)
+
+    def _guide_atlassian_oauth_setup(self, source_config: SourceConfig) -> SourceAuthStatus | None:
+        """Guide user through creating Atlassian OAuth app and collecting credentials."""
+        oauth_app_url = "https://developer.atlassian.com/console/myapps/"
+
+        click.echo("\n📝 Step 1: Create an OAuth 2.0 app")
+        click.echo(f"Opening: {oauth_app_url}")
+        click.echo(
+            "\nFollow these steps:"
+            "\n  1. Click 'Create' → 'OAuth 2.0 integration'"
+            "\n  2. Enter app name (e.g., 'PKM Tool')"
+            "\n  3. Add callback URL: http://localhost:8643/callback"
+            "\n  4. Add permissions:"
+            "\n     - read:jira-work, read:jira-user"
+            "\n     - read:confluence-content.all, offline_access"
+            "\n  5. Save and note your Client ID and Client secret\n"
+        )
+
+        preferred_browser = self._get_preferred_browser_for_source(source_config)
+        if not open_browser(oauth_app_url, preferred_browser):
+            click.echo("⚠️  Could not open browser. Please visit the URL above manually.")
+
+        if not click.confirm("\nHave you created the OAuth app?", default=True):
+            click.echo("OAuth setup cancelled.")
+            return None
+
+        # Collect OAuth credentials
+        click.echo("\n📝 Step 2: Enter OAuth credentials")
+        client_id = click.prompt("Client ID")
+        client_secret = click.prompt("Client secret", hide_input=True)
+
+        if not client_id or not client_secret:
+            click.echo("❌ Missing OAuth credentials. Authentication cancelled.")
+            return None
+
+        # Build provider and launch OAuth flow
+        click.echo("\n🌐 Step 3: Browser authentication")
+        provider = AtlassianOAuthProvider(
+            client_id,
+            client_secret,
+            callback_port=8643,
+            preferred_browser=preferred_browser,
+        )
+
+        token_response = provider.obtain_token_interactive()
+        if token_response is None:
+            click.echo("❌ OAuth authentication failed.")
+            return None
+
+        # Store OAuth token
+        self.auth_manager.save_oauth_token("atlassian", token_response)
+        logger.info("preflight_atlassian_oauth_success")
+        click.echo("✅ Atlassian OAuth authentication successful!")
+
+        # Re-check auth status
+        return self.check_source("atlassian", source_config)
+
+    def _prompt_atlassian_api_token(self, source_config: SourceConfig) -> SourceAuthStatus | None:
+        """Prompt for Atlassian API token (legacy authentication method)."""
+        config_dict = source_config.config or {}
+
+        base_url = click.prompt(
+            "Atlassian base URL",
+            default=config_dict.get("base_url", "https://your-domain.atlassian.net"),
+        )
+        username = click.prompt(
+            "Atlassian email", default=config_dict.get("username", "user@example.com")
+        )
+        api_token = click.prompt("Atlassian API token", hide_input=True)
+
+        if not base_url or not username or not api_token:
+            click.echo("❌ Missing required credentials.")
+            return None
+
+        credentials = {"base_url": base_url, "username": username, "api_token": api_token}
+        credentials_json = json.dumps(credentials)
+        self.auth_manager.store_api_token("atlassian", credentials_json)
+        logger.info("preflight_atlassian_api_token_stored")
+        click.echo("✅ Atlassian API token stored.")
+
+        return self.check_source("atlassian", source_config)
 
     def _try_gh_cli_token(self) -> str | None:
         """Try to get token from gh CLI if installed and authenticated.

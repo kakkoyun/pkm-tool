@@ -389,7 +389,11 @@ class TestPreflightCheckerAtlassian:
         assert status.state == AuthState.VALID
 
     def test_atlassian_missing_base_url(self, checker: PreflightChecker) -> None:
-        """Test Atlassian auth check missing base_url."""
+        """Test Atlassian auth check missing base_url.
+
+        With hybrid auth, if OAuth is not configured and basic auth is incomplete,
+        status will recommend OAuth setup rather than listing missing fields.
+        """
         source_config = SourceConfig(
             enabled=True,
             config={
@@ -401,18 +405,20 @@ class TestPreflightCheckerAtlassian:
         status = checker.check_source("atlassian", source_config)
 
         assert status.state == AuthState.MISSING
-        assert "base_url" in status.missing_fields
+        assert "OAuth recommended" in status.message
 
     def test_atlassian_missing_all_fields(self, checker: PreflightChecker) -> None:
-        """Test Atlassian auth check missing all fields."""
+        """Test Atlassian auth check missing all fields.
+
+        With hybrid auth, when no OAuth or basic auth is configured,
+        status will recommend OAuth setup.
+        """
         source_config = SourceConfig(enabled=True, config={})
 
         status = checker.check_source("atlassian", source_config)
 
         assert status.state == AuthState.MISSING
-        assert "base_url" in status.missing_fields
-        assert "username" in status.missing_fields
-        assert "api_token" in status.missing_fields
+        assert "OAuth recommended" in status.message
 
 
 # ============================================================================
@@ -445,7 +451,7 @@ class TestSourceAuthInfo:
 
     def test_source_info_auth_types(self) -> None:
         """Test source auth types are valid."""
-        valid_auth_types = {"token", "api_key", "oauth", "basic_auth", "native"}
+        valid_auth_types = {"token", "api_key", "oauth", "basic_auth", "native", "hybrid"}
 
         for source, info in SOURCE_AUTH_INFO.items():
             assert info["auth_type"] in valid_auth_types, (

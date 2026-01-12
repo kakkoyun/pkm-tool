@@ -476,26 +476,42 @@ class PreflightChecker:
         """Check hybrid auth source (supports both OAuth and basic auth).
 
         Currently only used for Atlassian, which can use either:
-        - OAuth 2.0 (preferred): client_id + client_secret in config
-        - Basic auth (legacy): base_url + username + api_token
+        - OAuth 2.0 (preferred): Will be offered interactively if no token exists
+        - Basic auth (legacy): Only if user explicitly provides credentials
 
         Priority:
-        1. Check OAuth token in store (if OAuth is configured)
-        2. Check basic auth credentials in store (if OAuth not configured)
-        3. Return missing status with appropriate auth type
+        1. Check for existing OAuth token in store
+        2. Check for existing basic auth credentials in store
+        3. Return missing status (OAuth setup will be offered during resolution)
         """
+        display_name = info.get("display", source_name)
+        store_key = info.get("store_key", source_name)
+
+        # Check for stored OAuth token first
+        stored = self.auth_manager.get_token(store_key)
+        if stored:
+            return self._build_token_status(source_name, display_name, stored)
+
+        # Check for stored basic auth credentials (JSON compound)
+        # For Atlassian this would be {"base_url": "...", "username": "...", "api_token": "..."}
         config_dict = source_config.config or {}
 
-        # Check if OAuth is configured (client_id + client_secret present)
-        oauth_fields = info.get("oauth_config_fields", [])
-        has_oauth_config = all(config_dict.get(f) for f in oauth_fields)
+        # If all basic auth fields are in config, consider it configured
+        if all(config_dict.get(f) for f in ["base_url", "username", "api_token"]):
+            return SourceAuthStatus(
+                source=source_name,
+                display_name=display_name,
+                state=AuthState.VALID,
+                message="API token configured in config file",
+            )
 
-        if has_oauth_config:
-            # OAuth is configured, treat as OAuth source
-            return self._check_oauth_source(source_name, source_config, info)
-
-        # No OAuth config, fall back to basic auth
-        return self._check_basic_auth_source(source_name, source_config, info)
+        # No stored credentials - OAuth setup will be offered during resolution
+        return SourceAuthStatus(
+            source=source_name,
+            display_name=display_name,
+            state=AuthState.MISSING,
+            message="No authentication configured (OAuth recommended)",
+        )
 
     def get_summary(self, statuses: list[SourceAuthStatus]) -> dict[str, int]:
         """Get summary counts by state.
@@ -584,40 +600,9 @@ class PreflightChecker:
             if info is None:
                 continue
 
-            auth_type = info.get("auth_type")
-            new_status: SourceAuthStatus | None = None
-
-            if auth_type == "oauth":
-                new_status = self._resolve_oauth_source(
-                    source_name, source_config, status, interactive=interactive
-                )
-            elif auth_type == "hybrid":
-                # Hybrid sources: check if OAuth is configured, otherwise use basic auth
-                config_dict = source_config.config or {}
-                oauth_fields = info.get("oauth_config_fields", [])
-                has_oauth_config = all(config_dict.get(f) for f in oauth_fields)
-
-                if has_oauth_config:
-                    new_status = self._resolve_oauth_source(
-                        source_name, source_config, status, interactive=interactive
-                    )
-                else:
-                    new_status = self._resolve_basic_auth_source(
-                        source_name, source_config, info, interactive=interactive
-                    )
-            elif source_name == "github":
-                # Special handling for GitHub (gh CLI integration + browser fallback)
-                new_status = self._resolve_github_source(
-                    source_name, source_config, info, interactive=interactive
-                )
-            elif auth_type in ("token", "api_key"):
-                new_status = self._resolve_token_source(
-                    source_name, source_config, info, interactive=interactive
-                )
-            elif auth_type == "basic_auth":
-                new_status = self._resolve_basic_auth_source(
-                    source_name, source_config, info, interactive=interactive
-                )
+            new_status = self._resolve_source_by_type(
+                source_name, source_config, status, info, interactive=interactive
+            )
 
             # Update status in list if resolution was attempted
             if new_status is not None:
@@ -627,6 +612,88 @@ class PreflightChecker:
                         break
 
         return updated_statuses
+
+    def _resolve_source_by_type(
+        self,
+        source_name: str,
+        source_config: SourceConfig,
+        status: SourceAuthStatus,
+        info: dict[str, Any],
+        *,
+        interactive: bool,
+    ) -> SourceAuthStatus | None:
+        """Route authentication resolution based on auth type.
+
+        Args:
+            source_name: Name of the source
+            source_config: Source configuration
+            status: Current auth status
+            info: Source auth info from SOURCE_AUTH_INFO
+            interactive: Whether to allow interactive prompts
+
+        Returns:
+            Updated status or None if no resolution attempted
+        """
+        auth_type = info.get("auth_type")
+
+        if auth_type == "oauth":
+            return self._resolve_oauth_source(
+                source_name, source_config, status, interactive=interactive
+            )
+        if auth_type == "hybrid":
+            return self._resolve_hybrid_source(
+                source_name, source_config, status, info, interactive=interactive
+            )
+        if source_name == "github":
+            # Special handling for GitHub (gh CLI integration + browser fallback)
+            return self._resolve_github_source(
+                source_name, source_config, info, interactive=interactive
+            )
+        if auth_type in ("token", "api_key"):
+            return self._resolve_token_source(
+                source_name, source_config, info, interactive=interactive
+            )
+        if auth_type == "basic_auth":
+            return self._resolve_basic_auth_source(
+                source_name, source_config, info, interactive=interactive
+            )
+        return None
+
+    def _resolve_hybrid_source(
+        self,
+        source_name: str,
+        source_config: SourceConfig,
+        status: SourceAuthStatus,
+        info: dict[str, Any],
+        *,
+        interactive: bool,
+    ) -> SourceAuthStatus | None:
+        """Resolve hybrid auth source (supports both OAuth and basic auth).
+
+        Checks if OAuth is configured (has client_id/client_secret), if so uses OAuth flow.
+        Otherwise falls back to basic auth flow.
+
+        Args:
+            source_name: Name of the source
+            source_config: Source configuration
+            status: Current auth status
+            info: Source auth info from SOURCE_AUTH_INFO
+            interactive: Whether to allow interactive prompts
+
+        Returns:
+            Updated status or None if no resolution attempted
+        """
+        config_dict = source_config.config or {}
+        oauth_fields = info.get("oauth_config_fields", [])
+        has_oauth_config = all(config_dict.get(f) for f in oauth_fields)
+
+        if has_oauth_config:
+            return self._resolve_oauth_source(
+                source_name, source_config, status, interactive=interactive
+            )
+        return self._resolve_basic_auth_source(
+            source_name, source_config, info, interactive=interactive
+        )
 
     def _get_preferred_browser_for_source(self, source_config: SourceConfig) -> str | None:
         """Get browser preference for source with fallback to global.

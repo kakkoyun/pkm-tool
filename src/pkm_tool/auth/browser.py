@@ -4,11 +4,21 @@ Centralizes browser opening logic to support user-configured preferred browsers
 for OAuth flows and other authentication-related browser interactions.
 """
 
+import platform
+import subprocess
 import webbrowser
 
 import structlog
 
 logger = structlog.get_logger(__name__)
+
+# macOS-specific browser names that need special handling
+MACOS_BROWSER_APPS = {
+    "brave": "Brave Browser",
+    "arc": "Arc",
+    "edge": "Microsoft Edge",
+    "vivaldi": "Vivaldi",
+}
 
 
 def open_browser(url: str, preferred_browser: str | None = None) -> bool:
@@ -21,10 +31,10 @@ def open_browser(url: str, preferred_browser: str | None = None) -> bool:
     Args:
         url: URL to open
         preferred_browser: Browser name or None for system default.
-            Supported values match Python's webbrowser module:
-            "firefox", "chrome", "chromium", "safari", "opera", "edge",
-            or any browser registered with the webbrowser module.
-            "default" is treated the same as None.
+            Supported values:
+            - Standard: "firefox", "chrome", "chromium", "safari", "opera"
+            - macOS special: "brave", "arc", "edge", "vivaldi"
+            - "default" or None: System default browser
 
     Returns:
         True if browser opened successfully, False otherwise.
@@ -32,12 +42,47 @@ def open_browser(url: str, preferred_browser: str | None = None) -> bool:
     try:
         # Use system default if no preference or explicitly set to "default"
         if preferred_browser and preferred_browser.lower() != "default":
+            browser_name = preferred_browser.lower()
+
+            # On macOS, try using 'open -a' for browsers that need special handling
+            if platform.system() == "Darwin" and browser_name in MACOS_BROWSER_APPS:
+                app_name = MACOS_BROWSER_APPS[browser_name]
+                try:
+                    subprocess.run(
+                        ["open", "-a", app_name, url],
+                        check=True,
+                        capture_output=True,
+                        timeout=5,
+                    )
+                    logger.debug(
+                        "browser_open_macos",
+                        browser=browser_name,
+                        app=app_name,
+                        url=url,
+                        success=True,
+                    )
+                    return True
+                except (
+                    subprocess.CalledProcessError,
+                    subprocess.TimeoutExpired,
+                    FileNotFoundError,
+                ) as e:
+                    logger.warning(
+                        "macos_browser_open_failed",
+                        browser=browser_name,
+                        app=app_name,
+                        error=str(e),
+                        fallback="webbrowser",
+                    )
+                    # Fall through to try webbrowser module
+
+            # Try standard webbrowser module
             try:
-                browser = webbrowser.get(preferred_browser)
+                browser = webbrowser.get(browser_name)
                 result = browser.open(url)
                 logger.debug(
                     "browser_open_preferred",
-                    browser=preferred_browser,
+                    browser=browser_name,
                     url=url,
                     success=result,
                 )
@@ -46,7 +91,7 @@ def open_browser(url: str, preferred_browser: str | None = None) -> bool:
                 # Preferred browser not available, fall back to default
                 logger.warning(
                     "preferred_browser_not_found",
-                    browser=preferred_browser,
+                    browser=browser_name,
                     fallback="default",
                 )
 

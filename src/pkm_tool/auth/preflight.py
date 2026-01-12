@@ -20,6 +20,7 @@ import structlog
 
 from pkm_tool.auth.browser import open_browser
 from pkm_tool.auth.manager import AuthManager
+from pkm_tool.auth.oauth.atlassian import AtlassianOAuthProvider
 from pkm_tool.auth.oauth.google import GoogleOAuthProvider
 from pkm_tool.auth.oauth.whoop import WhoopOAuthProvider
 from pkm_tool.auth.token_store import StoredToken
@@ -78,11 +79,12 @@ SOURCE_AUTH_INFO: dict[str, dict[str, Any]] = {
     },
     "atlassian": {
         "display": "Atlassian",
-        "auth_type": "basic_auth",
+        "auth_type": "hybrid",  # Supports both OAuth and basic auth
         "store_key": "atlassian",
-        "config_key": None,  # Uses JSON compound storage
+        "config_key": None,  # Uses JSON compound storage for basic auth
         "env_var": None,
-        "required_fields": ["base_url", "username", "api_token"],
+        "required_fields": ["base_url", "username", "api_token"],  # For basic auth fallback
+        "oauth_config_fields": ["client_id", "client_secret"],  # For OAuth
     },
     "google_docs": {
         "display": "Google Docs",
@@ -210,13 +212,17 @@ class PreflightChecker:
         if auth_type in ("token", "api_key"):
             return self._check_token_source(source_name, source_config, info)
 
-        # Basic auth sources (Atlassian)
+        # Basic auth sources (legacy API token method)
         if auth_type == "basic_auth":
             return self._check_basic_auth_source(source_name, source_config, info)
 
         # OAuth sources (Google Docs, Whoop)
         if auth_type == "oauth":
             return self._check_oauth_source(source_name, source_config, info)
+
+        # Hybrid sources (Atlassian: OAuth preferred, basic auth fallback)
+        if auth_type == "hybrid":
+            return self._check_hybrid_auth_source(source_name, source_config, info)
 
         return SourceAuthStatus(
             source=source_name,
@@ -464,6 +470,33 @@ class PreflightChecker:
             expires_at=stored.expires_at,
         )
 
+    def _check_hybrid_auth_source(
+        self, source_name: str, source_config: SourceConfig, info: dict[str, Any]
+    ) -> SourceAuthStatus:
+        """Check hybrid auth source (supports both OAuth and basic auth).
+
+        Currently only used for Atlassian, which can use either:
+        - OAuth 2.0 (preferred): client_id + client_secret in config
+        - Basic auth (legacy): base_url + username + api_token
+
+        Priority:
+        1. Check OAuth token in store (if OAuth is configured)
+        2. Check basic auth credentials in store (if OAuth not configured)
+        3. Return missing status with appropriate auth type
+        """
+        config_dict = source_config.config or {}
+
+        # Check if OAuth is configured (client_id + client_secret present)
+        oauth_fields = info.get("oauth_config_fields", [])
+        has_oauth_config = all(config_dict.get(f) for f in oauth_fields)
+
+        if has_oauth_config:
+            # OAuth is configured, treat as OAuth source
+            return self._check_oauth_source(source_name, source_config, info)
+
+        # No OAuth config, fall back to basic auth
+        return self._check_basic_auth_source(source_name, source_config, info)
+
     def get_summary(self, statuses: list[SourceAuthStatus]) -> dict[str, int]:
         """Get summary counts by state.
 
@@ -558,6 +591,20 @@ class PreflightChecker:
                 new_status = self._resolve_oauth_source(
                     source_name, source_config, status, interactive=interactive
                 )
+            elif auth_type == "hybrid":
+                # Hybrid sources: check if OAuth is configured, otherwise use basic auth
+                config_dict = source_config.config or {}
+                oauth_fields = info.get("oauth_config_fields", [])
+                has_oauth_config = all(config_dict.get(f) for f in oauth_fields)
+
+                if has_oauth_config:
+                    new_status = self._resolve_oauth_source(
+                        source_name, source_config, status, interactive=interactive
+                    )
+                else:
+                    new_status = self._resolve_basic_auth_source(
+                        source_name, source_config, info, interactive=interactive
+                    )
             elif source_name == "github":
                 # Special handling for GitHub (gh CLI integration + browser fallback)
                 new_status = self._resolve_github_source(
@@ -827,7 +874,7 @@ class PreflightChecker:
 
     def _build_oauth_provider(
         self, source_name: str, source_config: SourceConfig
-    ) -> GoogleOAuthProvider | WhoopOAuthProvider | None:
+    ) -> GoogleOAuthProvider | WhoopOAuthProvider | AtlassianOAuthProvider | None:
         """Build the appropriate OAuth provider for a source.
 
         Returns None if required OAuth config (client_id, client_secret) is missing.
@@ -843,7 +890,8 @@ class PreflightChecker:
         preferred_browser = self._get_preferred_browser_for_source(source_config)
 
         if source_name == "google_docs":
-            # Note: Google OAuth uses device code flow (no browser opening), so no preferred_browser needed
+            # Note: Google OAuth uses device code flow (no browser opening),
+            # so no preferred_browser needed
             return GoogleOAuthProvider(
                 client_id,
                 client_secret=client_secret,
@@ -855,6 +903,14 @@ class PreflightChecker:
                 client_secret,
                 scopes=config_dict.get("scopes"),
                 callback_port=config_dict.get("callback_port", 8642),
+                preferred_browser=preferred_browser,
+            )
+        if source_name == "atlassian":
+            return AtlassianOAuthProvider(
+                client_id,
+                client_secret,
+                scopes=config_dict.get("scopes"),
+                callback_port=config_dict.get("callback_port", 8643),
                 preferred_browser=preferred_browser,
             )
         return None

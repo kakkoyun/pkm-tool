@@ -126,6 +126,13 @@ def _map_event_to_activity(event: Any, authenticated_user: str) -> GitHubActivit
     # Only include events where the authenticated user is the actor
     # The /events endpoint returns events from followed users and watched repos
     if hasattr(event, "actor") and event.actor.login != authenticated_user:
+        # Log filtered events for debugging
+        logger.debug(
+            "github_event_filtered_by_actor",
+            event_type=event.type,
+            event_actor=event.actor.login,
+            authenticated_user=authenticated_user,
+        )
         return None
 
     event_type = event.type

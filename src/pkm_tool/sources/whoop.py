@@ -12,6 +12,9 @@ from pkm_tool.sources.common import create_http_client, get_source_token
 
 logger = structlog.get_logger(__name__)
 
+# Whoop API v2 base URL
+WHOOP_API_BASE = "https://api.prod.whoop.com/developer"
+
 
 def _convert_millis_to_minutes(value: int | None, default: int = 0) -> int:
     """Convert milliseconds to minutes, with a default fallback."""
@@ -124,12 +127,13 @@ def fetch_whoop_recovery(
 
         with client:
             # Fetch recovery cycles for a date range around target date
-            # Whoop API v2: GET /v1/recovery
-            start_str = target_date.strftime("%Y-%m-%d")
-            end_str = target_date.strftime("%Y-%m-%d")
+            # Whoop API v2: GET /v2/recovery
+            # API requires ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SSZ)
+            start_str = target_date.strftime("%Y-%m-%dT00:00:00Z")
+            end_str = target_date.strftime("%Y-%m-%dT23:59:59Z")
 
             response = client.get(
-                "https://api.whoop.com/v1/recovery",
+                f"{WHOOP_API_BASE}/v2/recovery",
                 params={"start": start_str, "end": end_str},
             )
             response.raise_for_status()
@@ -202,12 +206,13 @@ def fetch_whoop_sleep(
 
         with client:
             # Fetch sleep cycles for date range
-            # Whoop API v2: GET /v1/sleep
-            start_str = target_date.strftime("%Y-%m-%d")
-            end_str = target_date.strftime("%Y-%m-%d")
+            # Whoop API v2: GET /v2/activity/sleep
+            # API requires ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SSZ)
+            start_str = target_date.strftime("%Y-%m-%dT00:00:00Z")
+            end_str = target_date.strftime("%Y-%m-%dT23:59:59Z")
 
             response = client.get(
-                "https://api.whoop.com/v1/sleep",
+                f"{WHOOP_API_BASE}/v2/activity/sleep",
                 params={"start": start_str, "end": end_str},
             )
             response.raise_for_status()
@@ -263,12 +268,13 @@ def fetch_whoop_workouts(
 
         with client:
             # Fetch workouts for date range
-            # Whoop API v2: GET /v1/workout
-            start_str = target_date.strftime("%Y-%m-%d")
-            end_str = target_date.strftime("%Y-%m-%d")
+            # Whoop API v2: GET /v2/activity/workout
+            # API requires ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SSZ)
+            start_str = target_date.strftime("%Y-%m-%dT00:00:00Z")
+            end_str = target_date.strftime("%Y-%m-%dT23:59:59Z")
 
             response = client.get(
-                "https://api.whoop.com/v1/workout",
+                f"{WHOOP_API_BASE}/v2/activity/workout",
                 params={"start": start_str, "end": end_str},
             )
             response.raise_for_status()

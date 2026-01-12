@@ -392,7 +392,7 @@ class TestWhoopErrorHandling:
         config = {"access_token": "invalid_token"}
 
         # Mock API to return 401
-        respx_mock.get("https://api.whoop.com/v1/recovery").mock(
+        respx_mock.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(401, json={"error": "Unauthorized"})
         )
 

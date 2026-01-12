@@ -98,7 +98,7 @@ class TestFetchWhoopRecovery:
         """Test successful recovery data fetch."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/recovery").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(200, json=whoop_recovery_response)
         )
 
@@ -118,7 +118,13 @@ class TestFetchWhoopRecovery:
         target_date = date(2025, 11, 21)
         config: dict = {}
 
-        result = fetch_whoop_recovery(target_date, config)
+        # Mock AuthManager to return no stored token
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
+            mock_auth.get_token.return_value = None
+            mock_auth_class.return_value = mock_auth
+
+            result = fetch_whoop_recovery(target_date, config)
 
         assert result is None
 
@@ -127,7 +133,7 @@ class TestFetchWhoopRecovery:
         """Test recovery fetch with empty response."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/recovery").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(200, json={"records": []})
         )
 
@@ -140,7 +146,7 @@ class TestFetchWhoopRecovery:
         """Test recovery fetch with HTTP error."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/recovery").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(500, json={"error": "Server error"})
         )
 
@@ -165,7 +171,7 @@ class TestFetchWhoopRecovery:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/recovery").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -189,7 +195,7 @@ class TestFetchWhoopRecovery:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/recovery").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -208,7 +214,7 @@ class TestFetchWhoopSleep:
         """Test successful sleep data fetch."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/sleep").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
             return_value=httpx.Response(200, json=whoop_sleep_response)
         )
 
@@ -232,7 +238,13 @@ class TestFetchWhoopSleep:
         target_date = date(2025, 11, 21)
         config: dict = {}
 
-        result = fetch_whoop_sleep(target_date, config)
+        # Mock AuthManager to return no stored token
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
+            mock_auth.get_token.return_value = None
+            mock_auth_class.return_value = mock_auth
+
+            result = fetch_whoop_sleep(target_date, config)
 
         assert result == []
 
@@ -241,7 +253,7 @@ class TestFetchWhoopSleep:
         """Test sleep fetch with empty response."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/sleep").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
             return_value=httpx.Response(200, json={"records": []})
         )
 
@@ -254,7 +266,7 @@ class TestFetchWhoopSleep:
         """Test sleep fetch with HTTP error."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/sleep").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
             return_value=httpx.Response(500, json={"error": "Server error"})
         )
 
@@ -278,7 +290,7 @@ class TestFetchWhoopSleep:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/sleep").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -300,7 +312,7 @@ class TestFetchWhoopSleep:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/sleep").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -319,7 +331,7 @@ class TestFetchWhoopWorkouts:
         """Test successful workouts data fetch."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(200, json=whoop_workouts_response)
         )
 
@@ -341,7 +353,13 @@ class TestFetchWhoopWorkouts:
         target_date = date(2025, 11, 21)
         config: dict = {}
 
-        result = fetch_whoop_workouts(target_date, config)
+        # Mock AuthManager to return no stored token
+        with patch("pkm_tool.sources.common.AuthManager") as mock_auth_class:
+            mock_auth = MagicMock()
+            mock_auth.get_token.return_value = None
+            mock_auth_class.return_value = mock_auth
+
+            result = fetch_whoop_workouts(target_date, config)
 
         assert result == []
 
@@ -350,7 +368,7 @@ class TestFetchWhoopWorkouts:
         """Test workouts fetch with empty response."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(200, json={"records": []})
         )
 
@@ -363,7 +381,7 @@ class TestFetchWhoopWorkouts:
         """Test workouts fetch with HTTP error."""
         target_date = date(2025, 11, 21)
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(500, json={"error": "Server error"})
         )
 
@@ -389,7 +407,7 @@ class TestFetchWhoopWorkouts:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -413,7 +431,7 @@ class TestFetchWhoopWorkouts:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -442,7 +460,7 @@ class TestFetchWhoopWorkouts:
             ]
         }
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(200, json=response)
         )
 
@@ -528,7 +546,7 @@ class TestWhoopWithCache:
             ttl_hours=24,
         )
 
-        respx.get("https://api.whoop.com/v1/recovery").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/recovery").mock(
             return_value=httpx.Response(200, json=whoop_recovery_response)
         )
 
@@ -549,7 +567,7 @@ class TestWhoopWithCache:
             ttl_hours=24,
         )
 
-        respx.get("https://api.whoop.com/v1/sleep").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep").mock(
             return_value=httpx.Response(200, json=whoop_sleep_response)
         )
 
@@ -569,7 +587,7 @@ class TestWhoopWithCache:
             ttl_hours=24,
         )
 
-        respx.get("https://api.whoop.com/v1/workout").mock(
+        respx.get("https://api.prod.whoop.com/developer/v2/activity/workout").mock(
             return_value=httpx.Response(200, json=whoop_workouts_response)
         )
 

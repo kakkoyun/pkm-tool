@@ -581,6 +581,20 @@ class PreflightChecker:
 
         return updated_statuses
 
+    def _get_preferred_browser_for_source(
+        self, source_config: SourceConfig
+    ) -> str | None:
+        """Get browser preference for source with fallback to global.
+
+        Priority:
+        1. Per-source browser preference (source_config.preferred_browser)
+        2. Global browser preference (self.preferred_browser)
+        3. None (system default)
+        """
+        if source_config.preferred_browser:
+            return source_config.preferred_browser
+        return self.preferred_browser
+
     def _resolve_oauth_source(
         self,
         source_name: str,
@@ -609,7 +623,7 @@ class PreflightChecker:
         if status.can_refresh:
             stored = self.auth_manager.get_token(source_name)
             if stored and stored.refresh_token:
-                provider = self._build_oauth_provider(source_name, config_dict)
+                provider = self._build_oauth_provider(source_name, source_config)
                 if provider:
                     refreshed = provider.refresh_access_token(stored.refresh_token)
                     if refreshed:
@@ -623,7 +637,7 @@ class PreflightChecker:
             return status
 
         # Check if we have OAuth config to do interactive flow
-        provider = self._build_oauth_provider(source_name, config_dict)
+        provider = self._build_oauth_provider(source_name, source_config)
         if provider is None:
             click.echo(
                 f"\n{display_name}: Cannot authenticate - "
@@ -798,7 +812,8 @@ class PreflightChecker:
         click.echo("\nOpening browser to create a Personal Access Token...")
         click.echo(f"→ {pat_url}\n")
 
-        if not open_browser(pat_url, self.preferred_browser):
+        preferred_browser = self._get_preferred_browser_for_source(source_config)
+        if not open_browser(pat_url, preferred_browser):
             click.echo("⚠️  Could not open browser automatically.")
 
         click.echo("Create a token with 'repo' and 'read:user' scopes, then paste it below.")
@@ -814,17 +829,21 @@ class PreflightChecker:
         return self.check_source(source_name, source_config)
 
     def _build_oauth_provider(
-        self, source_name: str, config_dict: dict[str, Any]
+        self, source_name: str, source_config: SourceConfig
     ) -> GoogleOAuthProvider | WhoopOAuthProvider | None:
         """Build the appropriate OAuth provider for a source.
 
         Returns None if required OAuth config (client_id, client_secret) is missing.
         """
+        config_dict = source_config.config or {}
         client_id = config_dict.get("client_id")
         client_secret = config_dict.get("client_secret")
 
         if not client_id or not client_secret:
             return None
+
+        # Get per-source browser preference with fallback to global
+        preferred_browser = self._get_preferred_browser_for_source(source_config)
 
         if source_name == "google_docs":
             return GoogleOAuthProvider(
@@ -838,6 +857,6 @@ class PreflightChecker:
                 client_secret,
                 scopes=config_dict.get("scopes"),
                 callback_port=config_dict.get("callback_port", 8642),
-                preferred_browser=self.preferred_browser,
+                preferred_browser=preferred_browser,
             )
         return None

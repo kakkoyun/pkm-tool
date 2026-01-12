@@ -66,6 +66,7 @@ class SourceConfig(BaseModel):
     exclude_weekends: bool = False
     title: str | None = None  # Custom section title, uses default if None
     order: int | None = None  # Custom order, uses config definition order if None
+    preferred_browser: str | None = None  # Browser for OAuth flows, falls back to global if None
     config: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("config", mode="before")

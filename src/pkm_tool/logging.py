@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import uuid
 from typing import Any
 
 import structlog
@@ -76,3 +77,22 @@ def get_logger(name: str | None = None) -> Any:
         Structlog logger instance
     """
     return structlog.get_logger(name)
+
+
+def bind_correlation_id(correlation_id: str | None = None) -> str:
+    """
+    Bind a correlation ID to the current structlog context.
+
+    If no correlation_id is provided, generates a new UUID4.
+    All subsequent log entries in the current context will include this ID.
+
+    Args:
+        correlation_id: Optional explicit correlation ID. Generates UUID4 if None.
+
+    Returns:
+        The correlation ID that was bound.
+    """
+    if correlation_id is None:
+        correlation_id = str(uuid.uuid4())
+    structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+    return correlation_id

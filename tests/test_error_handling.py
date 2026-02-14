@@ -526,4 +526,7 @@ whoop:
         assert "things_error" in data.metadata
         assert "wakatime_error" in data.metadata
         assert "google_docs_error" in data.metadata
-        assert "whoop_error" in data.metadata
+        # Each Whoop endpoint gets its own error key
+        assert "whoop_recovery_error" in data.metadata
+        assert "whoop_sleep_error" in data.metadata
+        assert "whoop_workouts_error" in data.metadata

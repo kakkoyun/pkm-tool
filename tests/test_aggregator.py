@@ -297,7 +297,7 @@ class TestAggregatorExceptionHandling:
         """Test that whoop exceptions are caught and stored in metadata."""
         target_date = date(2025, 11, 21)
 
-        # Mock whoop to raise exception
+        # Mock whoop recovery to raise exception
         mocker.patch(
             "pkm_tool.aggregator.fetch_whoop_recovery",
             side_effect=Exception("Whoop API failed"),
@@ -310,11 +310,14 @@ class TestAggregatorExceptionHandling:
         mocker.patch("pkm_tool.aggregator.fetch_wakatime_activities", return_value=[])
         mocker.patch("pkm_tool.aggregator.fetch_atlassian_items", return_value=[])
         mocker.patch("pkm_tool.aggregator.fetch_google_docs", return_value=[])
+        mocker.patch("pkm_tool.aggregator.fetch_whoop_sleep", return_value=[])
+        mocker.patch("pkm_tool.aggregator.fetch_whoop_workouts", return_value=[])
 
         data = aggregate_data(target_date, str(error_config))
 
-        assert "whoop_error" in data.metadata
-        assert "Whoop API failed" in data.metadata["whoop_error"]
+        # Each Whoop endpoint gets its own error key after normalization
+        assert "whoop_recovery_error" in data.metadata
+        assert "Whoop API failed" in data.metadata["whoop_recovery_error"]
 
     def test_multiple_exceptions(self, error_config: Path, mocker) -> None:
         """Test that multiple source exceptions are all captured."""

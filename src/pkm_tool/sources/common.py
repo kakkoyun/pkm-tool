@@ -68,7 +68,13 @@ import structlog
 
 from pkm_tool.auth import AuthManager
 from pkm_tool.cache import get_cached_client
-from pkm_tool.config import CacheConfig
+from pkm_tool.config import CacheConfig, RetryConfig
+from pkm_tool.exceptions import (
+    AuthenticationError,
+    NetworkError,
+    RateLimitError,
+    SourceError,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -114,9 +120,12 @@ def create_http_client(
     headers: dict[str, str],
     cache_config: CacheConfig | None = None,
     timeout: float = 30.0,
+    transport: httpx.BaseTransport | None = None,
+    retry_config: RetryConfig | None = None,
+    source: str = "unknown",
 ) -> httpx.Client:
     """
-    Create an HTTP client with optional caching support.
+    Create an HTTP client with optional caching, retry, and transport injection.
 
     This centralizes the HTTP client creation pattern used across sources.
 
@@ -124,10 +133,83 @@ def create_http_client(
         headers: HTTP headers to include in requests
         cache_config: Optional cache configuration for response caching
         timeout: Request timeout in seconds (default: 30.0)
+        transport: Optional custom transport for testing (mock injection)
+        retry_config: Optional retry configuration for failed requests
+        source: Source name for logging (used by retry transport)
 
     Returns:
         Configured httpx.Client instance
     """
-    if cache_config:
+    from pkm_tool.retry import RetryTransport
+
+    # Apply retry transport if configured
+    actual_transport = transport
+    if retry_config and retry_config.enabled and actual_transport is None:
+        actual_transport = RetryTransport(
+            max_retries=retry_config.max_retries,
+            base_delay=retry_config.base_delay,
+            max_delay=retry_config.max_delay,
+            source=source,
+        )
+
+    if cache_config and actual_transport is None:
+        # Caching is only used with the default transport
         return get_cached_client(cache_config, headers=headers, timeout=timeout)
-    return httpx.Client(headers=headers, timeout=timeout)
+    return httpx.Client(headers=headers, timeout=timeout, transport=actual_transport)
+
+
+def classify_http_error(
+    source: str,
+    error: httpx.HTTPStatusError | httpx.ConnectError | httpx.TimeoutException | Exception,
+) -> SourceError:
+    """Classify an HTTP error into a domain exception.
+
+    Maps HTTP status codes and connection errors to structured exception types.
+    Used by sources to convert raw HTTP errors into domain exceptions.
+
+    Args:
+        source: Name of the source (e.g., "github", "wakatime")
+        error: The original HTTP error
+
+    Returns:
+        Appropriate SourceError subclass
+    """
+    # Handle HTTP status errors
+    if isinstance(error, httpx.HTTPStatusError):
+        status = error.response.status_code
+        reason = error.response.reason_phrase
+
+        # Authentication errors (401, 403)
+        if status in (401, 403):
+            return AuthenticationError(source, f"HTTP {status}: {reason}")
+
+        # Rate limiting (429)
+        if status == 429:
+            # Parse Retry-After header if present
+            retry_after_header = error.response.headers.get("Retry-After")
+            retry_after: float | None = None
+            if retry_after_header:
+                try:
+                    retry_after = float(retry_after_header)
+                except ValueError:
+                    # Retry-After can be an HTTP date, but we simplify to None
+                    pass
+            return RateLimitError(source, retry_after=retry_after)
+
+        # Server errors (500, 502, 503, 504) - retriable
+        if status in (500, 502, 503, 504):
+            return SourceError(source, f"HTTP {status}: {reason}", retriable=True)
+
+        # Other HTTP errors - non-retriable
+        return SourceError(source, f"HTTP {status}: {reason}", retriable=False)
+
+    # Handle connection errors
+    if isinstance(error, httpx.ConnectError):
+        return NetworkError(source, f"Connection failed: {error}")
+
+    # Handle timeout errors
+    if isinstance(error, httpx.TimeoutException):
+        return NetworkError(source, f"Request timed out: {error}")
+
+    # Fallback for unknown errors
+    return SourceError(source, str(error), retriable=False)

@@ -25,6 +25,27 @@ from pkm_tool.formatters import (
 )
 from pkm_tool.models import AggregatedData
 
+# Maps source name → AggregatedData field name for single-field sources.
+# Whoop is excluded because it populates three fields from a tuple result.
+_SOURCE_FIELD_MAP: dict[str, str] = {
+    "apple_calendar": "calendar_events",
+    "github": "github_activities",
+    "atlassian": "atlassian_items",
+    "things": "things_tasks",
+    "wakatime": "wakatime_activities",
+    "google_docs": "google_docs",
+}
+
+
+def _populate_source_data(data: AggregatedData, source_name: str, result: Any) -> None:
+    """Set the appropriate field on AggregatedData for a given source result."""
+    field = _SOURCE_FIELD_MAP.get(source_name)
+    if field:
+        setattr(data, field, result)
+    elif source_name == "whoop":
+        data.whoop_recovery, data.whoop_sleep, data.whoop_workouts = result
+
+
 AUTH_SOURCES: dict[str, dict[str, Any]] = {
     "github": {
         "store_key": "github",
@@ -275,22 +296,7 @@ def _fetch_single_source(
         result = fetch_func(target_date, config)
         duration = time.time() - start_time
 
-        # Populate the appropriate field in AggregatedData
-        if source_name == "apple_calendar":
-            data.calendar_events = result
-        elif source_name == "github":
-            data.github_activities = result
-        elif source_name == "atlassian":
-            data.atlassian_items = result
-        elif source_name == "things":
-            data.things_tasks = result
-        elif source_name == "wakatime":
-            data.wakatime_activities = result
-        elif source_name == "google_docs":
-            data.google_docs = result
-        elif source_name == "whoop":
-            # For Whoop, result is a tuple of (recovery, sleep, workouts)
-            data.whoop_recovery, data.whoop_sleep, data.whoop_workouts = result
+        _populate_source_data(data, source_name, result)
 
         logger.info(
             "source_fetch_completed",
@@ -399,22 +405,7 @@ def _process_batch_or_single(
                 data = AggregatedData(date=target_date)
                 result = fetch_func(target_date, source_config)
 
-                # Populate the appropriate field based on source name
-                if source_name == "apple_calendar":
-                    data.calendar_events = result
-                elif source_name == "github":
-                    data.github_activities = result
-                elif source_name == "atlassian":
-                    data.atlassian_items = result
-                elif source_name == "things":
-                    data.things_tasks = result
-                elif source_name == "wakatime":
-                    data.wakatime_activities = result
-                elif source_name == "google_docs":
-                    data.google_docs = result
-                elif source_name == "whoop":
-                    # For Whoop, result is a tuple of (recovery, sleep, workouts)
-                    data.whoop_recovery, data.whoop_sleep, data.whoop_workouts = result
+                _populate_source_data(data, source_name, result)
 
                 # Format filename
                 filename = format_filename(cfg.output_filename_template, target_date, format)

@@ -75,31 +75,45 @@ def fetch_google_docs(
             end_time = f"modifiedTime <= '{end_datetime.isoformat()}Z'"
             query = f"{mime_type} and {start_time} and {end_time}"
 
-            response = client.get(
-                "https://www.googleapis.com/drive/v3/files",
-                params={
+            # Paginate through all results (max 10 pages to prevent infinite loops)
+            page_token = None
+            for page_num in range(10):
+                params: dict[str, str] = {
                     "q": query,
-                    "fields": "files(id,name,webViewLink,modifiedTime,mimeType)",
+                    "fields": "nextPageToken,files(id,name,webViewLink,modifiedTime,mimeType)",
                     "orderBy": "modifiedTime desc",
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
+                }
+                if page_token:
+                    params["pageToken"] = page_token
 
-            for file in data.get("files", []):
-                doc_type = "document"
-                if "spreadsheet" in file.get("mimeType", ""):
-                    doc_type = "spreadsheet"
-                elif "presentation" in file.get("mimeType", ""):
-                    doc_type = "presentation"
-
-                doc = GoogleDoc(
-                    title=file["name"],
-                    url=file["webViewLink"],
-                    opened_at=datetime.fromisoformat(file["modifiedTime"].replace("Z", "+00:00")),
-                    doc_type=doc_type,
+                response = client.get(
+                    "https://www.googleapis.com/drive/v3/files",
+                    params=params,
                 )
-                docs.append(doc)
+                response.raise_for_status()
+                data = response.json()
+
+                for file in data.get("files", []):
+                    doc_type = "document"
+                    if "spreadsheet" in file.get("mimeType", ""):
+                        doc_type = "spreadsheet"
+                    elif "presentation" in file.get("mimeType", ""):
+                        doc_type = "presentation"
+
+                    doc = GoogleDoc(
+                        title=file["name"],
+                        url=file["webViewLink"],
+                        opened_at=datetime.fromisoformat(
+                            file["modifiedTime"].replace("Z", "+00:00")
+                        ),
+                        doc_type=doc_type,
+                    )
+                    docs.append(doc)
+
+                page_token = data.get("nextPageToken")
+                if not page_token:
+                    break
+                logger.debug("google_docs_paginating", page=page_num + 1, docs_so_far=len(docs))
 
         logger.info("google_docs_fetched", doc_count=len(docs))
 

@@ -289,3 +289,48 @@ class TestGoogleDocsWithOAuth:
             result = fetch_google_docs(target_date, config)
 
             assert len(result) == 3
+
+
+class TestGoogleDocsPagination:
+    """Tests for Google Docs pagination."""
+
+    @respx.mock
+    def test_pagination_follows_next_page_token(self, google_docs_config: dict[str, str]) -> None:
+        """Drive API nextPageToken is followed across pages."""
+        target_date = date(2025, 11, 21)
+        page1 = {
+            "files": [
+                {
+                    "id": "doc1",
+                    "name": "Doc A",
+                    "webViewLink": "https://docs.google.com/document/d/doc1/edit",
+                    "modifiedTime": "2025-11-21T10:00:00Z",
+                    "mimeType": "application/vnd.google-apps.document",
+                }
+            ],
+            "nextPageToken": "token_page2",
+        }
+        page2 = {
+            "files": [
+                {
+                    "id": "doc2",
+                    "name": "Doc B",
+                    "webViewLink": "https://docs.google.com/document/d/doc2/edit",
+                    "modifiedTime": "2025-11-21T11:00:00Z",
+                    "mimeType": "application/vnd.google-apps.document",
+                }
+            ],
+        }
+
+        route = respx.get("https://www.googleapis.com/drive/v3/files")
+        route.side_effect = [
+            httpx.Response(200, json=page1),
+            httpx.Response(200, json=page2),
+        ]
+
+        result = fetch_google_docs(target_date, google_docs_config)
+
+        assert len(result) == 2
+        assert result[0].title == "Doc A"
+        assert result[1].title == "Doc B"
+        assert route.call_count == 2

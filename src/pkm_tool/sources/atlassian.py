@@ -73,35 +73,47 @@ def _fetch_jira_via_library(
     jql = f'updated >= "{start_date}" AND updated < "{end_date}"'
     logger.debug("jira_query", jql=jql)
 
-    # Execute JQL query
-    results = jira.jql(jql, limit=100)  # type: ignore
-    if not results:
-        logger.debug("jira_query_returned_none")
-        return []
+    # Paginate through JQL results (max 10 pages of 100 to prevent infinite loops)
+    items: list[AtlassianItem] = []
+    page_size = 100
+    for page_num in range(10):
+        start_at = page_num * page_size
+        results = jira.jql(jql, limit=page_size, start=start_at)  # type: ignore
+        if not results:
+            break
 
-    logger.debug("jira_response_received", issue_count=len(results.get("issues", [])))
+        issues = results.get("issues", [])
+        logger.debug(
+            "jira_response_received",
+            issue_count=len(issues),
+            page=page_num,
+            start_at=start_at,
+        )
 
-    # Map results to AtlassianItem models
-    items = []
-    for issue in results.get("issues", []):
-        try:
-            item = AtlassianItem(
-                type="jira_issue",
-                title=issue["fields"]["summary"],
-                url=f"{base_url}/browse/{issue['key']}",
-                key=issue["key"],
-                status=issue["fields"]["status"]["name"],
-                updated=datetime.fromisoformat(issue["fields"]["updated"].replace("Z", "+00:00")),
-            )
-            items.append(item)
-        except (KeyError, ValueError) as e:
-            # Skip malformed issues but log as warning for visibility
-            logger.warning(
-                "jira_issue_malformed",
-                issue_key=issue.get("key", "unknown"),
-                error=str(e),
-            )
-            continue
+        for issue in issues:
+            try:
+                item = AtlassianItem(
+                    type="jira_issue",
+                    title=issue["fields"]["summary"],
+                    url=f"{base_url}/browse/{issue['key']}",
+                    key=issue["key"],
+                    status=issue["fields"]["status"]["name"],
+                    updated=datetime.fromisoformat(
+                        issue["fields"]["updated"].replace("Z", "+00:00")
+                    ),
+                )
+                items.append(item)
+            except (KeyError, ValueError) as e:
+                logger.warning(
+                    "jira_issue_malformed",
+                    issue_key=issue.get("key", "unknown"),
+                    error=str(e),
+                )
+                continue
+
+        # Stop if we got fewer results than the page size
+        if len(issues) < page_size:
+            break
 
     return items
 
@@ -126,32 +138,38 @@ def _fetch_confluence_via_library(
     cql = f'lastModified >= "{start_iso}" AND lastModified <= "{end_iso}"'
     logger.debug("confluence_query", cql=cql)
 
-    # Execute CQL query
-    results = confluence.cql(cql, limit=100)  # type: ignore
+    # Paginate through CQL results (max 10 pages of 100 to prevent infinite loops)
+    items: list[AtlassianItem] = []
+    page_size = 100
+    for page_num in range(10):
+        start_at = page_num * page_size
+        results = confluence.cql(cql, limit=page_size, start=start_at)  # type: ignore
 
-    # Map results to AtlassianItem models
-    items = []
-    for page in results.get("results", []):
-        try:
-            item = AtlassianItem(
-                type="confluence_page",
-                title=page["title"],
-                url=f"{base_url}/wiki{page['_links']['webui']}",
-                key=page["id"],
-                status=None,  # Confluence pages don't have status like Jira
-                updated=datetime.fromisoformat(
-                    page["history"]["lastUpdated"]["when"].replace("Z", "+00:00")
-                ),
-            )
-            items.append(item)
-        except (KeyError, ValueError) as e:
-            # Skip malformed pages but log as warning for visibility
-            logger.warning(
-                "confluence_page_malformed",
-                page_id=page.get("id", "unknown"),
-                error=str(e),
-            )
-            continue
+        pages = results.get("results", [])
+        for page in pages:
+            try:
+                item = AtlassianItem(
+                    type="confluence_page",
+                    title=page["title"],
+                    url=f"{base_url}/wiki{page['_links']['webui']}",
+                    key=page["id"],
+                    status=None,  # Confluence pages don't have status like Jira
+                    updated=datetime.fromisoformat(
+                        page["history"]["lastUpdated"]["when"].replace("Z", "+00:00")
+                    ),
+                )
+                items.append(item)
+            except (KeyError, ValueError) as e:
+                logger.warning(
+                    "confluence_page_malformed",
+                    page_id=page.get("id", "unknown"),
+                    error=str(e),
+                )
+                continue
+
+        # Stop if we got fewer results than the page size
+        if len(pages) < page_size:
+            break
 
     return items
 

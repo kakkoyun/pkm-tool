@@ -184,3 +184,92 @@ class TestGetAtlassianCredentials:
         config = {"base_url": "https://fallback.atlassian.net", "username": "u", "api_token": "t"}
         base_url, _, _ = _get_atlassian_credentials(config)
         assert base_url == "https://fallback.atlassian.net"
+
+
+class TestAtlassianPagination:
+    """Test offset-based pagination for Jira and Confluence."""
+
+    def test_jira_paginates_when_full_page(self, mocker):
+        """Jira fetches next page when first page is full (100 results)."""
+        mocker.patch(
+            "pkm_tool.sources.atlassian._get_atlassian_credentials",
+            return_value=("https://test.atlassian.net", "user@test.com", "token"),
+        )
+        mock_jira = mocker.patch("pkm_tool.sources.atlassian.Jira")
+        mock_confluence = mocker.patch("pkm_tool.sources.atlassian.Confluence")
+        mock_confluence.return_value.cql.return_value = {"results": []}
+
+        # First page: 100 issues (full page triggers next request)
+        page1_issues = [
+            {
+                "key": f"PROJ-{i}",
+                "fields": {
+                    "summary": f"Issue {i}",
+                    "status": {"name": "Open"},
+                    "updated": "2025-11-21T10:00:00Z",
+                },
+            }
+            for i in range(100)
+        ]
+        # Second page: 2 issues (partial = stop)
+        page2_issues = [
+            {
+                "key": "PROJ-100",
+                "fields": {
+                    "summary": "Issue 100",
+                    "status": {"name": "Open"},
+                    "updated": "2025-11-21T11:00:00Z",
+                },
+            },
+            {
+                "key": "PROJ-101",
+                "fields": {
+                    "summary": "Issue 101",
+                    "status": {"name": "Open"},
+                    "updated": "2025-11-21T12:00:00Z",
+                },
+            },
+        ]
+        mock_jira.return_value.jql.side_effect = [
+            {"issues": page1_issues},
+            {"issues": page2_issues},
+        ]
+
+        items = fetch_atlassian_items(TARGET_DATE, {})
+        jira_items = [i for i in items if i.type == "jira_issue"]
+
+        assert len(jira_items) == 102
+        assert mock_jira.return_value.jql.call_count == 2
+        # Verify second call used start=100
+        second_call = mock_jira.return_value.jql.call_args_list[1]
+        assert second_call.kwargs.get("start") == 100 or second_call[1].get("start") == 100
+
+    def test_jira_stops_on_partial_page(self, mocker):
+        """Jira stops when page has fewer than 100 results."""
+        mocker.patch(
+            "pkm_tool.sources.atlassian._get_atlassian_credentials",
+            return_value=("https://test.atlassian.net", "user@test.com", "token"),
+        )
+        mock_jira = mocker.patch("pkm_tool.sources.atlassian.Jira")
+        mock_confluence = mocker.patch("pkm_tool.sources.atlassian.Confluence")
+        mock_confluence.return_value.cql.return_value = {"results": []}
+
+        mock_jira.return_value.jql.return_value = {
+            "issues": [
+                {
+                    "key": "PROJ-1",
+                    "fields": {
+                        "summary": "Issue 1",
+                        "status": {"name": "Open"},
+                        "updated": "2025-11-21T10:00:00Z",
+                    },
+                }
+            ]
+        }
+
+        items = fetch_atlassian_items(TARGET_DATE, {})
+        jira_items = [i for i in items if i.type == "jira_issue"]
+
+        assert len(jira_items) == 1
+        # Only one page requested since first page was partial
+        assert mock_jira.return_value.jql.call_count == 1

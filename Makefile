@@ -68,6 +68,7 @@ test/slow: ## Show only slow tests (>1s)
 .PHONY: format lint check format/python format/python/check format/yaml format/markdown format/shell typecheck/python
 .PHONY: lint/python lint/python/fix lint/shell lint/actions lint/yaml lint/makefile
 .PHONY: lint/markdown lint/markdown/fix lint/skylos lint/complexipy
+.PHONY: lint/security audit/deps
 
 format: format/python format/markdown format/shell format/yaml ## Format all code (Python, Markdown, Shell, YAML)
 
@@ -93,7 +94,7 @@ format/shell: ## Format shell scripts with shfmt
 		find . -name "*.sh" -not -path "./.venv/*" -not -path "./venv/*" -exec shfmt -i 2 -ci -w {} + 2>/dev/null || true; \
 	fi
 
-lint: lint/python lint/shell lint/actions lint/yaml lint/markdown lint/makefile typecheck/python lint/skylos lint/complexipy ## Run all linters
+lint: lint/python lint/shell lint/actions lint/yaml lint/markdown lint/makefile typecheck/python lint/skylos lint/complexipy lint/security ## Run all linters
 
 lint/python: ## Run Python linter (via pre-commit)
 	pre-commit run ruff --all-files
@@ -129,6 +130,12 @@ lint/skylos: ## Run Skylos quality gate (via pre-commit)
 
 lint/complexipy: ## Run complexity gate (via pre-commit)
 	pre-commit run complexipy --all-files
+
+lint/security: ## Run security linter (bandit)
+	uv run bandit -r src/ -c pyproject.toml -q
+
+audit/deps: ## Audit dependencies for vulnerabilities (pip-audit)
+	uv run pip-audit
 
 lint/commits: ## Check commit messages with commitlint
 	@echo "Validating commit messages with commitlint..."
@@ -299,7 +306,7 @@ help: ## Display this help message
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Section 3: Code Quality"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@grep -E '^(format|lint|typecheck|check|fix)[a-z/-]*:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(format|lint|typecheck|check|fix|audit)[a-z/-]*:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "Section 4: Pre-commit Integration"

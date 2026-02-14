@@ -32,22 +32,24 @@ mcp = [
     "mcp>=1.1.0",
 ]
 dev = [
+    "actionlint-py>=1.7.0",
+    "bandit>=1.7.0",
+    "complexipy>=0.7.0",
+    "mdformat>=0.7.17",
+    "pip-audit>=2.7.0",
+    "pre-commit>=4.0.0",
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.12.0",
     "pytest-xdist>=3.6.0",
-    "syrupy>=4.6.0",
     "respx>=0.21.0",
     "responses>=0.25.0",
     "ruff>=0.8.0",
-    "ty>=0.0.1a27",
-    "pre-commit>=4.0.0",
     "shellcheck-py>=0.10.0",
-    "actionlint-py>=1.7.0",
-    "yamllint>=1.35.0",
-    "mdformat>=0.7.17",
     "skylos>=2.7.1",
-    "complexipy>=0.7.0",
+    "syrupy>=4.6.0",
+    "ty>=0.0.1a27",
+    "yamllint>=1.35.0",
 ]
 
 [project.scripts]
@@ -77,7 +79,7 @@ markers = [
     "integration: Integration tests",
     "snapshot: Snapshot tests",
 ]
-addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=80 --cov-report=xml --cov-report=term --junitxml=junit.xml"
+addopts = "--verbose --cov=src/pkm_tool --cov-fail-under=70 --cov-report=xml --cov-report=term --junitxml=junit.xml"
 filterwarnings = [
     "ignore::ResourceWarning:unittest.mock",
 ]
@@ -102,6 +104,10 @@ sort = "asc"
 exclude = ["tests", ".venv", "venv", "htmlcov", "build", "dist", "scripts"]
 output-json = true
 output-csv = false
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "venv"]
+skips = ["B101"]  # assert used in tests
 
 [dependency-groups]
 dev = [

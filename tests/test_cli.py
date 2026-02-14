@@ -10,11 +10,11 @@ from syrupy.assertion import SnapshotAssertion
 
 from pkm_tool.cli import (
     _generate_date_range,
-    _parse_date,
-    _parse_relative_date,
+    _parse_date_for_cli,
     _validate_date_options,
     cli,
 )
+from pkm_tool.dates import parse_relative_date
 from pkm_tool.logging import configure_logging, get_logger
 
 
@@ -232,17 +232,17 @@ def test_parse_relative_date_yesterday() -> None:
 
     today = date.today()
     expected = today - timedelta(days=1)
-    assert _parse_relative_date("yesterday") == expected
-    assert _parse_relative_date("YESTERDAY") == expected  # Case insensitive
-    assert _parse_relative_date("  Yesterday  ") == expected  # Whitespace trimming
+    assert parse_relative_date("yesterday") == expected
+    assert parse_relative_date("YESTERDAY") == expected  # Case insensitive
+    assert parse_relative_date("  Yesterday  ") == expected  # Whitespace trimming
 
 
 @pytest.mark.unit
 def test_parse_relative_date_today() -> None:
     """Test parsing 'today' returns current date."""
     today = date.today()
-    assert _parse_relative_date("today") == today
-    assert _parse_relative_date("TODAY") == today
+    assert parse_relative_date("today") == today
+    assert parse_relative_date("TODAY") == today
 
 
 @pytest.mark.unit
@@ -252,42 +252,42 @@ def test_parse_relative_date_tomorrow() -> None:
 
     today = date.today()
     expected = today + timedelta(days=1)
-    assert _parse_relative_date("tomorrow") == expected
+    assert parse_relative_date("tomorrow") == expected
 
 
 @pytest.mark.unit
 def test_parse_relative_date_unknown() -> None:
     """Test parsing unknown relative date returns None."""
-    assert _parse_relative_date("last week") is None
-    assert _parse_relative_date("2025-01-01") is None
-    assert _parse_relative_date("random string") is None
+    assert parse_relative_date("last week") is None
+    assert parse_relative_date("2025-01-01") is None
+    assert parse_relative_date("random string") is None
 
 
 @pytest.mark.unit
 def test_parse_date_relative_yesterday() -> None:
-    """Test _parse_date handles 'yesterday' correctly."""
+    """Test _parse_date_for_cli handles 'yesterday' correctly."""
     from datetime import timedelta
 
     logger = get_logger("test")
     today = date.today()
     expected = today - timedelta(days=1)
-    assert _parse_date("yesterday", logger) == expected
+    assert _parse_date_for_cli("yesterday", logger) == expected
 
 
 @pytest.mark.unit
 def test_parse_date_relative_today() -> None:
-    """Test _parse_date handles 'today' correctly."""
+    """Test _parse_date_for_cli handles 'today' correctly."""
     logger = get_logger("test")
     today = date.today()
-    assert _parse_date("today", logger) == today
+    assert _parse_date_for_cli("today", logger) == today
 
 
 @pytest.mark.unit
 def test_parse_date_absolute() -> None:
-    """Test _parse_date handles absolute dates correctly."""
+    """Test _parse_date_for_cli handles absolute dates correctly."""
     logger = get_logger("test")
-    assert _parse_date("2025-11-21", logger) == date(2025, 11, 21)
-    assert _parse_date("Nov 21, 2025", logger) == date(2025, 11, 21)
+    assert _parse_date_for_cli("2025-11-21", logger) == date(2025, 11, 21)
+    assert _parse_date_for_cli("Nov 21, 2025", logger) == date(2025, 11, 21)
 
 
 @pytest.mark.unit

@@ -23,7 +23,7 @@ def token_store(tmp_path: Path) -> TokenStore:
 @pytest.fixture
 def auth_manager(token_store: TokenStore, monkeypatch: pytest.MonkeyPatch) -> AuthManager:
     manager = AuthManager(token_store=token_store, refresh_margin_seconds=0)
-    monkeypatch.setattr("pkm_tool.cli._AUTH_MANAGER", manager)
+    monkeypatch.setattr("pkm_tool.cli.common._AUTH_MANAGER", manager)
     return manager
 
 

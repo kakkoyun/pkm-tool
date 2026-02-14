@@ -5,16 +5,16 @@ PKM Tool's data fetching capabilities as tools that can be used by AI assistants
 """
 
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import date
 from typing import Any, cast
 
-from dateutil import parser as date_parser
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from pkm_tool.aggregator import aggregate_data
 from pkm_tool.config import CacheConfig, load_config
+from pkm_tool.dates import parse_date
 from pkm_tool.formatters import format_as_json, format_as_markdown
 from pkm_tool.logging import get_logger
 from pkm_tool.models import AggregatedData
@@ -31,59 +31,6 @@ from pkm_tool.sources.whoop import (
 )
 
 logger = get_logger(__name__)
-
-
-def _parse_relative_date(date_input: str) -> date | None:
-    """
-    Parse relative date strings like 'yesterday', 'today', 'tomorrow'.
-
-    Args:
-        date_input: Relative date string (case-insensitive)
-
-    Returns:
-        Parsed date object or None if not a recognized relative date
-    """
-    from datetime import timedelta
-
-    today = datetime.now().date()
-    normalized = date_input.lower().strip()
-
-    relative_dates = {
-        "today": timedelta(days=0),
-        "yesterday": timedelta(days=-1),
-        "tomorrow": timedelta(days=1),
-    }
-
-    if normalized in relative_dates:
-        return today + relative_dates[normalized]
-
-    return None
-
-
-def _parse_date_string(date_str: str | None) -> date:
-    """
-    Parse date string to date object.
-
-    Supports:
-    - None: returns today's date
-    - Relative dates: 'yesterday', 'today', 'tomorrow' (case-insensitive)
-    - Absolute dates: YYYY-MM-DD, natural language via dateutil
-    """
-    if date_str is None:
-        return datetime.now().date()
-
-    # Try relative date parsing first
-    relative_result = _parse_relative_date(date_str)
-    if relative_result is not None:
-        return relative_result
-
-    # Fall back to dateutil for absolute dates
-    try:
-        parsed = date_parser.parse(date_str)
-        return parsed.date()
-    except (ValueError, TypeError) as e:
-        logger.error("date_parsing_failed", error=str(e), input=date_str)
-        raise ValueError(f"Invalid date format: {date_str}") from e
 
 
 def _fetch_aggregated_data(target_date: date, config_path: str | None = None) -> AggregatedData:
@@ -359,7 +306,7 @@ def create_mcp_server() -> Server:
         try:
             date_str = arguments.get("date")
             output_format = arguments.get("format", "markdown")
-            target_date = _parse_date_string(date_str)
+            target_date = parse_date(date_str)
 
             if name == "fetch_aggregated_data":
                 data = _fetch_aggregated_data(target_date)

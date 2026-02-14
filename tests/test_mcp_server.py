@@ -58,20 +58,20 @@ def test_create_mcp_server() -> None:
 
 @pytest.mark.unit
 def test_parse_date_string() -> None:
-    """Test date string parsing."""
-    from pkm_tool.mcp_server.server import _parse_date_string
+    """Test date string parsing (via shared dates module)."""
+    from pkm_tool.dates import parse_date
 
     # Test explicit date
-    result = _parse_date_string("2025-12-01")
+    result = parse_date("2025-12-01")
     assert result == date(2025, 12, 1)
 
     # Test None (should return today)
-    result = _parse_date_string(None)
+    result = parse_date(None)
     assert isinstance(result, date)
 
     # Test invalid date
     with pytest.raises(ValueError):
-        _parse_date_string("not-a-date-12345")
+        parse_date("not-a-date-12345")
 
 
 @pytest.mark.unit

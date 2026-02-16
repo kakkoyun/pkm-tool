@@ -15,6 +15,9 @@ logger = structlog.get_logger(__name__)
 # Whoop API v2 base URL
 WHOOP_API_BASE = "https://api.prod.whoop.com/developer"
 
+# Max pages per endpoint to prevent infinite pagination loops
+_MAX_PAGES = 10
+
 
 def _convert_millis_to_minutes(value: int | None, default: int = 0) -> int:
     """Convert milliseconds to minutes, with a default fallback."""
@@ -96,6 +99,26 @@ def _parse_workout_record(record: dict[str, Any], target_date: date) -> WhoopWor
     )
 
 
+def _parse_recovery_record(record: dict[str, Any], target_date: date) -> WhoopRecovery | None:
+    """Parse a single recovery record, return None if invalid or doesn't match target date."""
+    cycle_date_str = record.get("cycle_date")
+    if not cycle_date_str:
+        return None
+
+    cycle_date = datetime.fromisoformat(cycle_date_str.replace("Z", "+00:00")).date()
+    if cycle_date != target_date:
+        return None
+
+    score_data = record.get("score", {})
+    return WhoopRecovery(
+        recovery_score=score_data.get("recovery_score", 0.0),
+        hrv=score_data.get("hrv_rmssd_milli", 0.0),
+        resting_heart_rate=score_data.get("resting_heart_rate", 0),
+        spo2=score_data.get("spo2_percentage"),
+        skin_temp=score_data.get("skin_temp_celsius"),
+    )
+
+
 def fetch_whoop_recovery(
     target_date: date,
     config: dict[str, Any],
@@ -132,36 +155,34 @@ def fetch_whoop_recovery(
             start_str = target_date.strftime("%Y-%m-%dT00:00:00Z")
             end_str = target_date.strftime("%Y-%m-%dT23:59:59Z")
 
-            response = client.get(
-                f"{WHOOP_API_BASE}/v2/recovery",
-                params={"start": start_str, "end": end_str},
-            )
-            response.raise_for_status()
-            data = response.json()
+            # Paginate through results (max _MAX_PAGES to prevent infinite loops)
+            next_token = None
+            for _page_num in range(_MAX_PAGES):
+                params: dict[str, str] = {"start": start_str, "end": end_str}
+                if next_token:
+                    params["nextToken"] = next_token
 
-            # Parse recovery data
-            records = data.get("records", [])
-            for record in records:
-                # Filter by date
-                cycle_date_str = record.get("cycle_date")
-                if not cycle_date_str:
-                    continue
-
-                cycle_date = datetime.fromisoformat(cycle_date_str.replace("Z", "+00:00")).date()
-                if cycle_date != target_date:
-                    continue
-
-                # Extract recovery metrics
-                score_data = record.get("score", {})
-                recovery = WhoopRecovery(
-                    recovery_score=score_data.get("recovery_score", 0.0),
-                    hrv=score_data.get("hrv_rmssd_milli", 0.0),
-                    resting_heart_rate=score_data.get("resting_heart_rate", 0),
-                    spo2=score_data.get("spo2_percentage"),
-                    skin_temp=score_data.get("skin_temp_celsius"),
+                response = client.get(
+                    f"{WHOOP_API_BASE}/v2/recovery",
+                    params=params,
                 )
-                logger.info("whoop_recovery_fetched", recovery_score=recovery.recovery_score)
-                return recovery
+                response.raise_for_status()
+                data = response.json()
+
+                # Parse recovery records using helper function
+                records = data.get("records", [])
+                for record in records:
+                    recovery = _parse_recovery_record(record, target_date)
+                    if recovery:
+                        logger.info(
+                            "whoop_recovery_fetched",
+                            recovery_score=recovery.recovery_score,
+                        )
+                        return recovery
+
+                next_token = data.get("next_token")
+                if not next_token:
+                    break
 
         logger.debug("whoop_recovery_not_found", date=str(target_date))
 
@@ -207,23 +228,33 @@ def fetch_whoop_sleep(
         with client:
             # Fetch sleep cycles for date range
             # Whoop API v2: GET /v2/activity/sleep
-            # API requires ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SSZ)
             start_str = target_date.strftime("%Y-%m-%dT00:00:00Z")
             end_str = target_date.strftime("%Y-%m-%dT23:59:59Z")
 
-            response = client.get(
-                f"{WHOOP_API_BASE}/v2/activity/sleep",
-                params={"start": start_str, "end": end_str},
-            )
-            response.raise_for_status()
-            data = response.json()
+            # Paginate through results (max _MAX_PAGES to prevent infinite loops)
+            next_token = None
+            for _page_num in range(_MAX_PAGES):
+                params: dict[str, str] = {"start": start_str, "end": end_str}
+                if next_token:
+                    params["nextToken"] = next_token
 
-            # Parse sleep cycles using helper function
-            records = data.get("records", [])
-            for record in records:
-                sleep_cycle = _parse_sleep_record(record, target_date)
-                if sleep_cycle:
-                    sleep_cycles.append(sleep_cycle)
+                response = client.get(
+                    f"{WHOOP_API_BASE}/v2/activity/sleep",
+                    params=params,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                # Parse sleep cycles using helper function
+                records = data.get("records", [])
+                for record in records:
+                    sleep_cycle = _parse_sleep_record(record, target_date)
+                    if sleep_cycle:
+                        sleep_cycles.append(sleep_cycle)
+
+                next_token = data.get("next_token")
+                if not next_token:
+                    break
 
         logger.info("whoop_sleep_fetched", cycle_count=len(sleep_cycles))
 
@@ -269,23 +300,33 @@ def fetch_whoop_workouts(
         with client:
             # Fetch workouts for date range
             # Whoop API v2: GET /v2/activity/workout
-            # API requires ISO 8601 datetime format (YYYY-MM-DDTHH:MM:SSZ)
             start_str = target_date.strftime("%Y-%m-%dT00:00:00Z")
             end_str = target_date.strftime("%Y-%m-%dT23:59:59Z")
 
-            response = client.get(
-                f"{WHOOP_API_BASE}/v2/activity/workout",
-                params={"start": start_str, "end": end_str},
-            )
-            response.raise_for_status()
-            data = response.json()
+            # Paginate through results (max _MAX_PAGES to prevent infinite loops)
+            next_token = None
+            for _page_num in range(_MAX_PAGES):
+                params: dict[str, str] = {"start": start_str, "end": end_str}
+                if next_token:
+                    params["nextToken"] = next_token
 
-            # Parse workouts using helper function
-            records = data.get("records", [])
-            for record in records:
-                workout = _parse_workout_record(record, target_date)
-                if workout:
-                    workouts.append(workout)
+                response = client.get(
+                    f"{WHOOP_API_BASE}/v2/activity/workout",
+                    params=params,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                # Parse workouts using helper function
+                records = data.get("records", [])
+                for record in records:
+                    workout = _parse_workout_record(record, target_date)
+                    if workout:
+                        workouts.append(workout)
+
+                next_token = data.get("next_token")
+                if not next_token:
+                    break
 
         logger.info("whoop_workouts_fetched", workout_count=len(workouts))
 

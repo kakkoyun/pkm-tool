@@ -1,11 +1,12 @@
 """FastAPI application for PKM tool REST API."""
 
+import os
+import uuid
 from collections.abc import Callable
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, cast
 
-from dateutil import parser as date_parser
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,8 +14,9 @@ from pydantic import BaseModel, Field
 
 from pkm_tool.aggregator import aggregate_data
 from pkm_tool.config import CacheConfig, Config, load_config
+from pkm_tool.dates import parse_date
 from pkm_tool.formatters import format_as_json, format_as_markdown
-from pkm_tool.logging import configure_logging, get_logger
+from pkm_tool.logging import bind_correlation_id, configure_logging, get_logger
 from pkm_tool.models import AggregatedData
 from pkm_tool.sources.apple_calendar import fetch_calendar_events
 from pkm_tool.sources.atlassian import fetch_atlassian_items
@@ -49,15 +51,28 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Add CORS middleware - allow all origins for development
-# TODO: Make this configurable via environment variable or config file for production
+# CORS origins from PKM_CORS_ORIGINS env var (comma-separated), default to * for development
+_cors_origins_raw = os.environ.get("PKM_CORS_ORIGINS", "*")
+_cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,  # type: ignore[arg-type]  # FastAPI/Starlette typing issue
-    allow_origins=["*"],  # Development mode - configure for production use
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Any, call_next: Any) -> Any:
+    """Add correlation ID to each request for log tracing."""
+    cid = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+    bind_correlation_id(cid)
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = cid
+    return response
+
 
 # Global config - loaded once at startup
 _config: Config | None = None
@@ -220,15 +235,10 @@ async def get_config_info() -> dict[str, Any]:
 
 def _parse_target_date(date_str: str | None) -> date:
     """Parse date string or return today's date."""
-    if date_str is None:
-        return datetime.now().date()
-
     try:
-        parsed_date = date_parser.parse(date_str)
-        return parsed_date.date()
-    except (ValueError, TypeError) as e:
-        logger.error("date_parsing_failed", error=str(e), input=date_str)
-        raise HTTPException(status_code=400, detail=f"Invalid date format: {date_str}") from e
+        return parse_date(date_str)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 def _fetch_single_source(

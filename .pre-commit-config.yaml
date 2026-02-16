@@ -76,6 +76,16 @@ repos:
       - id: commitlint
         stages: [commit-msg]
         additional_dependencies: ['@commitlint/config-conventional@19.8.1']
+  # Python security - bandit
+  - repo: local
+    hooks:
+      - id: bandit
+        name: bandit security linter
+        entry: uv run bandit
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [-r, src/, -c, pyproject.toml, -q]
   # Python type checking - ty (local)
   - repo: local
     hooks:

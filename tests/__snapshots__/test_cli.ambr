@@ -162,27 +162,14 @@
         "language": "Python"
       },
       {
-        "project": "awesome-app",
+        "project": "pkm-tool-backend",
         "duration_seconds": 3600,
         "language": "Python"
       }
     ],
     "google_docs": [],
     "whoop_recovery": null,
-    "whoop_sleep": [
-      {
-        "start": "2025-11-20T22:06:22.810000Z",
-        "end": "2025-11-21T06:22:53.770000Z",
-        "duration_minutes": 0,
-        "sleep_efficiency": 91.07231,
-        "light_sleep_minutes": null,
-        "deep_sleep_minutes": null,
-        "rem_sleep_minutes": null,
-        "awake_minutes": null,
-        "disturbances": null,
-        "sleep_performance": 90.0
-      }
-    ],
+    "whoop_sleep": [],
     "whoop_workouts": [],
     "metadata": {}
   }
@@ -237,27 +224,14 @@
         "language": "Python"
       },
       {
-        "project": "awesome-app",
+        "project": "pkm-tool-backend",
         "duration_seconds": 3600,
         "language": "Python"
       }
     ],
     "google_docs": [],
     "whoop_recovery": null,
-    "whoop_sleep": [
-      {
-        "start": "2025-11-20T22:06:22.810000Z",
-        "end": "2025-11-21T06:22:53.770000Z",
-        "duration_minutes": 0,
-        "sleep_efficiency": 91.07231,
-        "light_sleep_minutes": null,
-        "deep_sleep_minutes": null,
-        "rem_sleep_minutes": null,
-        "awake_minutes": null,
-        "disturbances": null,
-        "sleep_performance": 90.0
-      }
-    ],
+    "whoop_sleep": [],
     "whoop_workouts": [],
     "metadata": {}
   }
@@ -290,14 +264,7 @@
   **Total Time:** 3.00 hours
   
   - pkm-tool (Python): 2.00h
-  - awesome-app (Python): 1.00h
-  
-  ## 💪 Whoop Health Data
-  
-  **Sleep:**
-  - 22:06 - 06:22 (0m) - 91% efficiency
-    - Performance: 90%
-  
+  - pkm-tool-backend (Python): 1.00h
   
   
   '''
@@ -321,14 +288,7 @@
   **Total Time:** 3.00 hours
   
   - pkm-tool (Python): 2.00h
-  - awesome-app (Python): 1.00h
-  
-  ## 💪 Whoop Health Data
-  
-  **Sleep:**
-  - 22:06 - 06:22 (0m) - 91% efficiency
-    - Performance: 90%
-  
+  - pkm-tool-backend (Python): 1.00h
   
   
   '''
@@ -385,14 +345,7 @@
   **Total Time:** 3.00 hours
   
   - pkm-tool (Python): 2.00h
-  - awesome-app (Python): 1.00h
-  
-  ## 💪 Whoop Health Data
-  
-  **Sleep:**
-  - 22:06 - 06:22 (0m) - 91% efficiency
-    - Performance: 90%
-  
+  - pkm-tool-backend (Python): 1.00h
   
   
   '''

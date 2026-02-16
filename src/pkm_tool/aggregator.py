@@ -8,6 +8,8 @@ from typing import Any
 import structlog
 
 from pkm_tool.config import CacheConfig, SourceConfig, load_config
+from pkm_tool.exceptions import SourceError
+from pkm_tool.logging import bind_correlation_id
 from pkm_tool.models import AggregatedData
 from pkm_tool.sources.apple_calendar import fetch_calendar_events
 from pkm_tool.sources.atlassian import fetch_atlassian_items
@@ -89,6 +91,18 @@ def _fetch_from_source(
             duration_seconds=f"{duration:.2f}",
             items_count=count,
         )
+    except SourceError as e:
+        duration = time.time() - start_time
+        logger.warning(
+            "source_fetch_failed",
+            source=source_name,
+            error=str(e),
+            retriable=e.retriable,
+            duration_seconds=f"{duration:.2f}",
+            exc_info=True,
+        )
+        data.metadata[f"{source_name}_error"] = str(e)
+        data.metadata[f"{source_name}_retriable"] = e.retriable
     except Exception as e:
         duration = time.time() - start_time
         logger.warning(
@@ -115,6 +129,7 @@ def aggregate_data(
     Returns:
         AggregatedData containing all fetched information
     """
+    bind_correlation_id()
     logger.info("aggregate_data_started", target_date=str(target_date))
     config = load_config(config_path)
 
@@ -199,57 +214,42 @@ def aggregate_data(
         cache_config=cache_config,
     )
 
-    # Whoop has multiple endpoints (recovery, sleep, workouts) - handle separately
-    if config.whoop.enabled:
-        # Check weekend exclusion
-        skip_weekend = (
-            exclude_weekends_override
-            if exclude_weekends_override is not None
-            else config.whoop.exclude_weekends
-        )
-        if is_weekend and skip_weekend:
-            logger.info("source_skipped_weekend", source="whoop")
-        else:
-            logger.info("fetching_source", source="whoop", enabled=True)
-            start_time = time.time()
-            try:
-                # Fetch recovery data (single entry per day)
-                data.whoop_recovery = fetch_whoop_recovery(
-                    target_date, config.whoop.config, cache_config
-                )
-                recovery_count = 1 if data.whoop_recovery else 0
+    # Whoop endpoints each get independent error handling via _fetch_from_source
+    _fetch_from_source(
+        "whoop_recovery",
+        config.whoop,
+        target_date,
+        data,
+        fetch_whoop_recovery,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "whoop_recovery", result),
+        cache_config=cache_config,
+    )
 
-                # Fetch sleep cycles (can be multiple per day)
-                data.whoop_sleep = fetch_whoop_sleep(target_date, config.whoop.config, cache_config)
+    _fetch_from_source(
+        "whoop_sleep",
+        config.whoop,
+        target_date,
+        data,
+        fetch_whoop_sleep,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "whoop_sleep", result),
+        cache_config=cache_config,
+    )
 
-                # Fetch workouts (can be multiple per day)
-                data.whoop_workouts = fetch_whoop_workouts(
-                    target_date, config.whoop.config, cache_config
-                )
-
-                total_items = recovery_count + len(data.whoop_sleep) + len(data.whoop_workouts)
-                duration = time.time() - start_time
-                logger.info(
-                    "source_fetch_completed",
-                    source="whoop",
-                    duration_seconds=f"{duration:.2f}",
-                    items_count=total_items,
-                    recovery_count=recovery_count,
-                    sleep_count=len(data.whoop_sleep),
-                    workout_count=len(data.whoop_workouts),
-                )
-            except Exception as e:
-                duration = time.time() - start_time
-                logger.warning(
-                    "source_fetch_failed",
-                    source="whoop",
-                    error=str(e),
-                    duration_seconds=f"{duration:.2f}",
-                    exc_info=True,
-                )
-                data.metadata["whoop_error"] = str(e)
-    else:
-        logger.debug("source_disabled", source="whoop")
+    _fetch_from_source(
+        "whoop_workouts",
+        config.whoop,
+        target_date,
+        data,
+        fetch_whoop_workouts,
+        is_weekend,
+        exclude_weekends_override,
+        lambda d, result: setattr(d, "whoop_workouts", result),
+        cache_config=cache_config,
+    )
 
     logger.info("aggregate_data_completed", target_date=str(target_date))
     return data

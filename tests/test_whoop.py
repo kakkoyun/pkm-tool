@@ -594,3 +594,122 @@ class TestWhoopWithCache:
         result = fetch_whoop_workouts(target_date, whoop_config, cache_config)
 
         assert len(result) == 1
+
+
+class TestWhoopPagination:
+    """Tests for Whoop API pagination."""
+
+    @respx.mock
+    def test_sleep_pagination(self, whoop_config: dict[str, str]) -> None:
+        """Sleep endpoint follows next_token across pages."""
+        target_date = date(2025, 11, 21)
+        page1 = {
+            "records": [
+                {
+                    "start": "2025-11-20T22:00:00Z",
+                    "end": "2025-11-21T06:00:00Z",
+                    "score": {"total_in_bed_time_milli": 28800000},
+                }
+            ],
+            "next_token": "page2_cursor",
+        }
+        page2 = {
+            "records": [
+                {
+                    "start": "2025-11-21T13:00:00Z",
+                    "end": "2025-11-21T13:30:00Z",
+                    "score": {"total_in_bed_time_milli": 1800000},
+                }
+            ],
+        }
+
+        route = respx.get("https://api.prod.whoop.com/developer/v2/activity/sleep")
+        route.side_effect = [
+            httpx.Response(200, json=page1),
+            httpx.Response(200, json=page2),
+        ]
+
+        result = fetch_whoop_sleep(target_date, whoop_config)
+
+        assert len(result) == 2
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_workouts_pagination(self, whoop_config: dict[str, str]) -> None:
+        """Workouts endpoint follows next_token across pages."""
+        target_date = date(2025, 11, 21)
+        page1 = {
+            "records": [
+                {
+                    "start": "2025-11-21T06:00:00Z",
+                    "end": "2025-11-21T06:45:00Z",
+                    "sport_name": "Running",
+                    "score": {"strain": 15.2, "duration_milli": 2700000},
+                }
+            ],
+            "next_token": "next_page",
+        }
+        page2 = {
+            "records": [
+                {
+                    "start": "2025-11-21T18:00:00Z",
+                    "end": "2025-11-21T18:30:00Z",
+                    "sport_name": "Cycling",
+                    "score": {"strain": 8.0, "duration_milli": 1800000},
+                }
+            ],
+        }
+
+        route = respx.get("https://api.prod.whoop.com/developer/v2/activity/workout")
+        route.side_effect = [
+            httpx.Response(200, json=page1),
+            httpx.Response(200, json=page2),
+        ]
+
+        result = fetch_whoop_workouts(target_date, whoop_config)
+
+        assert len(result) == 2
+        assert result[0].sport_name == "Running"
+        assert result[1].sport_name == "Cycling"
+
+    @respx.mock
+    def test_recovery_pagination(self, whoop_config: dict[str, str]) -> None:
+        """Recovery endpoint paginates when target date not on first page."""
+        target_date = date(2025, 11, 21)
+        page1 = {
+            "records": [
+                {
+                    "cycle_date": "2025-11-20T00:00:00Z",
+                    "score": {
+                        "recovery_score": 70.0,
+                        "hrv_rmssd_milli": 50.0,
+                        "resting_heart_rate": 55,
+                    },
+                }
+            ],
+            "next_token": "page2",
+        }
+        page2 = {
+            "records": [
+                {
+                    "cycle_date": "2025-11-21T00:00:00Z",
+                    "score": {
+                        "recovery_score": 85.0,
+                        "hrv_rmssd_milli": 65.0,
+                        "resting_heart_rate": 48,
+                    },
+                }
+            ],
+        }
+
+        route = respx.get("https://api.prod.whoop.com/developer/v2/recovery")
+        route.side_effect = [
+            httpx.Response(200, json=page1),
+            httpx.Response(200, json=page2),
+        ]
+
+        result = fetch_whoop_recovery(target_date, whoop_config)
+
+        assert result is not None
+        assert result.recovery_score == 85.0
+        assert route.call_count == 2

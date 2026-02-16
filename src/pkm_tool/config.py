@@ -90,6 +90,15 @@ class CacheConfig(BaseModel):
     ttl_hours: int = 24  # Cache expiration time in hours
 
 
+class RetryConfig(BaseModel):
+    """Configuration for HTTP request retries."""
+
+    enabled: bool = True
+    max_retries: int = 3
+    base_delay: float = 1.0  # seconds
+    max_delay: float = 30.0  # seconds
+
+
 class Config(BaseModel):
     """Main configuration for PKM tool."""
 
@@ -102,6 +111,9 @@ class Config(BaseModel):
 
     # Cache settings
     cache: CacheConfig = Field(default_factory=CacheConfig)
+
+    # Retry settings
+    retry: RetryConfig = Field(default_factory=RetryConfig)
 
     # Source configurations (order here defines default display order)
     apple_calendar: SourceConfig = Field(default_factory=SourceConfig)

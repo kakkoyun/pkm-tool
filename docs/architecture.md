@@ -2,7 +2,9 @@
 
 ## Overview
 
-PKM Tool is a personal knowledge management system that aggregates daily data from seven external sources into formatted reports. The tool produces human-readable Markdown reports or machine-readable JSON output, enabling users to maintain comprehensive daily activity logs across multiple platforms.
+PKM Tool is a personal knowledge management system that aggregates daily data from seven external sources into formatted
+reports. The tool produces human-readable Markdown reports or machine-readable JSON output, enabling users to maintain
+comprehensive daily activity logs across multiple platforms.
 
 **Supported data sources:**
 
@@ -97,8 +99,8 @@ Output (Markdown/JSON)
 **Configuration hierarchy:**
 
 1. Project directory: `./.pkm.yaml`, `./.pkm.yml`, `./pkm-tool.yaml`
-2. Home directory: `~/.pkm.yaml`, `~/.pkm.yml`, `~/.pkm-tool.yaml`
-3. XDG config: `~/.config/pkm-tool/config.yaml`
+1. Home directory: `~/.pkm.yaml`, `~/.pkm.yml`, `~/.pkm-tool.yaml`
+1. XDG config: `~/.config/pkm-tool/config.yaml`
 
 **SourceConfig pattern:**
 
@@ -151,11 +153,11 @@ This pattern ensures consistency across all seven sources.
 **Smart file merging algorithm:**
 
 1. Parse existing markdown file to extract sections
-2. Identify PKM-generated sections (case-insensitive matching)
-3. Preserve preamble (content before first PKM section)
-4. Update existing PKM sections with new data
-5. Append new PKM sections that don't exist in file
-6. Preserve postamble (content after last PKM section)
+1. Identify PKM-generated sections (case-insensitive matching)
+1. Preserve preamble (content before first PKM section)
+1. Update existing PKM sections with new data
+1. Append new PKM sections that don't exist in file
+1. Preserve postamble (content after last PKM section)
 
 This allows users to mix automated data with personal journaling.
 
@@ -173,11 +175,11 @@ This allows users to mix automated data with personal journaling.
 **Token retrieval order:**
 
 1. Check encrypted token store (`~/.pkm-tool/tokens.db`)
-2. Check config YAML (`config.source.config["token"]`)
-3. Check environment variables (e.g., `GITHUB_TOKEN`)
-4. Return None if no token found
+1. Check config YAML (`config.source.config["token"]`)
+1. Check environment variables (e.g., `GITHUB_TOKEN`)
+1. Return None if no token found
 
-### Source Plugins (sources/*.py)
+### Source Plugins (sources/\*.py)
 
 **Purpose:** Independent data fetchers for each external service.
 
@@ -367,18 +369,18 @@ def fetch_*_activities(
 ## Data Flow
 
 1. **User invokes CLI:** `uv run pkm aggregate --date yesterday`
-2. **CLI parses arguments:** Validates date, loads configuration
-3. **CLI calls aggregator:** `aggregate_data(target_date, config)`
-4. **Aggregator loads config:** Validates YAML, applies defaults
-5. **Aggregator runs preflight:** Checks OAuth tokens, auto-refreshes if needed
-6. **Aggregator calls sources:** For each enabled source, calls `fetch_*_activities()`
-7. **Sources fetch data:** Make API calls, query databases, run CLI tools
-8. **Sources return models:** Typed Pydantic models, empty list on error
-9. **Aggregator collects results:** Builds AggregatedData with all source data
-10. **Aggregator returns to CLI:** AggregatedData with metadata (errors, timing)
-11. **CLI calls formatter:** `format_markdown()` or `format_json()`
-12. **Formatter produces output:** Structured text with sections, sorted by time
-13. **CLI writes output:** To stdout (single date) or files (date range)
+1. **CLI parses arguments:** Validates date, loads configuration
+1. **CLI calls aggregator:** `aggregate_data(target_date, config)`
+1. **Aggregator loads config:** Validates YAML, applies defaults
+1. **Aggregator runs preflight:** Checks OAuth tokens, auto-refreshes if needed
+1. **Aggregator calls sources:** For each enabled source, calls `fetch_*_activities()`
+1. **Sources fetch data:** Make API calls, query databases, run CLI tools
+1. **Sources return models:** Typed Pydantic models, empty list on error
+1. **Aggregator collects results:** Builds AggregatedData with all source data
+1. **Aggregator returns to CLI:** AggregatedData with metadata (errors, timing)
+1. **CLI calls formatter:** `format_markdown()` or `format_json()`
+1. **Formatter produces output:** Structured text with sections, sorted by time
+1. **CLI writes output:** To stdout (single date) or files (date range)
 
 ## Error Handling Philosophy
 
@@ -409,19 +411,19 @@ def fetch_*_activities(
 **Token retrieval priority:**
 
 1. **Token store** (encrypted SQLite): `~/.pkm-tool/tokens.db`
-2. **Config YAML**: `config.source.config["token"]`
-3. **Environment variables**: `GITHUB_TOKEN`, `WAKATIME_API_KEY`, etc.
+1. **Config YAML**: `config.source.config["token"]`
+1. **Environment variables**: `GITHUB_TOKEN`, `WAKATIME_API_KEY`, etc.
 
 **OAuth token lifecycle:**
 
 1. User runs `pkm auth login google-docs` (or auto-OAuth triggers)
-2. Browser opens to OAuth consent page
-3. User authorizes application
-4. Device code flow completes, token returned
-5. Token encrypted and stored in token store
-6. On subsequent runs, token loaded from store
-7. When token is within 5 minutes of expiry, auto-refresh
-8. If refresh fails, user prompted to re-authenticate
+1. Browser opens to OAuth consent page
+1. User authorizes application
+1. Device code flow completes, token returned
+1. Token encrypted and stored in token store
+1. On subsequent runs, token loaded from store
+1. When token is within 5 minutes of expiry, auto-refresh
+1. If refresh fails, user prompted to re-authenticate
 
 **Auto-OAuth behavior:**
 
@@ -435,30 +437,30 @@ def fetch_*_activities(
 **Adding a new data source:**
 
 1. Create Pydantic model in `models.py`
-2. Add field to `AggregatedData` model
-3. Create source module in `sources/new_source.py`
-4. Implement `fetch_new_source_items(target_date, config)` function
-5. Add source config to `Config` in `config.py`
-6. Add source call to `aggregator.py` with error handling
-7. Update formatters in `formatters.py` (Markdown and JSON)
-8. Add CLI subcommand in `cli.py`
-9. Write tests in `tests/test_new_source.py`
-10. Add fixtures in `tests/fixtures/new_source_fixtures.py`
+1. Add field to `AggregatedData` model
+1. Create source module in `sources/new_source.py`
+1. Implement `fetch_new_source_items(target_date, config)` function
+1. Add source config to `Config` in `config.py`
+1. Add source call to `aggregator.py` with error handling
+1. Update formatters in `formatters.py` (Markdown and JSON)
+1. Add CLI subcommand in `cli.py`
+1. Write tests in `tests/test_new_source.py`
+1. Add fixtures in `tests/fixtures/new_source_fixtures.py`
 
 **Adding a new output format:**
 
 1. Create formatter function in `formatters.py`
-2. Add format option to CLI (--format new_format)
-3. Update CLI to call new formatter
-4. Write tests for new formatter
+1. Add format option to CLI (--format new_format)
+1. Update CLI to call new formatter
+1. Write tests for new formatter
 
 **Adding authentication for a new source:**
 
 1. Create OAuth provider in `auth/oauth/new_source.py`
-2. Add token storage support in `auth/manager.py`
-3. Add login command to CLI (pkm auth login new-source)
-4. Update preflight checks in `auth/preflight.py`
-5. Update source to use auth manager for token retrieval
+1. Add token storage support in `auth/manager.py`
+1. Add login command to CLI (pkm auth login new-source)
+1. Update preflight checks in `auth/preflight.py`
+1. Update source to use auth manager for token retrieval
 
 ## Performance Considerations
 

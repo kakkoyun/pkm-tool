@@ -99,6 +99,26 @@ def _parse_workout_record(record: dict[str, Any], target_date: date) -> WhoopWor
     )
 
 
+def _parse_recovery_record(record: dict[str, Any], target_date: date) -> WhoopRecovery | None:
+    """Parse a single recovery record, return None if invalid or doesn't match target date."""
+    cycle_date_str = record.get("cycle_date")
+    if not cycle_date_str:
+        return None
+
+    cycle_date = datetime.fromisoformat(cycle_date_str.replace("Z", "+00:00")).date()
+    if cycle_date != target_date:
+        return None
+
+    score_data = record.get("score", {})
+    return WhoopRecovery(
+        recovery_score=score_data.get("recovery_score", 0.0),
+        hrv=score_data.get("hrv_rmssd_milli", 0.0),
+        resting_heart_rate=score_data.get("resting_heart_rate", 0),
+        spo2=score_data.get("spo2_percentage"),
+        skin_temp=score_data.get("skin_temp_celsius"),
+    )
+
+
 def fetch_whoop_recovery(
     target_date: date,
     config: dict[str, Any],
@@ -149,34 +169,16 @@ def fetch_whoop_recovery(
                 response.raise_for_status()
                 data = response.json()
 
-                # Parse recovery data
+                # Parse recovery records using helper function
                 records = data.get("records", [])
                 for record in records:
-                    # Filter by date
-                    cycle_date_str = record.get("cycle_date")
-                    if not cycle_date_str:
-                        continue
-
-                    cycle_date = datetime.fromisoformat(
-                        cycle_date_str.replace("Z", "+00:00")
-                    ).date()
-                    if cycle_date != target_date:
-                        continue
-
-                    # Extract recovery metrics
-                    score_data = record.get("score", {})
-                    recovery = WhoopRecovery(
-                        recovery_score=score_data.get("recovery_score", 0.0),
-                        hrv=score_data.get("hrv_rmssd_milli", 0.0),
-                        resting_heart_rate=score_data.get("resting_heart_rate", 0),
-                        spo2=score_data.get("spo2_percentage"),
-                        skin_temp=score_data.get("skin_temp_celsius"),
-                    )
-                    logger.info(
-                        "whoop_recovery_fetched",
-                        recovery_score=recovery.recovery_score,
-                    )
-                    return recovery
+                    recovery = _parse_recovery_record(record, target_date)
+                    if recovery:
+                        logger.info(
+                            "whoop_recovery_fetched",
+                            recovery_score=recovery.recovery_score,
+                        )
+                        return recovery
 
                 next_token = data.get("next_token")
                 if not next_token:

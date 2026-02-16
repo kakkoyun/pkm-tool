@@ -12,7 +12,7 @@ PKM Tool follows a pragmatic testing approach that balances comprehensive covera
 
 **Key principles:**
 
-- Tests should be fast (target: <10s for full suite)
+- Tests should be fast (target: \<10s for full suite)
 - Tests should be deterministic (no flaky tests)
 - Tests should be readable (clear arrange-act-assert structure)
 - Source tests use respx HTTP mocking instead of live APIs
@@ -63,7 +63,8 @@ tests/
 
 ### Centralized Fixture Import (conftest.py)
 
-All fixtures are defined in modular `fixtures/*.py` files and imported into `conftest.py` for availability across all test modules:
+All fixtures are defined in modular `fixtures/*.py` files and imported into `conftest.py` for availability across all
+test modules:
 
 ```python
 # tests/conftest.py
@@ -79,6 +80,7 @@ from tests.fixtures.github_fixtures import (
     mock_github_events,
     # ... more fixtures
 )
+
 # ... other fixture imports
 
 __all__ = [
@@ -117,13 +119,10 @@ def wakatime_api_response_data() -> dict:
 ```python
 @pytest.fixture
 def mock_wakatime_api_success(
-    respx_mock: respx.MockRouter,
-    wakatime_api_response_data: dict
+    respx_mock: respx.MockRouter, wakatime_api_response_data: dict
 ) -> respx.Route:
     """Mock successful Wakatime API response."""
-    route = respx_mock.get(
-        "https://wakatime.com/api/v1/users/current/summaries"
-    ).mock(
+    route = respx_mock.get("https://wakatime.com/api/v1/users/current/summaries").mock(
         return_value=Response(200, json=wakatime_api_response_data)
     )
     return route
@@ -135,9 +134,7 @@ def mock_wakatime_api_success(
 @pytest.fixture
 def mock_wakatime_api_unauthorized(respx_mock: respx.MockRouter) -> respx.Route:
     """Mock unauthorized Wakatime API response."""
-    route = respx_mock.get(
-        "https://wakatime.com/api/v1/users/current/summaries"
-    ).mock(
+    route = respx_mock.get("https://wakatime.com/api/v1/users/current/summaries").mock(
         return_value=Response(401, json={"error": "Unauthorized"})
     )
     return route
@@ -272,8 +269,8 @@ def test_github_activity_validation():
 - **config.py:** 85%+ (YAML loading, defaults, validation)
 - **formatters.py:** 90%+ (Markdown/JSON formatting, sorting)
 - **aggregator.py:** 80%+ (Source orchestration, error handling)
-- **sources/*.py:** 75%+ (Happy path, error paths, empty results)
-- **auth/*.py:** 80%+ (Token storage, OAuth flows, preflight)
+- **sources/\*.py:** 75%+ (Happy path, error paths, empty results)
+- **auth/\*.py:** 80%+ (Token storage, OAuth flows, preflight)
 - **cli.py:** 70%+ (Command parsing, user interactions)
 
 **Excluded from coverage:**
@@ -314,13 +311,10 @@ def new_source_api_response_data() -> dict:
 
 @pytest.fixture
 def mock_new_source_api_success(
-    respx_mock: respx.MockRouter,
-    new_source_api_response_data: dict
+    respx_mock: respx.MockRouter, new_source_api_response_data: dict
 ) -> respx.Route:
     """Mock successful New Source API response."""
-    route = respx_mock.get(
-        "https://api.newsource.com/v1/items"
-    ).mock(
+    route = respx_mock.get("https://api.newsource.com/v1/items").mock(
         return_value=Response(200, json=new_source_api_response_data)
     )
     return route
@@ -329,9 +323,7 @@ def mock_new_source_api_success(
 @pytest.fixture
 def mock_new_source_api_unauthorized(respx_mock: respx.MockRouter) -> respx.Route:
     """Mock unauthorized New Source API response."""
-    route = respx_mock.get(
-        "https://api.newsource.com/v1/items"
-    ).mock(
+    route = respx_mock.get("https://api.newsource.com/v1/items").mock(
         return_value=Response(401, json={"error": "Unauthorized"})
     )
     return route
@@ -340,9 +332,7 @@ def mock_new_source_api_unauthorized(respx_mock: respx.MockRouter) -> respx.Rout
 @pytest.fixture
 def mock_new_source_api_empty(respx_mock: respx.MockRouter) -> respx.Route:
     """Mock empty New Source API response."""
-    route = respx_mock.get(
-        "https://api.newsource.com/v1/items"
-    ).mock(
+    route = respx_mock.get("https://api.newsource.com/v1/items").mock(
         return_value=Response(200, json={"items": []})
     )
     return route
@@ -500,10 +490,7 @@ def test_aggregate_data_with_new_source(
 ):
     """Test aggregation including new source."""
     config = Config(
-        new_source=SourceConfig(
-            enabled=True,
-            config={"api_key": "test_key"}
-        )
+        new_source=SourceConfig(enabled=True, config={"api_key": "test_key"})
     )
 
     data = aggregate_data(date(2025, 11, 21), config)

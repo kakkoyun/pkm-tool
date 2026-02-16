@@ -106,6 +106,7 @@ class TestMapEventToActivity:
         assert activity is not None
         assert activity.type == "pr"
         assert activity.title == "Add new feature"
+        assert activity.details is not None
         assert "Action: opened" in activity.details
 
     def test_pr_event_filtered_action(self):
@@ -144,6 +145,7 @@ class TestMapEventToActivity:
         activity = _map_event_to_activity(mock_github_review_event, "testuser")
         assert activity is not None
         assert activity.type == "review"
+        assert activity.details is not None
         assert "Reviewed PR" in activity.details
 
     def test_unknown_event_type(self):

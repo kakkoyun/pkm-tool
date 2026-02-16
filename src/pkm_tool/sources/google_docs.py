@@ -17,6 +17,23 @@ logger = structlog.get_logger(__name__)
 _AUTH_MANAGER = AuthManager()
 
 
+def _parse_file_to_doc(file: dict[str, Any]) -> GoogleDoc:
+    """Parse a Google Drive API file response into a GoogleDoc model."""
+    doc_type = "document"
+    mime = file.get("mimeType", "")
+    if "spreadsheet" in mime:
+        doc_type = "spreadsheet"
+    elif "presentation" in mime:
+        doc_type = "presentation"
+
+    return GoogleDoc(
+        title=file["name"],
+        url=file["webViewLink"],
+        opened_at=datetime.fromisoformat(file["modifiedTime"].replace("Z", "+00:00")),
+        doc_type=doc_type,
+    )
+
+
 def fetch_google_docs(
     target_date: date,
     config: dict[str, Any],
@@ -94,21 +111,7 @@ def fetch_google_docs(
                 data = response.json()
 
                 for file in data.get("files", []):
-                    doc_type = "document"
-                    if "spreadsheet" in file.get("mimeType", ""):
-                        doc_type = "spreadsheet"
-                    elif "presentation" in file.get("mimeType", ""):
-                        doc_type = "presentation"
-
-                    doc = GoogleDoc(
-                        title=file["name"],
-                        url=file["webViewLink"],
-                        opened_at=datetime.fromisoformat(
-                            file["modifiedTime"].replace("Z", "+00:00")
-                        ),
-                        doc_type=doc_type,
-                    )
-                    docs.append(doc)
+                    docs.append(_parse_file_to_doc(file))
 
                 page_token = data.get("nextPageToken")
                 if not page_token:

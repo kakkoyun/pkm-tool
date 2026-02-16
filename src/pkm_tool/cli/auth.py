@@ -1,6 +1,7 @@
 """Authentication CLI subcommands."""
 
 import json
+from typing import Any
 
 import click
 
@@ -200,6 +201,132 @@ def _get_auth_source_key(source_name: str) -> str | None:
     return mapping.get(source_name)
 
 
+def _perform_atlassian_login(
+    cfg: Config, store_key: str, config_path: str | None, auth_manager: AuthManager
+) -> None:
+    """Handle the Atlassian-specific authentication flow (OAuth or API token)."""
+    atlas_cfg = cfg.atlassian.config
+    has_oauth_config = bool(atlas_cfg.get("client_id") and atlas_cfg.get("client_secret"))
+
+    if has_oauth_config:
+        try:
+            provider = _build_atlassian_provider(config_path)
+            token_response = provider.obtain_token_interactive()
+            if token_response is None:
+                raise click.ClickException("Atlassian OAuth authentication failed.")
+            auth_manager.save_oauth_token(store_key, token_response)
+            click.echo("✅ Atlassian OAuth credentials stored.")
+        except click.ClickException:
+            raise
+        except Exception as e:
+            raise click.ClickException(f"Atlassian OAuth failed: {e}") from e
+        return
+
+    # No OAuth config — offer guided setup or API token fallback
+    click.echo("\n" + "=" * 60)
+    click.echo("🔐 Atlassian Authentication Required")
+    click.echo("=" * 60)
+    click.echo(
+        "\nAtlassian recommends OAuth 2.0 for secure, modern authentication."
+        "\nBenefits:"
+        "\n  ✓ More secure (tokens auto-expire)"
+        "\n  ✓ Better user experience (browser-based)"
+        "\n  ✓ Automatic token refresh"
+        "\n  ✓ No need to manage API tokens manually\n"
+    )
+
+    if click.confirm("Set up OAuth authentication? (Recommended)", default=True):
+        _perform_atlassian_oauth_setup(cfg, store_key, auth_manager)
+    else:
+        _perform_atlassian_api_token_setup(atlas_cfg, store_key, auth_manager)
+
+
+def _perform_atlassian_oauth_setup(cfg: Config, store_key: str, auth_manager: AuthManager) -> None:
+    """Guide user through Atlassian OAuth app creation and authentication."""
+    oauth_app_url = "https://developer.atlassian.com/console/myapps/"
+    click.echo("\n📝 Step 1: Create an OAuth 2.0 app")
+    click.echo(f"Opening: {oauth_app_url}")
+    click.echo(
+        "\nFollow these steps:"
+        "\n  1. Click 'Create' → 'OAuth 2.0 integration'"
+        "\n  2. Enter app name (e.g., 'PKM Tool')"
+        "\n  3. Add callback URL: http://localhost:8643/callback"
+        "\n  4. Add permissions:"
+        "\n     - read:jira-work, read:jira-user"
+        "\n     - read:confluence-content.all, offline_access"
+        "\n  5. Save and note your Client ID and Client secret\n"
+    )
+
+    if not open_browser(oauth_app_url, cfg.preferred_browser):
+        click.echo("⚠️  Could not open browser. Please visit the URL above manually.")
+
+    if not click.confirm("\nHave you created the OAuth app?", default=True):
+        click.echo("❌ OAuth setup cancelled.")
+        raise click.Abort()
+
+    click.echo("\n📋 Step 2: Enter your OAuth credentials")
+    client_id = click.prompt("Client ID")
+    client_secret = click.prompt("Client secret", hide_input=True)
+
+    if not client_id or not client_secret:
+        click.echo("❌ Missing OAuth credentials.")
+        raise click.Abort()
+
+    click.echo("\n🚀 Step 3: Launching browser for authentication...")
+    try:
+        from pkm_tool.auth.oauth.atlassian import AtlassianOAuthProvider
+
+        provider = AtlassianOAuthProvider(
+            client_id, client_secret, preferred_browser=cfg.preferred_browser
+        )
+        token_response = provider.obtain_token_interactive()
+        if token_response is None:
+            raise click.ClickException("Atlassian OAuth authentication failed.")
+        auth_manager.save_oauth_token(store_key, token_response)
+        click.echo("✅ Atlassian OAuth authentication successful!")
+    except Exception as e:
+        raise click.ClickException(f"Atlassian OAuth failed: {e}") from e
+
+
+def _perform_atlassian_api_token_setup(
+    atlas_cfg: dict[str, Any], store_key: str, auth_manager: AuthManager
+) -> None:
+    """Fallback: collect Atlassian API token credentials interactively."""
+    click.echo("\nFalling back to API token authentication...")
+    base_url = click.prompt(
+        "Atlassian base URL",
+        default=atlas_cfg.get("base_url", "https://example.atlassian.net"),
+    )
+    username = click.prompt(
+        "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
+    )
+    api_token = click.prompt("Atlassian API token", hide_input=True)
+    payload = json.dumps({"base_url": base_url, "username": username, "api_token": api_token})
+    auth_manager.store_api_token(store_key, payload, token_type="atlassian_json")
+    click.echo("✅ Stored Atlassian API credentials securely.")
+
+
+def _perform_github_login(cfg: Config, store_key: str, auth_manager: AuthManager) -> None:
+    """Handle GitHub-specific authentication (gh CLI or PAT)."""
+    token = _try_gh_cli_token()
+    if token:
+        click.echo("✅ Found authenticated GitHub CLI, using its token")
+        auth_manager.store_api_token(store_key, token, token_type="pat")
+        return
+
+    pat_url = "https://github.com/settings/tokens/new?scopes=repo,read:user&description=pkm-tool"
+    click.echo("\nOpening browser to create a Personal Access Token...")
+    click.echo(f"→ {pat_url}\n")
+
+    if not open_browser(pat_url, cfg.preferred_browser):
+        click.echo("⚠️  Could not open browser automatically.")
+
+    click.echo("Create a token with 'repo' and 'read:user' scopes, then paste it below.")
+    token = click.prompt("GitHub token", hide_input=True)
+    auth_manager.store_api_token(store_key, token, token_type="pat")
+    click.echo("✅ GitHub token stored")
+
+
 def _perform_auth_login(source: str, config_path: str | None, auth_manager: AuthManager) -> None:
     """Perform authentication login for a source.
 
@@ -213,126 +340,11 @@ def _perform_auth_login(source: str, config_path: str | None, auth_manager: Auth
     cfg = load_config(config_path)
 
     if source == "atlassian":
-        atlas_cfg = cfg.atlassian.config
-        # Check if OAuth is configured (client_id + client_secret present)
-        has_oauth_config = bool(atlas_cfg.get("client_id") and atlas_cfg.get("client_secret"))
-
-        if has_oauth_config:
-            # Use OAuth flow
-            try:
-                provider = _build_atlassian_provider(config_path)
-                token_response = provider.obtain_token_interactive()
-                if token_response is None:
-                    raise click.ClickException("Atlassian OAuth authentication failed.")
-                auth_manager.save_oauth_token(store_key, token_response)
-                click.echo("✅ Atlassian OAuth credentials stored.")
-            except click.ClickException:
-                raise
-            except Exception as e:
-                raise click.ClickException(f"Atlassian OAuth failed: {e}") from e
-        else:
-            # No OAuth config - offer guided setup or API token fallback
-            click.echo("\n" + "=" * 60)
-            click.echo("🔐 Atlassian Authentication Required")
-            click.echo("=" * 60)
-            click.echo(
-                "\nAtlassian recommends OAuth 2.0 for secure, modern authentication."
-                "\nBenefits:"
-                "\n  ✓ More secure (tokens auto-expire)"
-                "\n  ✓ Better user experience (browser-based)"
-                "\n  ✓ Automatic token refresh"
-                "\n  ✓ No need to manage API tokens manually\n"
-            )
-
-            if click.confirm("Set up OAuth authentication? (Recommended)", default=True):
-                # Guide user through OAuth app setup
-                oauth_app_url = "https://developer.atlassian.com/console/myapps/"
-                click.echo("\n📝 Step 1: Create an OAuth 2.0 app")
-                click.echo(f"Opening: {oauth_app_url}")
-                click.echo(
-                    "\nFollow these steps:"
-                    "\n  1. Click 'Create' → 'OAuth 2.0 integration'"
-                    "\n  2. Enter app name (e.g., 'PKM Tool')"
-                    "\n  3. Add callback URL: http://localhost:8643/callback"
-                    "\n  4. Add permissions:"
-                    "\n     - read:jira-work, read:jira-user"
-                    "\n     - read:confluence-content.all, offline_access"
-                    "\n  5. Save and note your Client ID and Client secret\n"
-                )
-
-                if not open_browser(oauth_app_url, cfg.preferred_browser):
-                    click.echo("⚠️  Could not open browser. Please visit the URL above manually.")
-
-                if not click.confirm("\nHave you created the OAuth app?", default=True):
-                    click.echo("❌ OAuth setup cancelled.")
-                    raise click.Abort()
-
-                # Prompt for OAuth credentials
-                click.echo("\n📋 Step 2: Enter your OAuth credentials")
-                client_id = click.prompt("Client ID")
-                client_secret = click.prompt("Client secret", hide_input=True)
-
-                if not client_id or not client_secret:
-                    click.echo("❌ Missing OAuth credentials.")
-                    raise click.Abort()
-
-                # Launch OAuth flow
-                click.echo("\n🚀 Step 3: Launching browser for authentication...")
-                try:
-                    from pkm_tool.auth.oauth.atlassian import AtlassianOAuthProvider
-
-                    provider = AtlassianOAuthProvider(
-                        client_id,
-                        client_secret,
-                        preferred_browser=cfg.preferred_browser,
-                    )
-                    token_response = provider.obtain_token_interactive()
-                    if token_response is None:
-                        raise click.ClickException("Atlassian OAuth authentication failed.")
-                    auth_manager.save_oauth_token(store_key, token_response)
-                    click.echo("✅ Atlassian OAuth authentication successful!")
-                except Exception as e:
-                    raise click.ClickException(f"Atlassian OAuth failed: {e}") from e
-            else:
-                # Fall back to API token flow (legacy)
-                click.echo("\nFalling back to API token authentication...")
-                base_url = click.prompt(
-                    "Atlassian base URL",
-                    default=atlas_cfg.get("base_url", "https://example.atlassian.net"),
-                )
-                username = click.prompt(
-                    "Atlassian email", default=atlas_cfg.get("username", "user@example.com")
-                )
-                api_token = click.prompt("Atlassian API token", hide_input=True)
-                payload = json.dumps(
-                    {"base_url": base_url, "username": username, "api_token": api_token}
-                )
-                auth_manager.store_api_token(store_key, payload, token_type="atlassian_json")
-                click.echo("✅ Stored Atlassian API credentials securely.")
+        _perform_atlassian_login(cfg, store_key, config_path, auth_manager)
         return
 
-    # Special handling for GitHub (gh CLI integration + browser fallback)
     if source == "github":
-        token = _try_gh_cli_token()
-        if token:
-            click.echo("✅ Found authenticated GitHub CLI, using its token")
-            auth_manager.store_api_token(store_key, token, token_type="pat")
-            return
-
-        # Open browser to PAT creation page
-        pat_url = (
-            "https://github.com/settings/tokens/new?scopes=repo,read:user&description=pkm-tool"
-        )
-        click.echo("\nOpening browser to create a Personal Access Token...")
-        click.echo(f"→ {pat_url}\n")
-
-        if not open_browser(pat_url, cfg.preferred_browser):
-            click.echo("⚠️  Could not open browser automatically.")
-
-        click.echo("Create a token with 'repo' and 'read:user' scopes, then paste it below.")
-        token = click.prompt("GitHub token", hide_input=True)
-        auth_manager.store_api_token(store_key, token, token_type="pat")
-        click.echo("✅ GitHub token stored")
+        _perform_github_login(cfg, store_key, auth_manager)
         return
 
     if meta["type"] == "api_token":

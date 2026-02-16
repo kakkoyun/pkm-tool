@@ -2,8 +2,7 @@
 
 This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-KEEP THIS FILE UP TO DATE! (Add the end of each plan)!
-WHEN USER WORKS WITH A NEW FLOW!
+KEEP THIS FILE UP TO DATE! (Add the end of each plan)! WHEN USER WORKS WITH A NEW FLOW!
 
 MAKE SURE TO KEEP llm-tool.json UP TO DATE!
 
@@ -49,18 +48,11 @@ All commits MUST follow the [Conventional Commits v1.0.0](https://www.convention
 
 #### Types
 
-| Type | Description | Semantic Version |
-| ---------- | -------------------------------------- | ---------------- |
-| `feat` | New feature | MINOR |
-| `fix` | Bug fix | PATCH |
-| `docs` | Documentation only | - |
-| `style` | Code style (formatting, whitespace) | - |
-| `refactor` | Code changes (neither fix nor feature) | - |
-| `perf` | Performance improvements | PATCH |
-| `test` | Adding or updating tests | - |
-| `build` | Build system or dependencies | - |
-| `ci` | CI/CD configuration changes | - |
-| `chore` | Maintenance tasks, tooling | - |
+| Type | Description | Semantic Version | | ---------- | -------------------------------------- | ---------------- | |
+`feat` | New feature | MINOR | | `fix` | Bug fix | PATCH | | `docs` | Documentation only | - | | `style` | Code style
+(formatting, whitespace) | - | | `refactor` | Code changes (neither fix nor feature) | - | | `perf` | Performance
+improvements | PATCH | | `test` | Adding or updating tests | - | | `build` | Build system or dependencies | - | | `ci` |
+CI/CD configuration changes | - | | `chore` | Maintenance tasks, tooling | - |
 
 #### Scope
 
@@ -206,8 +198,8 @@ Use [Graphite CLI](https://graphite.dev/) for large features requiring multiple 
 
 #### What are Stacked PRs?
 
-Stacked PRs break large features into small, incremental changes built on top of each other.
-Each PR can be tested, reviewed, and merged independently while maintaining development velocity.
+Stacked PRs break large features into small, incremental changes built on top of each other. Each PR can be tested,
+reviewed, and merged independently while maintaining development velocity.
 
 **Benefits:**
 
@@ -235,15 +227,13 @@ git config rerere.enabled true
 
 #### Basic Commands
 
-| Command | Git Equivalent | Description |
-| ------------------------- | --------------------------------------------------- | ----------------------------- |
-| `gt create -am "message"` | `git branch` + `git checkout` + `git commit` | Create branch with commit |
-| `gt modify -a` | `git commit --fixup` + `git rebase -i --autosquash` | Amend current branch |
-| `gt sync` | `git checkout main` + `git pull` + `git merge main` | Sync all branches with remote |
-| `gt restack` | `git rebase` (manual) | Update stack after changes |
-| `gt log short` / `gt ls` | Multiple `git log` commands | View stack structure |
-| `gt submit` | `gh pr create` | Create PR for current branch |
-| `gt submit --stack` | Multiple `gh pr create` | Create PRs for entire stack |
+| Command | Git Equivalent | Description | | ------------------------- |
+--------------------------------------------------- | ----------------------------- | | `gt create -am "message"` |
+`git branch` + `git checkout` + `git commit` | Create branch with commit | | `gt modify -a` | `git commit --fixup` +
+`git rebase -i --autosquash` | Amend current branch | | `gt sync` | `git checkout main` + `git pull` + `git merge main`
+| Sync all branches with remote | | `gt restack` | `git rebase` (manual) | Update stack after changes | | `gt log short`
+/ `gt ls` | Multiple `git log` commands | View stack structure | | `gt submit` | `gh pr create` | Create PR for current
+branch | | `gt submit --stack` | Multiple `gh pr create` | Create PRs for entire stack |
 
 #### Creating a Stack
 
@@ -821,12 +811,15 @@ Cross-cutting: logging.py (correlation IDs), dates.py (shared date parsing)
 
 The tool follows a clean, modular architecture:
 
-1. **CLI Package** (`cli/`): Click-based interface decomposed into 6 modules — `__init__.py` (entry + aggregate), `common.py` (shared options/helpers), `auth.py` (auth subgroup), `sources.py` (7 source subcommands), `preflight.py` (auth checks), `servers.py` (MCP + HTTP server)
+1. **CLI Package** (`cli/`): Click-based interface decomposed into 6 modules — `__init__.py` (entry + aggregate),
+   `common.py` (shared options/helpers), `auth.py` (auth subgroup), `sources.py` (7 source subcommands), `preflight.py`
+   (auth checks), `servers.py` (MCP + HTTP server)
 1. **Aggregator**: Orchestrates data collection from all enabled sources with correlation ID threading
 1. **Sources**: Independent plugins for each data provider with retry and pagination
 1. **Models**: Pydantic models ensure type safety and validation
 1. **Formatters**: Transform aggregated data into output formats
-1. **Exceptions**: Domain exception hierarchy (`PKMError` → `SourceError` → `AuthenticationError`, `RateLimitError`, `NetworkError`)
+1. **Exceptions**: Domain exception hierarchy (`PKMError` → `SourceError` → `AuthenticationError`, `RateLimitError`,
+   `NetworkError`)
 1. **Retry**: `RetryTransport` wrapping httpx with exponential backoff, jitter, and `Retry-After` header support
 1. **Dates**: Shared date parsing module used by CLI, MCP server, and HTTP server
 
@@ -864,8 +857,10 @@ The tool follows a clean, modular architecture:
 
 #### Exceptions (`exceptions.py`)
 
-- **Domain exception hierarchy**: `PKMError` base → `SourceError(source, message, retriable)` → `AuthenticationError`, `RateLimitError(retry_after)`, `NetworkError`, `ConfigurationError`
-- **HTTP classification**: `classify_http_error()` in `sources/common.py` maps HTTP status codes to domain exceptions (401→Auth, 429→RateLimit, 5xx→retriable SourceError)
+- **Domain exception hierarchy**: `PKMError` base → `SourceError(source, message, retriable)` → `AuthenticationError`,
+  `RateLimitError(retry_after)`, `NetworkError`, `ConfigurationError`
+- **HTTP classification**: `classify_http_error()` in `sources/common.py` maps HTTP status codes to domain exceptions
+  (401→Auth, 429→RateLimit, 5xx→retriable SourceError)
 - **Retriable flag**: Each exception carries `retriable` boolean for retry logic
 
 #### Retry (`retry.py`)
@@ -885,11 +880,13 @@ The tool follows a clean, modular architecture:
 #### Aggregator (`aggregator.py`)
 
 - **Central coordination** of all data sources
-- **Correlation ID threading**: `bind_correlation_id()` generates UUID bound to structlog context; all log lines from a single invocation share the same ID
+- **Correlation ID threading**: `bind_correlation_id()` generates UUID bound to structlog context; all log lines from a
+  single invocation share the same ID
 - **Graceful error handling**: Each source fails independently, errors stored in metadata with domain exception types
 - **No cascading failures**: One broken source doesn't affect others
 - **Config-driven execution**: Only enabled sources are queried
-- **Whoop normalization**: Three separate `_fetch_from_source()` calls (recovery, sleep, workouts) instead of special-cased block
+- **Whoop normalization**: Three separate `_fetch_from_source()` calls (recovery, sleep, workouts) instead of
+  special-cased block
 
 #### Formatters (`formatters.py`)
 
@@ -920,7 +917,8 @@ The tool follows a clean, modular architecture:
   - `pkm auth list/status/login/logout/refresh` manages credentials with encrypted storage.
   - Google Docs login requires `client_id`/`client_secret` in config; other sources prompt for tokens.
 - **Auto-OAuth behavior** (default):
-  - When running `pkm aggregate`, browser OAuth is automatically launched for missing OAuth credentials (Google Docs, Whoop).
+  - When running `pkm aggregate`, browser OAuth is automatically launched for missing OAuth credentials (Google Docs,
+    Whoop).
   - No confirmation prompts - browser opens immediately for OAuth flow.
   - Use `--no-auto-oauth` flag to restore confirmation prompts.
   - Use `--non-interactive` flag to fail fast in CI/headless environments.
@@ -1105,8 +1103,10 @@ def fetch_*_activities(target_date: date, config: dict[str, Any]) -> list[Model]
 - **Models**: Test Pydantic validation, defaults, field requirements
 - **Config**: Test YAML loading, defaults, file discovery
 - **Formatters**: Test Markdown structure, sorting, error display
-- **Sources**: Dedicated test modules per source with respx HTTP mocking (github, atlassian, things, whoop, google_docs, wakatime)
-- **Contract tests**: 24 parameterized tests (`test_contracts.py`) verify all HTTP sources conform to the source interface (empty on missing token, HTTP 401/500, connection errors)
+- **Sources**: Dedicated test modules per source with respx HTTP mocking (github, atlassian, things, whoop, google_docs,
+  wakatime)
+- **Contract tests**: 24 parameterized tests (`test_contracts.py`) verify all HTTP sources conform to the source
+  interface (empty on missing token, HTTP 401/500, connection errors)
 - **Exceptions**: Full coverage of domain exception hierarchy and HTTP classification
 - **Retry**: Tests for exponential backoff, jitter, Retry-After header support
 - **Dates**: 15 tests for shared date parsing (ISO, relative, natural language)
@@ -1127,16 +1127,11 @@ make test                          # Run tests
 
 ### Authentication Methods
 
-| Source | Method | Config Key | Environment Variable |
-| -------------- | ----------- | ------------------- | -------------------- |
-| GitHub | gh CLI | `use_gh_cli: true` | N/A |
-| GitHub | Token | `token: ...` | `GITHUB_TOKEN` |
-| Wakatime | API Key | `api_key: ...` | `WAKATIME_API_KEY` |
-| Atlassian | API Token | `api_token: ...` | N/A |
-| Google Docs | OAuth2 | `access_token: ...` | N/A |
-| Whoop | OAuth2 | `access_token: ...` | `WHOOP_ACCESS_TOKEN` |
-| Apple Calendar | AppleScript | N/A | N/A (macOS only) |
-| Things | SQLite | N/A | N/A (macOS only) |
+| Source | Method | Config Key | Environment Variable | | -------------- | ----------- | ------------------- |
+-------------------- | | GitHub | gh CLI | `use_gh_cli: true` | N/A | | GitHub | Token | `token: ...` | `GITHUB_TOKEN` |
+| Wakatime | API Key | `api_key: ...` | `WAKATIME_API_KEY` | | Atlassian | API Token | `api_token: ...` | N/A | | Google
+Docs | OAuth2 | `access_token: ...` | N/A | | Whoop | OAuth2 | `access_token: ...` | `WHOOP_ACCESS_TOKEN` | | Apple
+Calendar | AppleScript | N/A | N/A (macOS only) | | Things | SQLite | N/A | N/A (macOS only) |
 
 ## Dependencies
 
@@ -1218,7 +1213,7 @@ Pre-commit hooks run automatically on `git commit`:
 
 - **Setup**: `make install-hooks` or `make pre-commit/install`
 - **Manual run**: `make pre-commit`
-- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint,
-  mdformat, checkmake, commitlint (commit-msg stage)
+- **Hooks**: ruff (lint + format), ty (type check), shellcheck, actionlint, yamllint, mdformat, checkmake, commitlint
+  (commit-msg stage)
 
 Pre-commit hooks catch issues before commit, reducing CI failures.

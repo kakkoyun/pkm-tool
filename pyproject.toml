@@ -107,7 +107,15 @@ output-csv = false
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv"]
-skips = ["B101"]  # assert used in tests
+skips = [
+    "B101",  # assert used in tests
+    "B105",  # false positives on TOKEN_ENDPOINT URLs and token_type metadata strings
+    "B106",  # false positives on token_type= keyword args (not actual passwords)
+    "B311",  # random.uniform for retry jitter — intentionally non-cryptographic
+    "B404",  # subprocess import — fundamental to CLI tool (gh, osascript, open)
+    "B603",  # subprocess without shell=True — list args is the safe pattern
+    "B607",  # partial executable path — runs well-known CLI tools (gh, osascript)
+]
 
 [dependency-groups]
 dev = [

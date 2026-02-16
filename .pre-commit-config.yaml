@@ -84,6 +84,7 @@ repos:
         entry: uv run bandit
         language: system
         types: [python]
+        pass_filenames: false
         args: [-r, src/, -c, pyproject.toml, -q]
   # Python type checking - ty (local)
   - repo: local
